@@ -34,22 +34,87 @@ Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `wo
 
 Quick sketch here; the full filter vocabulary, named-Filter entities, and common operational recipes (`apply-not-completed`, `unapplied-changes`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md` — reach for that when building queries.
 
-`--where` / `--where-field "<SQL-ish expr>"` filters on metadata fields:
+Three distinct flags. Get them mixed up and cub either rejects the command or silently returns the wrong rows.
+
+### `--where "<expr>"` — on `list` and bulk-operation commands
+
+Filters on entity metadata fields. Used by `cub unit list`, `cub trigger list`, `cub space list`, `cub filter list`, etc., and by bulk-operation commands (`cub unit update --where ...`, `cub run --where ...`, `cub function do --where ...`).
 
 ```
---where-field "Slug LIKE 'app-%'"
---where-field "Labels.Environment = 'production'"
---where-field "ResourceType = 'apps/v1/Deployment'"
+cub unit list --where "Slug LIKE 'app-%'"
+cub unit list --space "*" --where "Space.Labels.Environment = 'production'"
+cub trigger list --space "*" --where "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
-`--where-data "<path expression>"` filters on configuration content:
+### `--where-field "<expr>"` — on `cub filter create` / `update` only
+
+The stored metadata predicate of a named Filter entity. **Not accepted** on `list` commands or bulk operations — those use `--where`. Same SQL-ish syntax as `--where`.
 
 ```
---where-data "spec.replicas > 2"
---where-data "spec.template.spec.containers.*.image#reference = ':v1.2.3'"
+cub filter create --space platform --json standard-vets Trigger \
+  --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
-Filters are also first-class entities (`cub filter create …`) that can be referenced by slug — see `filters-and-queries.md` for the recipes.
+### `--where-data "<path expr>"` — on unit/function commands, and on Unit filters
+
+Filters on configuration content (the YAML inside a Unit). Accepted by:
+
+- `cub unit list`, `cub unit apply`, `cub unit update`, `cub function do`, `cub run`, and similar unit/function verbs.
+- `cub filter create --space <space> <slug> Unit --where-data "..."` — valid *only* when the Filter's `From` is `Unit`. Invalid for `Space`, `Trigger`, `Target`, or `Worker` Filters — configuration data is a Unit-level thing.
+
+```
+cub unit list --where-data "spec.replicas > 2"
+cub run --where-data "spec.template.spec.containers.*.image#reference LIKE ':v1.2.3'" set-container-image ...
+cub filter create --space <space> --json replicas-hot Unit --where-data "spec.replicas > 2"
+```
+
+`--where-data` expressions also accept a small set of `ConfigHub.*` resource-level pseudo-attributes alongside YAML paths:
+
+- `ConfigHub.ResourceType` — the `<apiVersion>/<Kind>` of a resource inside the Unit (e.g., `apps/v1/Deployment`).
+- `ConfigHub.ResourceName` — the resource's `<namespace>/<name>` (e.g., `hello/hello-app`); cluster-scoped resources have an empty namespace part.
+
+```
+# Every Unit holding a Deployment anywhere (per-resource match, bundles included).
+cub unit list --space "*" --where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"
+
+# Every Unit that contains a specific named resource.
+cub unit list --space "*" --where-data "ConfigHub.ResourceName = 'hello/hello-app'"
+```
+
+These work where any other `--where-data` works (unit/function commands, Unit Filters), and compose with YAML-path predicates via `AND`.
+
+### `--resource-type "<apiVersion>/<Kind>"` — on `cub filter create` Unit filters only
+
+Dedicated flag to filter a Unit Filter by Kubernetes resource type. Use this instead of trying to express "Deployments" in a `--where-field` expression.
+
+```
+cub filter create --space <space> --json deployment-filter Unit --resource-type "apps/v1/Deployment"
+```
+
+### `--where-space "<expr>"` — on `cub filter create` bulk mode
+
+Selects destination Spaces when the filter is being bulk-created. Rarely needed; see `cub filter create --help` for the pattern.
+
+### Attribute vocabulary for `--where` / `--where-field`
+
+Entity metadata attributes are entity-specific. Common ones on Units: `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`, `UnappliedChanges`, `ApprovedBy`, `ApplyGates`. Common ones on Triggers: `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, `Disabled`. Confirm with the entity's `--help` and `cub <entity> get --json` when composing a new query.
+
+**`ResourceType` is not a `--where` / `--where-field` attribute.** It's a resource-level pseudo-attribute under `--where-data` as `ConfigHub.ResourceType`, or the dedicated `--resource-type` flag on `cub filter create` Unit filters:
+
+```
+# Wrong — ResourceType is not a --where attribute:
+cub unit list --where "ResourceType = 'apps/v1/Deployment'"
+
+# Right — --where-data pseudo-attribute:
+cub unit list --where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"
+
+# Right — at the Filter entity level:
+cub filter create --space <space> --json deployments Unit --resource-type "apps/v1/Deployment"
+```
+
+`ToolchainType` *is* a valid `--where` attribute (`cub unit list --where "ToolchainType = 'Kubernetes/YAML'"`).
+
+Filters are also first-class entities (`cub filter create …`) that can be referenced by slug via `--filter <space>/<slug>` — see `filters-and-queries.md` for the recipes.
 
 ## Output flags
 
