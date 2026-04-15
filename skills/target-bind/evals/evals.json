@@ -1,0 +1,26 @@
+{
+  "skill_name": "target-bind",
+  "evals": [
+    {
+      "id": 1,
+      "name": "single-unit-single-cluster",
+      "prompt": "I have a worker running in my kind-dev cluster. Bind my 'checkout' unit in space myapp-dev to that cluster so I can apply it.",
+      "expected_output": "Preflights cub worker list to confirm the worker exists, composes the target JSON parameters including KubeContext and KubeNamespace, cub target create with --provider kubernetes --toolchain Kubernetes/YAML referencing the worker, cub unit set-target to attach the checkout unit, and verifies via cub target get and cub unit get (TargetID populated). Hands off to cub-apply as next step. Does not run apply.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "bulk-bind-by-label",
+      "prompt": "All units labeled Tier=backend in myapp-staging should deploy to the staging-target we already have in the shared targets space. Set that up for all of them.",
+      "expected_output": "Uses cub unit set-target --space myapp-staging --where \"Labels.Tier = 'backend'\" targets/staging-target, confirms the bulk blast radius with the user before running, and verifies via cub unit list --where \"TargetID IS NOT NULL AND Labels.Tier = 'backend'\" that the count matches. Does not create a new Target (reuses existing).",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "add-argo-renderer-to-existing",
+      "prompt": "We're switching from direct kubectl apply to Argo for our prod deploys. Add Argo output to our existing prod-target.",
+      "expected_output": "Uses cub target update (or recreates with multi-provider) to add ArgoCDRenderer alongside the existing Kubernetes provider, verifies the referenced Worker actually supports argocdrenderer via cub worker list-function, and notes that the switch will take effect on the next cub-apply. Does not try to migrate live Argo Applications outside of ConfigHub.",
+      "files": []
+    }
+  ]
+}

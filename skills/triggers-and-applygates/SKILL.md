@@ -2,7 +2,7 @@
 name: triggers-and-applygates
 description: Use when the user wants validation to be enforced (not just advisory) on ConfigHub Units, is setting up a new Space and wants policy to apply automatically, asks about ApplyGates, says "block bad config from being deployed", "wire up schema validation", "enforce a policy", "require approval", or needs to diagnose why a Unit is blocked from applying. This skill installs the platform-Space + Filter + TriggerFilterID pattern — centralized Triggers that run on every Mutation and attach ApplyGates when validation fails. Do not load for: running validators one-off without installing them (use cub-mutate with vet-* functions instead), or for authoring the YAML itself.
 phase: decide
-allowed-tools: Bash(cub context get *) Bash(cub space list *) Bash(cub space get *) Bash(cub unit list *) Bash(cub unit get *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub trigger list *) Bash(cub trigger get *) Bash(cub filter list *) Bash(cub filter get *) Bash(cub target list *) Bash(cub target get *) Bash(cub worker list *) Bash(cub worker get *) Bash(cub link list *) Bash(cub link get *) Bash(cub function list *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(CONFIGHUB_AGENT=1 cub function list *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *)
 ---
 
 # triggers-and-applygates
@@ -134,7 +134,7 @@ Clarifications: <condensed — e.g., "user confirmed min replicas = 2, not 3">
 3. `cub space get <app-space>` — `TriggerFilterID` references the Filter.
 4. Deliberately make a violating edit (e.g., introduce a placeholder) in a test Unit → confirm an ApplyGate attaches → fix → confirm it releases.
 
-## Trust surface
+## Evidence
 
 - `cub space get <space> --web` — Space page shows attached Triggers/Filter.
 - `cub unit get <slug> --space <space> --web` — shows gates on a Unit.

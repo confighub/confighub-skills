@@ -6,7 +6,7 @@ Every `SKILL.md` in this repo starts from this scaffold. Keep skills under ~300 
 ---
 name: <skill-slug>
 description: <One sentence on what the skill does AND when to trigger, including phrases a user would actually say. End with 1–2 concrete "do NOT load for" cases. Be a bit pushy — Claude undertriggers by default.>
-phase: decide | act | verify | close | cross-cutting
+phase: decide | act | verify | completion | cross-cutting
 allowed-tools: <Read set always; add Write set for mutating skills; add read-only diagnostics like Bash(kubectl get *), Bash(argocd app get *), Bash(flux get *) where the skill needs them. See references/cub-cli.md for the canonical Read and Write sets. Never grant Bash(cub *) or Bash(cub * delete *). Never grant mutating kubectl/argocd/flux patterns — mutations go through cub.>
 ---
 
@@ -66,7 +66,7 @@ For bulk `cub run`, the same description is recorded in every affected unit; phr
 
 How to prove the change landed (not just that `cub` returned success). Typically a short sequence of read-only commands ending in either a ConfigHub URL the user can click or a specific assertion.
 
-## Trust surface
+## Evidence
 
 - ConfigHub GUI page the user can open to review the change (prefer `cub unit get --web` or `cub revision list --web` over hand-built URLs).
 - Any relevant controller UI (Argo / Flux) for delivery verification.

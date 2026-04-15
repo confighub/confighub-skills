@@ -151,7 +151,7 @@ cub filter create --space <space> <slug> <From> --where-field "<expr>"
 The go-to filters for operating a ConfigHub-backed fleet. Create them once in a shared Space (e.g., `platform`) and reuse across apps.
 
 ```bash
-# Applied state differs from the head revision (drift between governed and live).
+# Applied state differs from the head revision (drift between ConfigHub state and what's live).
 cub filter create --space "$space" apply-not-completed Unit \
   --where-field "LastAppliedRevisionNum != LiveRevisionNum"
 
@@ -203,6 +203,8 @@ Change descriptions composed by the mutation skills make revision lookup self-ex
 cub revision list --space "$space" --where "UpdatedAt > '2026-04-01'"
 cub revision list <unit-slug> --space "$space"
 ```
+
+The full Revision data model — fields, per-path `MutationSources`, `ApplyGates`/`ApplyWarnings` snapshots, `ApprovedBy`, `LiveAt`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
 
 ## Getter functions for content extraction
 

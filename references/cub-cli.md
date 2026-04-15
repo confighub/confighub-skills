@@ -63,9 +63,13 @@ Filters are also first-class entities (`cub filter create …`) that can be refe
 
 `cub unit update`, `cub function do`, `cub run`, `cub unit update --patch` all accept `--change-desc`. **Always pass it** on mutations to configuration data. The description is stored in every affected unit's head revision. For `cub run` across many units, the same description is recorded in every affected unit — phrase it so it reads sensibly at the per-unit level.
 
-## Web trust surfaces
+## Showing mutation diffs
 
-Prefer `cub unit get --web`, `cub revision list --web`, and similar `--web` flags over hand-built GUI URLs. Those flags open the authoritative page.
+Any command that mutates configuration data (`cub unit update`, `cub function do`, `cub run`, `cub unit update --patch`) accepts `--display-mutation`, which prints a diff of the configuration change the command just produced. Include it on mutating calls by default — it's the cheapest way to verify the mutation did what you intended and gives the user something concrete to see in session output. The diff is the same one surfaced in the Unit's revision history afterward.
+
+## Review links in the GUI
+
+Prefer `cub unit get --web`, `cub revision list --web`, and similar `--web` flags over hand-built GUI URLs. Those flags open the authoritative page — the canonical place for a user to review state, revisions, approvals, and gates.
 
 ## Read-only diagnosis tools
 
@@ -79,11 +83,20 @@ Do **not** use any of these to mutate. Mutations always go through `cub`.
 
 Skills split `cub` permissions by read vs write. Read-only skills get only the **Read set**; mutating skills get Read + Write. Delete verbs are deliberately omitted — they belong to a separate opt-in `cleanup` skill with explicit confirmation.
 
-### Read set (read-only cub + agent-mode help)
+### Read set (read-only cub + help on every subcommand)
 
 ```
-Bash(cub context get *) Bash(cub space list *) Bash(cub space get *) Bash(cub unit list *) Bash(cub unit get *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub trigger list *) Bash(cub trigger get *) Bash(cub filter list *) Bash(cub filter get *) Bash(cub target list *) Bash(cub target get *) Bash(cub worker list *) Bash(cub worker get *) Bash(cub link list *) Bash(cub link get *) Bash(cub function list *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(CONFIGHUB_AGENT=1 cub function list *) Bash(CONFIGHUB_AGENT=1 cub function explain *)
+Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker logs *) Bash(cub worker status *)
 ```
+
+Why the wildcards are safe:
+
+- `Bash(cub * --help)` matches help on any subcommand — help is never mutating.
+- `Bash(cub * get)` / `Bash(cub * get *)` cover every entity's read verb (`cub unit get`, `cub space get`, `cub context get`, `cub trigger get`, `cub filter get`, `cub target get`, `cub worker get`, `cub revision get`, `cub link get`, …). `get` is universally read-only across cub entities.
+- `Bash(cub * list)` / `Bash(cub * list *)` cover every entity's list verb. `list` is universally read-only.
+- `Bash(cub * list-* *)` picks up multi-word list variants like `cub worker list-function`, `cub worker list-status`.
+- The five `cub unit <verb>` entries (`diff`, `tree`, `bridgestate`, `livedata`, `livestate`) and the two `cub worker <verb>` entries (`logs`, `status`) are read-only verbs that don't fit the `get`/`list` shape.
+- `cub function explain` is read-only but doesn't match the wildcards above (it's not `list` or `get`), so it's listed explicitly.
 
 ### Write set (add these to the Read set for mutating skills)
 

@@ -2,7 +2,7 @@
 name: cub-mutate
 description: Use whenever the user wants to change data inside a ConfigHub Unit — update an image, adjust replicas, set environment variables, add labels/annotations, change a resource field, apply defaults, or make a bulk edit across many units. This skill enforces the "prefer a function over a hand-edit" rule, composes a proper change description that captures the user's prompt and clarifications, and chooses between `cub function do` (single function, targeted or bulk) and `cub unit update` (whole-unit replacement or restore). Load proactively any time the user says "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or any natural request that will end in a write to ConfigHub. Do not load for: creating a brand-new Unit (use config-as-data), reading/inspecting config (use cub-query), or setting up validation (use triggers-and-applygates).
 phase: act
-allowed-tools: Bash(cub context get *) Bash(cub space list *) Bash(cub space get *) Bash(cub unit list *) Bash(cub unit get *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub trigger list *) Bash(cub trigger get *) Bash(cub filter list *) Bash(cub filter get *) Bash(cub target list *) Bash(cub target get *) Bash(cub worker list *) Bash(cub worker get *) Bash(cub link list *) Bash(cub link get *) Bash(cub function list *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(CONFIGHUB_AGENT=1 cub function list *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *)
 ---
 
 # cub-mutate
@@ -120,9 +120,12 @@ cub function do \
   --space <space> \
   --where "Slug = '<slug>'" \
   --change-desc "<composed description>" \
+  --display-mutation \
   -- \
   <function-name> [function args]
 ```
+
+`--display-mutation` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
 
 For multi-Unit runs, add `--wait` so you see completion.
 
@@ -164,7 +167,7 @@ Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisi
 2. `cub revision list <slug> --space <space>` — new revision present, `--change-desc` matches what you composed.
 3. `cub function do --space <space> --where "Slug = '<slug>'" vet-schemas vet-placeholders vet-format vet-merge-keys` (or rely on Triggers) — validation passes.
 
-## Trust surface
+## Evidence
 
 - `cub unit get <slug> --space <space> --web` — opens the Unit's current state.
 - `cub revision list <slug> --space <space> --web` — shows the revision history and the `--change-desc` recorded for each.

@@ -2,7 +2,7 @@
 name: cub-query
 description: Use whenever the user wants to find, count, inspect, or audit Kubernetes configuration across ConfigHub — "where is release X deployed?", "which units run more than 5 replicas?", "show me every Deployment using the old registry", "find units missing resource limits", "list all spaces with label env=prod", "what's the current image for checkout in each environment?", "audit what we have". ConfigHub treats configuration as data, so you can query across Units and Spaces the way you'd query a database. Load this any time the user's intent is "find / list / show / which / where / how many / audit" over ConfigHub state. Do not load for: mutating data (use cub-mutate), authoring new config (use config-as-data), or live cluster queries that don't involve ConfigHub (use kubectl).
 phase: verify
-allowed-tools: Bash(cub context get *) Bash(cub space list *) Bash(cub space get *) Bash(cub unit list *) Bash(cub unit get *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub trigger list *) Bash(cub trigger get *) Bash(cub filter list *) Bash(cub filter get *) Bash(cub target list *) Bash(cub target get *) Bash(cub worker list *) Bash(cub worker get *) Bash(cub link list *) Bash(cub link get *) Bash(cub function list *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(CONFIGHUB_AGENT=1 cub function list *) Bash(CONFIGHUB_AGENT=1 cub function explain *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *)
 ---
 
 # cub-query
@@ -143,7 +143,7 @@ Queries are read-only; the "verify" is cross-checking:
 2. When counts matter, show the count AND a spot-check of specific entries.
 3. Offer the GUI link for deeper exploration: `cub unit get <slug> --space <space> --web`.
 
-## Trust surface
+## Evidence
 
 - `cub unit get <slug> --space <space> --web` — the Unit page.
 - `cub space get <slug> --web` — Space page with attached Triggers/Filter.

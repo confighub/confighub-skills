@@ -1,0 +1,26 @@
+{
+  "skill_name": "confighub-core",
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-user-tour",
+      "prompt": "I'm new to ConfigHub. Can you give me a quick tour of how it works and what I should know to start using it for Kubernetes?",
+      "expected_output": "Explains the config-as-data model in a paragraph or two using plain language, names the primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate) with one-liners, surfaces the key invariants (--change-desc on Unit mutations, --display-mutation for inline diffs, mutations go through cub, Space topology is per-app-per-env), and routes to a concrete next step — usually skill-examples-bootstrap so the user has something to tinker with. Does not try to do a task.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "confusing-target-vs-worker",
+      "prompt": "What's the difference between a Target and a Worker in ConfigHub? I keep mixing them up.",
+      "expected_output": "Distinguishes cleanly: a Worker is a running process that executes operations (apply/refresh/import) against the real world; a Target is a binding that points at where a Unit should land (e.g., a specific Kubernetes cluster+namespace) and optionally references a Worker. Shows the relationship: Target names the destination, Worker does the work. Routes to worker-bootstrap or target-bind depending on which one the user actually needs to set up.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "generic-help-routes",
+      "prompt": "Help me use ConfigHub to change the replica count of my app from 1 to 3 in staging.",
+      "expected_output": "Recognizes this as a concrete mutation task and hands off immediately — does not re-explain the model. Routes to cub-mutate (the skill that handles field changes via functions with --change-desc), possibly with a brief note that staging should be its own Space. Does not itself run any cub command.",
+      "files": []
+    }
+  ]
+}

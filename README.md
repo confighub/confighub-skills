@@ -15,6 +15,7 @@ confighub-skills/
 ├── SKILL_TEMPLATE.md           shared scaffolding every skill inherits
 ├── references/                 shared reference material (loaded on demand)
 │   ├── cub-cli.md              CLI discipline + agent help mode + permission sets
+│   ├── revisions.md            Revision data model (fields, provenance, lifecycle)
 │   ├── filters-and-queries.md  filter vocabulary + operational Unit-filter recipes
 │   ├── functions-catalog.md    K8s/YAML functions worth knowing
 │   ├── triggers-recipes.md     platform-Space + Filter + TriggerFilterID recipe
@@ -24,14 +25,21 @@ confighub-skills/
     ├── triggers-and-applygates/
     ├── cub-mutate/
     ├── cub-query/
-    └── skill-examples-bootstrap/  creates the skill-examples playground Space
+    ├── skill-examples-bootstrap/  creates the skill-examples playground Space
+    ├── confighub-core/         orientation + routing (Wave 2)
+    ├── worker-bootstrap/       install bridge workers in clusters
+    ├── target-bind/            create Targets, attach Units to destinations
+    ├── cub-apply/              apply Units to their Targets
+    ├── verify-delivery/        cub → controller → cluster link verification
+    ├── reconciliation-check/   three-way ConfigHub/controller/cluster agreement
+    └── release-verify/         final read-only completion with Revision history + GUI review links
 ```
 
 More skills arrive in subsequent waves (CRUD + delivery, import paths, operate verbs, governance).
 
 ## Conventions every skill follows
 
-- **Phase** — `decide`, `act`, `verify`, `close`, or `cross-cutting`.
+- **Phase** — `decide`, `act`, `verify`, `completion`, or `cross-cutting`.
 - **Change descriptions** — every `cub unit update`, `cub function do`, `cub run` call (the Unit-mutation verbs) must pass `--change-desc` containing a summary line, the user's original prompt, and a condensed summary of any clarifying-question answers. Space/Trigger/Filter/Target creates don't accept `--change-desc` — those entities aren't versioned data.
 - **Preflight gates** — what must be true before acting; if a gate fails, stop.
 - **Stop conditions** — what makes the skill hand back control instead of continuing.

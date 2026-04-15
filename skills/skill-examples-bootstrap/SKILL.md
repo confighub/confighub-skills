@@ -2,7 +2,7 @@
 name: skill-examples-bootstrap
 description: Use when the user wants a working ConfigHub playground to exercise the other skills against — phrases like "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", "walk me through with a real example", "I'm new to ConfigHub, show me something I can poke at", or "reset the examples". Creates (or refreshes) a `skill-examples` Space with two seed Units — a `hello-ns` Namespace and a `hello-app` Deployment+Service bundle — and applies the canonical defaults-function chain so the end state demonstrates config-as-data with provenance intact. Idempotent: re-running is safe. Do not load for creating real application Spaces (use config-as-data + space setup directly) or for bootstrapping triggers/policy (use triggers-and-applygates).
 phase: cross-cutting
-allowed-tools: Bash(cub context get *) Bash(cub space list *) Bash(cub space get *) Bash(cub unit list *) Bash(cub unit get *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub function list *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(CONFIGHUB_AGENT=1 cub function list *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *) Bash(kubectl create *) Bash(mkdir -p /tmp/*) Bash(egrep *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *) Bash(kubectl create *) Bash(mkdir -p /tmp/*) Bash(egrep *)
 ---
 
 # skill-examples-bootstrap
@@ -162,7 +162,7 @@ Point them at the GUI and the other skills:
 3. `cub unit get hello-app --space skill-examples --yaml` — YAML contains `resources.requests`, all three probes, `securityContext`, and `namespace: confighubplaceholder`.
 4. `cub revision list hello-app --space skill-examples` — revision history includes the defaults functions with user-prompt-bearing change descriptions.
 
-## Trust surface
+## Evidence
 
 - `cub space get skill-examples --web` — Space overview.
 - `cub unit get hello-app --space skill-examples --web` — literal Unit YAML.

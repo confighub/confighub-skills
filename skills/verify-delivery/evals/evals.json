@@ -1,0 +1,26 @@
+{
+  "skill_name": "verify-delivery",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy-path-post-apply",
+      "prompt": "I just applied the checkout unit in myapp-prod. Did it actually deploy?",
+      "expected_output": "Reads cub unit get + cub unit bridgestate first (confirms LiveRevisionNum advanced, no action error, no gates), then — if the Target is Argo-backed — argocd app get (synced + healthy) and argocd app diff (empty), then kubectl get deploy + describe + pod status. Reports end-to-end in plain English. Does not mutate anything. Offers --web review links.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "broken-at-cluster",
+      "prompt": "The apply returned success but the old pods are still running. Something's wrong.",
+      "expected_output": "Still starts ConfigHub-side (bridge state, revision numbers) to confirm the apply did progress. Then checks controller + cluster, identifying the specific failure mode (ImagePullBackOff / CrashLoopBackOff / OOM / failed probes) via kubectl describe and kubectl logs. Reports the broken link in plain English, pointing at kubectl evidence, and stops without mutating. Suggests cub-mutate or cub-apply --revision LastAppliedRevisionNum (rollback) as next steps, doesn't run them.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "bulk-post-apply-triage",
+      "prompt": "We just applied all the staging units and most of them look okay, but I want to know if any didn't finish.",
+      "expected_output": "Uses cub unit list --space myapp-staging --filter platform/apply-not-completed to surface Units where LastAppliedRevisionNum != LiveRevisionNum, lists them with last action error/time, and for each one drills briefly into controller + cluster to name the broken link. Produces a compact summary rather than dumping everything. Does not mutate.",
+      "files": []
+    }
+  ]
+}

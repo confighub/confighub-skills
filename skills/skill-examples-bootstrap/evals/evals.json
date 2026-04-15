@@ -19,7 +19,7 @@
       "id": 3,
       "name": "walk-through-example",
       "prompt": "Walk me through ConfigHub with a real example I can see end to end.",
-      "expected_output": "Runs the bootstrap, then narrates what happened in plain English — Space created, Units seeded, defaults applied via functions (each with --change-desc), revision history shows provenance — and offers clickable trust URLs (cub unit get --web, cub revision list --web) so the user can see the outcome in the GUI. Does not dump YAML inline when a --web link would do.",
+      "expected_output": "Runs the bootstrap, then narrates what happened in plain English — Space created, Units seeded, defaults applied via functions (each with --change-desc), revision history shows provenance — and offers clickable review links (cub unit get --web, cub revision list --web) so the user can see the outcome in the GUI. Does not dump YAML inline when a --web link would do.",
       "files": []
     }
   ]

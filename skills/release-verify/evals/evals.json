@@ -1,0 +1,26 @@
+{
+  "skill_name": "release-verify",
+  "evals": [
+    {
+      "id": 1,
+      "name": "close-a-converged-release",
+      "prompt": "The myapp-prod deploy I just did is passing every check. Close it out and show me the Revision history to share.",
+      "expected_output": "Confirms preflight (LiveRevisionNum = HeadRevisionNum = LastAppliedRevisionNum, no gates, no action error — or refuses to complete if they don't), runs cub revision list surfacing the --change-desc of each recent revision, prints cub unit diff for the net change, opens cub unit get --web + cub revision list --web review links, and explicitly ends the session as read-only. Does not mutate beyond an optional tag if the user asks.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "premature-close-rejected",
+      "prompt": "We're done with the payments rollout in myapp-prod. Close it.",
+      "expected_output": "Runs the preflight gates, detects that verify-delivery / reconciliation-check have not completed in this session (or detects from the Unit state that convergence isn't done — e.g., LiveRevisionNum lags HeadRevisionNum), refuses to complete, and routes back to verify-delivery or reconciliation-check first. Does not pretend it's done. Surfaces evidence of the un-met gate.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "close-and-tag-release",
+      "prompt": "checkout in myapp-prod is live and verified. Close it and tag this as release-v1.4.0 for future reference.",
+      "expected_output": "Runs the read-only completion step (revision history + diff + --web URLs), then at the user's explicit request runs cub unit tag checkout --space myapp-prod --add Tag:release-v1.4.0. Checks the tag doesn't already exist (and asks before overwriting if it does). Ends the session read-only after. Does not thread a second change into the completion step.",
+      "files": []
+    }
+  ]
+}
