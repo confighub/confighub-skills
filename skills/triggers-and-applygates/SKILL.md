@@ -59,7 +59,7 @@ cub space create myapp-prod --trigger-filter platform/standard-vets --where-trig
 cub space update myapp-prod --trigger-filter platform/standard-vets --where-trigger "-"
 ```
 
-**Why `--where-trigger "-"`**: every Space is created with a default `WhereTrigger = SpaceID = '<this-space>'` that selects Triggers defined in the Space itself. Attaching a `--trigger-filter` does not clear that default — the two predicates coexist, and the stale default shadows the filter's selection (you'll see `# Triggers = 0` in `cub space get` even though the filter resolves correctly via `cub trigger list --filter <slug>`). Passing `--where-trigger "-"` clears it (the empty-string sentinel; plain `""` is indistinguishable from "flag not set"). Verify with `cub space get --json <space>` — `Triggers` should be populated.
+**Why `--where-trigger "-"`**: `WhereTrigger` and `TriggerFilterID` combine — both must match for a Trigger to apply to the Space. Every Space is created with a default `WhereTrigger = SpaceID = '<this-space>'` so Triggers defined in the Space itself apply by default. When you attach a cross-Space `--trigger-filter` (e.g., Triggers living in `platform`), that default still applies and nothing matches both predicates, so `# Triggers = 0` in `cub space get` even though `cub trigger list --filter <slug>` resolves the filter correctly. To use the filter alone, clear the default with `--where-trigger "-"` (the sentinel; plain `""` is indistinguishable from "flag not set"). Keep both predicates when you actually want the union's intersection — e.g., Space-local Triggers plus the platform baseline. Verify with `cub space get --json <space>` — `Triggers` should be populated.
 
 ## Adding custom policy
 
