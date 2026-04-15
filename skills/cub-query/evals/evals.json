@@ -1,0 +1,26 @@
+{
+  "skill_name": "cub-query",
+  "evals": [
+    {
+      "id": 1,
+      "name": "find-release-deployments",
+      "prompt": "Where is checkout v0.4.2 currently deployed? I need to know which spaces/environments have that release.",
+      "expected_output": "Uses `cub unit list` or `cub function do get-container-image` with --space \"*\" and a where-data or output-jq filter to surface every Unit containing image reference :v0.4.2, reports the unit/space pairs in plain English, and offers a cub unit get --web link for at least one. Does not mutate.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "audit-missing-resource-limits",
+      "prompt": "Audit: find every Deployment across all our spaces where any container is missing resource requests or limits. I want to know the scope before I fix them.",
+      "expected_output": "Constructs a query (using --where-data or a CEL-based get-cel / vet-cel) that identifies Deployments whose containers lack resources.requests or resources.limits. Reports counts and specific unit/space pairs. Recommends `set-container-resources-defaults` via cub-mutate as the follow-up but does not run it.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "recent-changes-and-why",
+      "prompt": "What got changed in the myapp-prod space in the last 48 hours, and why? I'm trying to understand an alert.",
+      "expected_output": "Runs `cub revision list --space myapp-prod` filtered by UpdatedAt, surfaces the revisions with their --change-desc values (which include the user prompt and clarifications recorded at mutation time), and summarizes the changes in plain English. Offers the GUI revision-list link.",
+      "files": []
+    }
+  ]
+}

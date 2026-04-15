@@ -1,0 +1,225 @@
+# Filters and queries
+
+ConfigHub supports two query languages:
+
+- **`--where`** filters on entity metadata (PascalCase attributes).
+- **`--where-data`** filters on the configuration content inside Units (path expressions into the YAML/JSON structure).
+
+Plus free-text search via `--contains`, and named `Filter` entities that persist queries and can be reused or attached to Spaces.
+
+Always verify flag spellings against `CONFIGHUB_AGENT=1 cub <command> --help` on the current cub version.
+
+## `--where` — entity metadata filtering
+
+Used with `list`, `function do`, `run`, and other bulk operations.
+
+### Syntax
+
+Conjunctions of relational expressions using `AND`:
+
+```
+ATTRIBUTE OPERATOR VALUE [AND ATTRIBUTE OPERATOR VALUE ...]
+```
+
+Attribute names are **case-sensitive PascalCase** as in JSON encoding (`Slug`, `DisplayName`, `Labels.tier`, `HeadRevisionNum`).
+
+### Common attributes
+
+All entities: `CreatedAt`, `UpdatedAt`, `DisplayName`, `Slug`, ID fields.
+
+Unit-specific: `HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`, `ApprovedBy`, `ApplyGates`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`.
+
+Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRevisionNum` on a Unit that has an upstream.
+
+### Operators
+
+| Type | Operators |
+|---|---|
+| Comparison | `=`, `!=`, `<`, `>`, `<=`, `>=` |
+| Pattern | `LIKE`, `NOT LIKE` (wildcards: `%`, `_`) |
+| Case-insensitive pattern | `ILIKE` |
+| Regex | `~`, `~*` (case-insensitive), `!~`, `!~*` |
+| Membership | `IN (...)`, `NOT IN (...)` |
+| Null check | `IS NULL`, `IS NOT NULL` |
+| Array contains | `?` |
+| Array length | `LEN(attr)` |
+| Truth test | `IS TRUE`, `IS FALSE`, `IS NOT TRUE`, `IS NOT FALSE` |
+
+### Examples
+
+```bash
+# Identity
+--where "Slug = 'myapp'"
+--where "Slug LIKE 'app-%'"
+--where "Slug ILIKE '%backend%'"
+--where "Slug ~ '^app-[0-9]+$'"
+--where "Slug IN ('app1', 'app2', 'app3')"
+
+# Labels
+--where "Labels.tier = 'Backend'"
+--where "Labels.tier IS NOT NULL"
+--where "Labels.Environment NOT IN ('development', 'test')"
+
+# Time
+--where "CreatedAt > '2025-01-01T00:00:00'"
+
+# Array operations
+--where "LEN(ApprovedBy) > 0"
+--where "ApprovedBy ? 'USER_UUID'"
+--where "LEN(ApplyGates) > 0"
+--where "ApplyGates.require-approval/vet-approvedby = true"
+
+# Revision state
+--where "HeadRevisionNum > LiveRevisionNum"   # pending changes
+--where "LiveRevisionNum = 0"                 # never applied
+--where "UpstreamRevisionNum > 0"             # cloned/downstream units
+
+# Conjunction
+--where "CreatedAt >= '2025-01-07' AND Slug = 'test' AND Labels.mykey = 'myvalue'"
+```
+
+### Flag-name variant
+
+Most commands use `--where`. `cub filter create` uses `--where-field` for its stored expression (to distinguish from `--where-data`). The SQL-ish body is the same in both cases.
+
+## `--where-data` — configuration content filtering
+
+Available with `cub unit list` (and a few related verbs — check `--help`). Filters by the actual content of configuration data.
+
+### Path syntax
+
+Dot-separated paths into the YAML/JSON structure:
+
+| Feature | Syntax | Example |
+|---|---|---|
+| Basic path | `key.subkey` | `spec.replicas` |
+| Array index | `key.N` | `spec.containers.0.image` |
+| Wildcard | `key.*` | `spec.containers.*.image` |
+| Associative match | `key.?field=value` | `spec.containers.?name=nginx.image` |
+| Split path | `path.*.\|subpath` | `spec.containers.*.\|securityContext.runAsNonRoot` |
+| Escaped dot | `~1` | `metadata.annotations.example~1com/key` |
+| Reference decomposition | `#reference`, `#uri` | `spec.template.spec.containers.*.image#reference = ':v1.2.3'` |
+
+### Operators
+
+`=`, `!=`, `<`, `>`, `<=`, `>=`
+
+### Examples
+
+```bash
+# Simple value check
+--where-data "spec.replicas > 1"
+
+# Specific container image
+--where-data "spec.template.spec.containers.0.image = 'nginx:latest'"
+
+# Any container
+--where-data "spec.template.spec.containers.*.image = 'nginx:latest'"
+
+# Image tag or repository by reference decomposition
+--where-data "spec.template.spec.containers.*.image#reference = ':v1.2.3'"
+--where-data "spec.template.spec.containers.*.image#uri ~ 'ghcr.io/acme/'"
+
+# Containers without a security context
+--where-data "spec.template.spec.containers.*.|securityContext.runAsNonRoot != true"
+
+# Conjunction + resource kind filter
+cub unit list --space SPACE --resource-type apps/v1/Deployment \
+  --where-data "spec.replicas > 1 AND metadata.labels.tier = 'frontend'"
+```
+
+## `--contains` — free-text search
+
+Case-insensitive search across string fields (`Slug`, `DisplayName`) and map fields (`Labels`, `Annotations`). Combinable with `--where`:
+
+```bash
+cub unit list --space SPACE --where "CreatedAt > '2025-01-01'" --contains "api"
+```
+
+## Named `Filter` entities
+
+Once a `Filter` exists, reference it by slug on list / function / trigger commands, and attach it to a Space as its `TriggerFilterID`.
+
+```bash
+cub filter create --space <space> <slug> <From> --where-field "<expr>"
+```
+
+`<From>` is one of `Unit`, `Space`, `Trigger`, `Worker`, `Target`. Add `--resource-type` to scope Unit filters to a specific K8s kind, and `--where-data` for content predicates.
+
+### Operational Unit-filter recipes
+
+The go-to filters for operating a ConfigHub-backed fleet. Create them once in a shared Space (e.g., `platform`) and reuse across apps.
+
+```bash
+# Applied state differs from the head revision (drift between governed and live).
+cub filter create --space "$space" apply-not-completed Unit \
+  --where-field "LastAppliedRevisionNum != LiveRevisionNum"
+
+# Unit has changes staged to apply but not yet applied.
+cub filter create --space "$space" unapplied-changes Unit \
+  --where-field "HeadRevisionNum > LiveRevisionNum AND TargetID IS NOT NULL"
+
+# Pending changes lacking required approvers.
+cub filter create --space "$space" not-approved Unit \
+  --where-field "HeadRevisionNum > LiveRevisionNum AND LEN(ApprovedBy) = 0"
+
+# Blocked by one or more ApplyGates.
+cub filter create --space "$space" has-apply-gates Unit \
+  --where-field "LEN(ApplyGates) > 0"
+
+# Downstream Unit is behind its upstream — an upgrade is available.
+cub filter create --space "$space" needs-upgrade Unit \
+  --where-field "Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"
+
+# Unit has an upstream relationship (i.e., is part of a promotion chain).
+cub filter create --space "$space" has-upstream Unit \
+  --where-field "UpstreamRevisionNum > 0"
+```
+
+### Using a named Filter
+
+```bash
+# List.
+cub unit list --space "*" --filter platform/has-apply-gates
+cub unit list --space "$app_space" --filter platform/needs-upgrade
+
+# Act in bulk only on the selected set.
+cub unit update --patch --space "*" --filter platform/needs-upgrade --upgrade \
+  --change-desc "Upgrade all downstream Units to upstream head.
+
+User prompt: <verbatim>
+Clarifications: <condensed>"
+```
+
+### As a Trigger scope
+
+A Filter over `Trigger` entities (not Units) is what gets attached to a Space via `--trigger-filter`. See `references/triggers-recipes.md`.
+
+## Revision history queries
+
+Change descriptions composed by the mutation skills make revision lookup self-explaining:
+
+```bash
+cub revision list --space "$space" --where "UpdatedAt > '2026-04-01'"
+cub revision list <unit-slug> --space "$space"
+```
+
+## Getter functions for content extraction
+
+For questions `--where-data` can't answer cleanly, reach for getter functions. Note: these run via `cub function do` which lives in the **Write** permission set (see `references/cub-cli.md` — the `function do` verb can invoke mutating functions, so it isn't reliably pattern-gateable to getters only).
+
+```bash
+# Current image for every Deployment across all spaces.
+cub function do --space "*" --resource-type apps/v1/Deployment \
+  get-container-image main \
+  --quiet --output-jq '.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
+
+# Every placeholder still present, grouped by Unit.
+cub function do --space "*" get-placeholders \
+  --quiet --output-jq '.[] | select(.Value != null)'
+
+# CEL extraction across resources.
+cub function do --space "*" --resource-type apps/v1/Deployment \
+  get-cel 'resource.spec.template.spec.containers.map(c, {"name": c.name, "image": c.image})' \
+  --quiet --output-only
+```
