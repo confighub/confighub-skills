@@ -108,18 +108,20 @@ cub trigger create --space platform --json require-approval Mutation Kubernetes/
 
 ## Tool boundary
 
-- Allowed: `cub space / trigger / filter / unit / revision` — all with `--change-desc` when mutating.
+- Allowed: `cub space / trigger / filter / unit / revision` — Unit-data mutations (`cub unit update`, `cub function do`, `cub run`) must pass `--change-desc`.
 - Not allowed: bypassing gates, disabling Triggers to unblock a single Unit, editing ApplyGates by hand.
 
 ## Change description
 
-Every `cub space create/update`, `cub trigger create/update/delete`, `cub filter create/update/delete` call passes `--change-desc`:
+`--change-desc` is a Unit-data-mutation flag only. It applies to `cub unit update`, `cub function do`, `cub run`, and `cub unit update --patch`. **It does not apply** to `cub space create/update`, `cub trigger create/update/delete`, `cub filter create/update/delete`, `cub target create/update`, or `cub worker create/update` — those entities aren't versioned configuration data and will reject the flag with `unknown flag: --change-desc`. The audit trail for Space/Trigger/Filter/Target/Worker operations is the entity's own history, not a per-call description.
+
+When this skill's flow does cause a Unit-data mutation (e.g., `cub unit update` while resolving a blocked apply), compose the description as:
 
 ```
-<summary: "Add require-ha trigger to platform space">
+<summary: "Fix placeholder that was blocking vet-placeholders gate">
 
 User prompt: <verbatim>
-Clarifications: <condensed — e.g., "user confirmed min replicas = 2, not 3">
+Clarifications: <condensed — e.g., "user confirmed the namespace value should be 'prod'">
 ```
 
 ## Stop conditions

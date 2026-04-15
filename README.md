@@ -55,3 +55,13 @@ Skills split `cub` permissions into a **Read set** and a **Write set** so that r
 See `references/cub-cli.md` → "Permission sets for `allowed-tools` frontmatter" for the canonical Read and Write sets and the one known ambiguity (`cub function do` / `cub run` live in the Write set only).
 
 The discipline means an end user loading a skill gets seamless, scoped auto-approval for exactly the operations the skill declares — not a blanket grant.
+
+## Running skill evaluations
+
+Subagent-based skill evaluations (`Agent` tool invocations that load a skill and try to complete a user task) don't inherit the parent session's interactive approvals — subagents can't prompt. To let eval subagents actually execute `cub` commands, copy the template:
+
+```bash
+cp .claude/settings.local.json.example .claude/settings.local.json
+```
+
+The allow-list in that file mirrors the Read + Write cub permission sets declared in `references/cub-cli.md`, scoped to exactly what the skills in this repo need. No bare wildcards, no delete verbs, no kubectl/argocd/flux grants. `.claude/settings.local.json` itself is gitignored; only the `.example` template is checked in.
