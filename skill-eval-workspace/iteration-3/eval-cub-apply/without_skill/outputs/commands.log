@@ -1,0 +1,4 @@
+$ cub info                          # invalid auth check
+$ cub unit apply hello-ns --space skill-examples --change-desc "..."   # --change-desc not valid on apply
+$ cub unit apply hello-app --space skill-examples --change-desc "..."  # same
+# no --dry-run, no --wait/--timeout, no ApplyGates preflight, no worker-status preflight

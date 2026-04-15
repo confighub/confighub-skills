@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Uses cub unit apply (the apply verb), not kubectl apply or argocd app sync", "passed": true, "evidence": "All three apply calls are `cub unit apply …`."},
+    {"text": "Includes --wait and --timeout on real applies", "passed": true, "evidence": "`cub unit apply hello-ns --wait --timeout 2m0s` and same for hello-app."},
+    {"text": "Does NOT pass --change-desc on cub unit apply", "passed": true, "evidence": "Write-up explicitly: 'No --change-desc — cub unit apply is a runtime operation, not a config-data mutation.'"},
+    {"text": "Runs a --dry-run on a non-trivial apply before the real one", "passed": true, "evidence": "`cub unit apply hello-app --dry-run` shown before the real apply."},
+    {"text": "Preflights ApplyGates with a LEN(ApplyGates) > 0 check (or cub unit list with the gates filter)", "passed": true, "evidence": "`cub unit list --where \"Slug IN (…) AND LEN(ApplyGates) > 0\"` returning none."},
+    {"text": "Preflights Worker health before applying", "passed": true, "evidence": "`cub worker status eval-worker --space skill-examples` returning Ready."},
+    {"text": "On apply failure, does NOT retry blindly — collects bridgestate/worker logs and hands off", "passed": true, "evidence": "Failure path references `cub unit bridgestate` + `cub worker logs` and routes to verify-delivery instead of retrying."},
+    {"text": "Hands off to verify-delivery after apply, both for success and failure cases", "passed": true, "evidence": "'Hand-off' section explicitly routes both units to verify-delivery."}
+  ]
+}

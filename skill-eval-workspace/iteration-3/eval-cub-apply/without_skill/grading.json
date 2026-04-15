@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Uses cub unit apply (the apply verb), not kubectl apply or argocd app sync", "passed": true, "evidence": "Baseline uses `cub unit apply`."},
+    {"text": "Includes --wait and --timeout on real applies", "passed": false, "evidence": "No --wait or --timeout flags."},
+    {"text": "Does NOT pass --change-desc on cub unit apply", "passed": false, "evidence": "Baseline invented --change-desc on cub unit apply — apply does not accept it (runtime operation, not config-data mutation)."},
+    {"text": "Runs a --dry-run on a non-trivial apply before the real one", "passed": false, "evidence": "No dry-run."},
+    {"text": "Preflights ApplyGates with a LEN(ApplyGates) > 0 check (or cub unit list with the gates filter)", "passed": false, "evidence": "No ApplyGates preflight."},
+    {"text": "Preflights Worker health before applying", "passed": false, "evidence": "No `cub worker status` call."},
+    {"text": "On apply failure, does NOT retry blindly — collects bridgestate/worker logs and hands off", "passed": false, "evidence": "Baseline plan is 'retry once and then look at kubectl logs' — exactly the anti-pattern the skill warns against."},
+    {"text": "Hands off to verify-delivery after apply, both for success and failure cases", "passed": false, "evidence": "Baseline stays in-skill; no hand-off."}
+  ]
+}

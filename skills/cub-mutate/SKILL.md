@@ -2,7 +2,7 @@
 name: cub-mutate
 description: Use whenever the user wants to change data inside a ConfigHub Unit — update an image, adjust replicas, set environment variables, add labels/annotations, change a resource field, apply defaults, or make a bulk edit across many units. This skill enforces the "prefer a function over a hand-edit" rule, composes a proper change description that captures the user's prompt and clarifications, and chooses between `cub function do` (single function, targeted or bulk) and `cub unit update` (whole-unit replacement or restore). Load proactively any time the user says "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or any natural request that will end in a write to ConfigHub. Do not load for: creating a brand-new Unit (use config-as-data), reading/inspecting config (use cub-query), or setting up validation (use triggers-and-applygates).
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub link create *) Bash(cub link update *)
 ---
 
 # cub-mutate
@@ -17,8 +17,8 @@ The get / modify / write-back loop for ConfigHub Units.
 
 - Any single-field change: image, replicas, env var, port, annotation, label, resource requests/limits, probe, security context, hostname.
 - Applying the defaults functions to one or many Units.
-- Bulk changes across multiple Units via `--where` / `--where-data`.
-- Restoring a Unit to a prior revision.
+- Bulk changes across multiple Units via `--where` / `--where-data` — usually inside a ChangeSet (see below).
+- Restoring a Unit to a prior revision (or a ChangeSet's pre-open state).
 - Patching metadata (labels, annotations) on one or many Units.
 
 ## Do not load for
@@ -120,12 +120,12 @@ cub function do \
   --space <space> \
   --where "Slug = '<slug>'" \
   --change-desc "<composed description>" \
-  --display-mutation \
+  --display-mutations \
   -- \
   <function-name> [function args]
 ```
 
-`--display-mutation` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
+`--display-mutations` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
 
 For multi-Unit runs, add `--wait` so you see completion.
 
@@ -147,7 +147,52 @@ cub unit update --space <space> <slug> --restore <rev-num-or-tag> \
   --change-desc "Restore to rev <N>. User prompt: …  Clarifications: …"
 ```
 
-Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisionNum`, `LastAppliedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, a revision UUID.
+Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisionNum`, `LastAppliedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, `Before:ChangeSet:<name>` (pre-open state), a revision UUID.
+
+## ChangeSets — when changes span multiple Units
+
+Any time a logical change touches more than one Unit (a release, a defaults rollout, a cross-Space upgrade, a coordinated secret rotation), wrap it in a ChangeSet. Reasons:
+
+- **Lock.** While a Unit is in an open ChangeSet, another ChangeSet can't open against it — protects you from concurrent releases stepping on each other.
+- **Atomic rollback.** A single `--restore Before:ChangeSet:<name>` against the Filter rewinds every affected Unit to its pre-open state.
+- **Grouped apply / approve.** `--revision ChangeSet:<name>` applies or approves the end-tag revision per Unit as one set.
+- **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces.
+
+Lifecycle:
+
+```bash
+# 1. Create the ChangeSet (lives in one home Space; Units can be anywhere).
+cub changeset create --space <home-space> <slug> \
+  --description "<one-line release description>"
+
+# 2. Open: bulk-patch target Units into the ChangeSet via a saved Filter.
+cub unit update --patch --space <target-space> \
+  --filter <home-space>/<filter-slug> \
+  --changeset <home-space>/<slug> \
+  --change-desc "Starting <slug> rollout"
+
+# 3. Mutate: every function do / unit update / run must pass --changeset.
+cub function do --space <target-space> \
+  --filter <home-space>/<filter-slug> \
+  --changeset <home-space>/<slug> \
+  --change-desc "<summary>. User prompt: <verbatim>. Clarifications: <condensed>" \
+  --display-mutations \
+  -- set-container-image <container> <image>:<tag>
+
+# 4. Close with the "-" sentinel (empty string does not clear).
+cub unit update --patch --space <target-space> \
+  --filter <home-space>/<filter-slug> \
+  --changeset -
+
+# 5. Apply / approve as a set.
+cub unit apply --space <target-space> \
+  --filter <home-space>/<filter-slug> \
+  --revision ChangeSet:<home-space>/<slug> --wait
+```
+
+**Don't** use a ChangeSet for single-Unit edits (overhead without payoff) or for rolling per-Unit releases that need different approvals per Unit. See `references/changesets.md` for rollback via `Before:ChangeSet:<...>`, the merge / rebase pattern around a restored ChangeSet, and listing revisions by ChangeSet membership.
+
+Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --where-field "…"`) over inlined `--where` so the same selection flows through open / mutate / close / approve / apply. See `references/filters-and-queries.md`.
 
 ## Tool boundary
 
@@ -176,4 +221,6 @@ Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisi
 
 - `references/functions-catalog.md` — the canonical function index.
 - `references/cub-cli.md` — agent-mode help and flag discipline.
+- `references/changesets.md` — full ChangeSet lifecycle, rollback, merge / rebase.
+- `references/filters-and-queries.md` — named Filters (use these with ChangeSets).
 - `references/yaml-patterns.md` — for hand-edit fallback.

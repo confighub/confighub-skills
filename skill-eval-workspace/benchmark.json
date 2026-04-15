@@ -26,21 +26,37 @@
         "without_skill_pass_rate": "6/26 = 23%",
         "delta_pp": 77
       }
+    },
+    {
+      "iteration": 3,
+      "evals": [
+        {"name": "eval-target-bind", "with_skill_passed": 8, "with_skill_total": 8, "without_skill_passed": 0, "without_skill_total": 8},
+        {"name": "eval-cub-apply", "with_skill_passed": 8, "with_skill_total": 8, "without_skill_passed": 1, "without_skill_total": 8},
+        {"name": "eval-verify-delivery", "with_skill_passed": 8, "with_skill_total": 8, "without_skill_passed": 0, "without_skill_total": 8},
+        {"name": "eval-reconciliation-check", "with_skill_passed": 8, "with_skill_total": 8, "without_skill_passed": 0, "without_skill_total": 8},
+        {"name": "eval-release-verify", "with_skill_passed": 8, "with_skill_total": 8, "without_skill_passed": 1, "without_skill_total": 8}
+      ],
+      "summary": {
+        "with_skill_pass_rate": "40/40 = 100%",
+        "without_skill_pass_rate": "2/40 = 5%",
+        "delta_pp": 95
+      }
     }
   ],
   "overall": {
-    "with_skill_pass_rate": "43/48 = 90%",
-    "without_skill_pass_rate": "12/48 = 25%",
-    "delta_pp": 65
+    "with_skill_pass_rate": "83/88 = 94%",
+    "without_skill_pass_rate": "14/88 = 16%",
+    "delta_pp": 78
   },
   "timing": {
     "with_skill_tokens_avg": 32193,
     "without_skill_tokens_avg": 22726,
     "with_skill_duration_avg_s": 103.8,
-    "without_skill_duration_avg_s": 54.4
+    "without_skill_duration_avg_s": 54.4,
+    "notes": "Timing averages cover iterations 1+2 only; iteration 3 subagent token/duration not instrumented (run composed + executed from parent session)."
   },
   "evals_covered": {
-    "skills_tested": ["config-as-data", "triggers-and-applygates", "cub-mutate", "confighub-core", "cub-query", "skill-examples-bootstrap", "worker-bootstrap"],
-    "skills_not_yet_tested": ["target-bind", "cub-apply", "verify-delivery", "reconciliation-check", "release-verify"]
+    "skills_tested": ["config-as-data", "triggers-and-applygates", "cub-mutate", "confighub-core", "cub-query", "skill-examples-bootstrap", "worker-bootstrap", "target-bind", "cub-apply", "verify-delivery", "reconciliation-check", "release-verify"],
+    "skills_not_yet_tested": []
   }
 }

@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "first-time-flux-onboarding",
+      "prompt": "We use Flux v2 with ~20 HelmReleases and ~10 Kustomizations across namespaces. I want to bring these under ConfigHub management without removing Flux. How do I do this?"
+    },
+    {
+      "name": "mixed-argocd-and-flux-clarify",
+      "prompt": "We have both ArgoCD and Flux in the same cluster (historical reasons). Can I use cub gitops import once to cover both?"
+    },
+    {
+      "name": "suspended-helmrelease-teammate-resumes",
+      "prompt": "I ran cub gitops import last week and a teammate just ran `flux resume helmrelease my-app`. Is that a problem?"
+    }
+  ]
+}

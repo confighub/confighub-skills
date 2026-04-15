@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Starts with ConfigHub-side checks (cub unit get, bridgestate) BEFORE kubectl — ConfigHub is the authoritative owner", "passed": false, "evidence": "Baseline starts with kubectl get and only reaches cub afterwards."},
+    {"text": "Verifies LiveRevisionNum == LastAppliedRevisionNum == HeadRevisionNum", "passed": false, "evidence": "Baseline doesn't mention LiveRevisionNum / LastAppliedRevisionNum / HeadRevisionNum."},
+    {"text": "Correctly identifies that this Target has no controller layer (direct Kubernetes, not Argo/Flux)", "passed": false, "evidence": "Baseline doesn't distinguish controller layer from direct-K8s layer."},
+    {"text": "Uses apply-not-completed filter (or the equivalent LastApplied != Live where-clause) to surface un-converged units", "passed": false, "evidence": "No filter usage."},
+    {"text": "Names the specific link that broke in plain English (not just 'apply succeeded' or 'apply failed')", "passed": false, "evidence": "Baseline plan ends with 'rerun the apply', doesn't name the broken link."},
+    {"text": "Stays strictly read-only — no cub unit refresh, no kubectl apply, no argocd sync", "passed": false, "evidence": "Baseline proposes `cub unit refresh` (mutation) and `cub unit apply` (mutation) from inside a verify flow."},
+    {"text": "Hands off rather than fixing — routes to cub-apply / cub-mutate / triggers-and-applygates instead of re-applying", "passed": false, "evidence": "Baseline retries in-place rather than handing off."},
+    {"text": "Surfaces GUI review link via --web", "passed": false, "evidence": "No --web."}
+  ]
+}

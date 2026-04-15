@@ -118,6 +118,6 @@ cub revision get <unit> --space <s> --revision <n> --yaml
 
 ## Related
 
-- `references/cub-cli.md` — `--change-desc` composition rule and `--display-mutation` for inline diffs at mutation time.
+- `references/cub-cli.md` — `--change-desc` composition rule and `--display-mutations` for inline diffs at mutation time.
 - `references/filters-and-queries.md` — filter vocabulary including revision-state fields (`HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`) on the Unit side.
 - Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `cub-apply` (sets `LiveAt` on the applied revision), `release-verify` (surfaces the revision history at completion).

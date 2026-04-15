@@ -1,6 +1,6 @@
-# Eval summary — Iterations 1 + 2
+# Eval summary — Iterations 1 + 2 + 3
 
-7 evals across 7 skills. 14 subagent runs (with-skill + baseline per eval). Graded against assertions drafted before execution.
+12 evals across all 12 shipped skills. Graded against assertions drafted before execution.
 
 ## Headline
 
@@ -8,9 +8,10 @@
 |---|---|---|
 | Iteration 1 | 17/22 = **77%** | 6/22 = **27%** |
 | Iteration 2 | 26/26 = **100%** | 6/26 = **23%** |
-| **Overall** | **43/48 = 90%** | **12/48 = 25%** |
+| Iteration 3 | 40/40 = **100%** | 2/40 = **5%** |
+| **Overall** | **83/88 = 94%** | **14/88 = 16%** |
 
-With-skill agents pass 3.6× more assertions than baselines. The gap widens on tasks requiring specific cub flag names, function choice, and doctrinal refusals; it narrows on read-only query tasks where baselines can reason from first principles.
+Iteration 3 exercised the Wave 2 deploy/verify/complete chain end-to-end against a live kind cluster with a real Worker. Mutating skills executed against the live instance; baselines composed from general priors.
 
 ## Skills tested so far
 
@@ -23,10 +24,13 @@ With-skill agents pass 3.6× more assertions than baselines. The gap widens on t
 | cub-query | find-release-deployments | 5/5 | 3/5 |
 | skill-examples-bootstrap | idempotent-rerun | 6/6 | 1/6 |
 | worker-bootstrap | first-worker-direct-install | 8/8 | 1/8 |
+| target-bind | bind-hello-units | 8/8 | 0/8 |
+| cub-apply | apply-hello-both | 8/8 | 1/8 |
+| verify-delivery | diagnose-hello-app-failure | 8/8 | 0/8 |
+| reconciliation-check | three-way-hello-ns | 8/8 | 0/8 |
+| release-verify | close-out-hello-ns | 8/8 | 1/8 |
 
-## Skills not yet covered
-
-`target-bind`, `cub-apply`, `verify-delivery`, `reconciliation-check`, `release-verify`. These depend on a working Worker + Target, which the sandbox currently blocks.
+All 12 shipped skills now covered.
 
 ## What the deltas reveal
 

@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Produces an explicit three-way (or N/A-for-controller) table with columns per source", "passed": false, "evidence": "Baseline narrates checks but does not produce a columnar table surfacing divergences."},
+    {"text": "Surfaces the controller column correctly — N/A because Target provider is Kubernetes, not Argo/Flux", "passed": false, "evidence": "Baseline speculates about Argo without resolving that the Target provider is plain Kubernetes."},
+    {"text": "Uses LiveRevisionNum / LastAppliedRevisionNum / HeadRevisionNum as the Revision column source on the ConfigHub side", "passed": false, "evidence": "Baseline doesn't mention these fields."},
+    {"text": "Uses cluster-side annotation/owner signals (managed-by=confighub, inventory ConfigMap) to populate the Owner column", "passed": false, "evidence": "No Owner column / no ownership signals checked."},
+    {"text": "Stays read-only — no cub unit refresh / kubectl apply / argocd sync", "passed": false, "evidence": "Baseline explicitly proposes `cub unit refresh` — a mutation — from a reconciliation-check flow."},
+    {"text": "Names the specific divergent pair when a row disagrees (ConfigHub ≠ cluster, etc.)", "passed": false, "evidence": "No divergent-pair analysis."},
+    {"text": "Hands off to release-verify on full agreement, and to the right remediation skill on divergence", "passed": false, "evidence": "No hand-off logic."},
+    {"text": "Surfaces --web review links as evidence", "passed": false, "evidence": "No --web."}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Preflights convergence: LiveRevisionNum = LastAppliedRevisionNum = HeadRevisionNum, empty gates, empty LastActionError", "passed": false, "evidence": "Baseline does not check revision equality or gates."},
+    {"text": "Excludes the non-converged Unit (hello-app) from the completion scope rather than closing it out prematurely", "passed": true, "evidence": "Baseline acknowledges hello-ns-only scope (user-directed, not skill-driven)."},
+    {"text": "Surfaces the Revision history with the composed --change-desc DESCRIPTION column", "passed": false, "evidence": "Baseline invents `cub unit history` (wrong verb — correct is `cub revision list`) and doesn't reference the DESCRIPTION column."},
+    {"text": "Uses --web review-link forms (cub unit get --web, cub revision list --web), not hand-built URLs", "passed": false, "evidence": "Baseline constructs a hand-built URL instead of using --web."},
+    {"text": "Stays read-only except for the explicit, user-requested tag exception", "passed": false, "evidence": "Baseline proposes `cub unit apply` — a mutation — inside a completion step."},
+    {"text": "Explicitly tells the user the session is now read-only and a new change requires a new session", "passed": false, "evidence": "Baseline does not set that boundary."},
+    {"text": "Does NOT use cub info as an auth check; uses cub context get instead", "passed": false, "evidence": "Baseline uses `cub info` — flagged invalid per user correction."},
+    {"text": "Explains what each --web page shows so the reviewer knows what to look at", "passed": false, "evidence": "No per-page explanation."}
+  ]
+}

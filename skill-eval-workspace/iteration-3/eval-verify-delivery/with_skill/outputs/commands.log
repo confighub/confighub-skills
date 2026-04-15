@@ -1,0 +1,44 @@
+=== cub unit get hello-ns ===
+Target                        k8s-eval-worker                                                     
+Delete Gates                                                                                      
+Destroy Gates                                                                                     
+Head Revision Num             3                                                                   
+Last Applied Revision Num     3                                                                   
+Live Revision Num             3                                                                   
+Previous Live Revision Num    0                                                                   
+Bridge Worker                 eval-worker                                                         
+Head Unit Action Num          1                                                                   
+=== cub unit get hello-app ===
+Target                        k8s-eval-worker                                                     
+Delete Gates                                                                                      
+Destroy Gates                                                                                     
+Head Revision Num             6                                                                   
+Last Applied Revision Num     6                                                                   
+Live Revision Num             0                                                                   
+Previous Live Revision Num    0                                                                   
+Bridge Worker                 eval-worker                                                         
+Head Unit Action Num          1                                                                   
+=== kubectl get ns hello ===
+NAME    STATUS   AGE
+hello   Active   41s
+=== kubectl get deploy -n hello ===
+No resources found in hello namespace.
+=== kubectl get deploy -n confighubplaceholder ===
+No resources found in confighubplaceholder namespace.
+=== cub unit bridgestate hello-ns ===
+apiVersion: v1
+data:
+  _hello__Namespace: ""
+  inventory: |
+    # inventory id: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b-hello-ns
+kind: ConfigMap
+metadata:
+  annotations:
+    config.k8s.io/function: inventory
+    confighub.com/SpaceID: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b
+    confighub.com/UnitSlug: hello-ns
+  labels:
+    app.kubernetes.io/managed-by: confighub
+    cli-utils.sigs.k8s.io/inventory-id: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b-hello-ns
+  name: inventory
+  namespace: default

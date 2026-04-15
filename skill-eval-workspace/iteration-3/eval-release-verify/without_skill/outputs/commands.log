@@ -1,0 +1,4 @@
+$ cub info                                      # invalid auth check
+$ cub unit history hello-ns --space skill-examples   # wrong verb — correct is `cub revision list`
+$ cub unit apply hello-ns --space skill-examples     # MUTATION in a completion/read-only skill
+# hand-built GUI URL instead of --web

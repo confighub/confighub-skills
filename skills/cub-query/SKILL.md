@@ -48,7 +48,7 @@ cub unit list --space "*" --where "Labels.Environment = 'prod'"
 cub unit list --space "*" --where "Space.Slug LIKE 'myapp-%'"
 ```
 
-Useful `--where` fields: `Slug`, `DisplayName`, `ResourceType`, `Labels.<key>`, `Space.Slug`, `Space.Labels.<key>`, `UpstreamRevisionNum`, `HeadRevisionNum`.
+Useful `--where` fields: `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LiveRevisionNum`, `TargetID`, `UnappliedChanges`. To filter on a Kubernetes resource kind (Deployment, Service, etc.), use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"` — `ResourceType` is not a `--where` metadata field.
 
 ### 2. Content queries — `--where-data`
 

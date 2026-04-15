@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "ready-to-promote-dev-to-staging",
+      "prompt": "I want to promote app-a from dev to staging. Run the preflight checks and tell me whether we're ready and what the scope would be."
+    },
+    {
+      "name": "source-not-converged",
+      "prompt": "Preflight promotion from staging to prod for app-a. Two Units in staging still have unapplied changes — is that a problem?"
+    },
+    {
+      "name": "scope-narrowing",
+      "prompt": "I want to promote only the API-related Units (not the workers) from app-a-staging to app-a-prod. Can you scope the preflight to just those?"
+    }
+  ]
+}
