@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Uses cub function do (not cub unit update with a file)",
+      "passed": true,
+      "evidence": "Command: cub function do --space skill-examples --where \"Slug = 'hello-app'\" ... -- set-container-image hello-app ghcr.io/acme/hello-app:v0.2.0"
+    },
+    {
+      "text": "Uses set-container-image (not deprecated set-image / set-image-reference / set-image-uri)",
+      "passed": true,
+      "evidence": "Explicitly referenced the skill's deprecated-function list and chose set-container-image"
+    },
+    {
+      "text": "Container name 'hello-app' passed correctly (positional, not via invented flag)",
+      "passed": true,
+      "evidence": "Positional arg: set-container-image hello-app <image>"
+    },
+    {
+      "text": "New image ghcr.io/acme/hello-app:v0.2.0 specified exactly",
+      "passed": true,
+      "evidence": "ghcr.io/acme/hello-app:v0.2.0 in the command line"
+    },
+    {
+      "text": "Passes --change-desc containing the verbatim user prompt",
+      "passed": true,
+      "evidence": "--change-desc with summary line, verbatim 'Bump the hello-app image ... CI just cut that release', and Clarifications line"
+    },
+    {
+      "text": "Passes --display-mutation for inline diff",
+      "passed": true,
+      "evidence": "--display-mutation explicitly included in the composed command"
+    },
+    {
+      "text": "Does not hand-edit the YAML (no cub unit get > file > cub unit update wholesale)",
+      "passed": true,
+      "evidence": "Used function-do path exclusively; acknowledged the fallback but didn't take it"
+    },
+    {
+      "text": "Verified the change via cub unit get or cub revision list after mutation",
+      "passed": false,
+      "evidence": "Verification was planned but not executed — subagent Bash was denied by sandbox. Intent documented: cub unit get + cub revision list."
+    }
+  ]
+}

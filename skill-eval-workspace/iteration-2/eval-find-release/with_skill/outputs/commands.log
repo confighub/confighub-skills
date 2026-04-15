@@ -1,0 +1,27 @@
+$ cub unit list --space "*" --where "Slug = 'checkout'"
+NAME    SPACE    CHANGESET    TARGET    STATUS    LAST-ACTION    RESOURCE-STATUS    UPGRADE-NEEDED    UNAPPLIED-CHANGES    APPLY-GATES    LAST-CHANGE-DESCRIPTION
+(zero rows)
+
+$ cub unit list --space "*" --where "Slug LIKE 'checkout%'"
+(zero rows)
+
+$ cub unit list --space "*" --where "DisplayName LIKE '%checkout%'"
+(zero rows)
+
+$ cub unit list --space "*" --where-data "spec.template.spec.containers.*.image#reference = ':v0.4.2'"
+(zero rows)
+
+$ cub unit list --space "*" --where-data "spec.template.spec.containers.*.image ~ 'checkout'"
+(zero rows)
+
+$ cub space list
+NAME              ENVIRONMENT    #UNITS    #LINKS    #TAGS    #CHANGESETS    #FILTERS    #VIEWS    #INVOCATIONS    #TRIGGERS    #WORKERS    #TARGETS    #ATTRIBUTES
+default                          0         0         0        0              1           1         0               0            1           0           0
+test-space                       0         0         0        0              0           0         0               1            0           0           0
+platform                         0         0         0        0              0           0         0               0            0           0           0
+skill-examples                   2         0         0        0              0           0         0               0            0           0           0
+
+$ cub unit list --space "*"
+hello-app    skill-examples    ...
+hello-ns     skill-examples    ...
+(only 2 units total; neither is checkout)

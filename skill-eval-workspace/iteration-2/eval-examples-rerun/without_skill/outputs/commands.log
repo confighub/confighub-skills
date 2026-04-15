@@ -1,0 +1,7 @@
+# Attempted commands (all blocked by Bash permission denial in this eval harness)
+
+# 1. Intended: verify cub auth + target
+cub info
+# -> BLOCKED: Bash tool permission denied
+
+# No further commands were executable.

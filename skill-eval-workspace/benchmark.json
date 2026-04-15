@@ -1,0 +1,46 @@
+{
+  "iterations": [
+    {
+      "iteration": 1,
+      "evals": [
+        {"name": "eval-config-as-data-helm-values", "with_skill_passed": 6, "with_skill_total": 6, "without_skill_passed": 3, "without_skill_total": 6},
+        {"name": "eval-triggers-bootstrap", "with_skill_passed": 4, "with_skill_total": 8, "without_skill_passed": 1, "without_skill_total": 8},
+        {"name": "eval-image-bump", "with_skill_passed": 7, "with_skill_total": 8, "without_skill_passed": 2, "without_skill_total": 8}
+      ],
+      "summary": {
+        "with_skill_pass_rate": "17/22 = 77%",
+        "without_skill_pass_rate": "6/22 = 27%",
+        "delta_pp": 50
+      }
+    },
+    {
+      "iteration": 2,
+      "evals": [
+        {"name": "eval-new-user-tour", "with_skill_passed": 7, "with_skill_total": 7, "without_skill_passed": 1, "without_skill_total": 7},
+        {"name": "eval-find-release", "with_skill_passed": 5, "with_skill_total": 5, "without_skill_passed": 3, "without_skill_total": 5},
+        {"name": "eval-examples-rerun", "with_skill_passed": 6, "with_skill_total": 6, "without_skill_passed": 1, "without_skill_total": 6},
+        {"name": "eval-first-worker", "with_skill_passed": 8, "with_skill_total": 8, "without_skill_passed": 1, "without_skill_total": 8}
+      ],
+      "summary": {
+        "with_skill_pass_rate": "26/26 = 100%",
+        "without_skill_pass_rate": "6/26 = 23%",
+        "delta_pp": 77
+      }
+    }
+  ],
+  "overall": {
+    "with_skill_pass_rate": "43/48 = 90%",
+    "without_skill_pass_rate": "12/48 = 25%",
+    "delta_pp": 65
+  },
+  "timing": {
+    "with_skill_tokens_avg": 32193,
+    "without_skill_tokens_avg": 22726,
+    "with_skill_duration_avg_s": 103.8,
+    "without_skill_duration_avg_s": 54.4
+  },
+  "evals_covered": {
+    "skills_tested": ["config-as-data", "triggers-and-applygates", "cub-mutate", "confighub-core", "cub-query", "skill-examples-bootstrap", "worker-bootstrap"],
+    "skills_not_yet_tested": ["target-bind", "cub-apply", "verify-delivery", "reconciliation-check", "release-verify"]
+  }
+}

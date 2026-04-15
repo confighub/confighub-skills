@@ -1,0 +1,9 @@
+{
+  "expectations": [
+    {"text": "Runs a metadata query across all Spaces (--space '*' with --where)", "passed": false, "evidence": "Used cub unit list --space '*' (no --where); scanned results afterward. Broader but less targeted."},
+    {"text": "Runs a content query using --where-data with image#reference or image#uri", "passed": false, "evidence": "No --where-data content queries; relied on metadata-only scanning"},
+    {"text": "Reports 'not found' plainly without fabrication", "passed": true, "evidence": "'there is no checkout service or v0.4.2 release deployed anywhere in it' with concrete counts"},
+    {"text": "Offers follow-up (e.g., confirm instance via cub context get, re-run with different name)", "passed": true, "evidence": "Suggested cub info / cub context get plus checking argocd / kubectl as alternative owners"},
+    {"text": "Does not mutate", "passed": true, "evidence": "Read-only only"}
+  ]
+}

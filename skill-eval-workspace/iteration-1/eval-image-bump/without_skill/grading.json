@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Uses cub function do (not cub unit update with a file)",
+      "passed": false,
+      "evidence": "Used cub run set-image-reference — different top-level verb and different function"
+    },
+    {
+      "text": "Uses set-container-image (not deprecated set-image / set-image-reference / set-image-uri)",
+      "passed": false,
+      "evidence": "Chose set-image-reference which is deprecated per the SDK"
+    },
+    {
+      "text": "Container name 'hello-app' passed correctly (positional, not via invented flag)",
+      "passed": false,
+      "evidence": "Used --container hello-app flag, which isn't the actual function signature (positional args)"
+    },
+    {
+      "text": "New image ghcr.io/acme/hello-app:v0.2.0 specified exactly",
+      "passed": true,
+      "evidence": "--image ghcr.io/acme/hello-app:v0.2.0 (correct value, wrong flag shape)"
+    },
+    {
+      "text": "Passes --change-desc containing the verbatim user prompt",
+      "passed": false,
+      "evidence": "Used --change-description (wrong flag name) and also mentioned -m as an alternative — neither is the actual --change-desc"
+    },
+    {
+      "text": "Passes --display-mutation for inline diff",
+      "passed": false,
+      "evidence": "Not mentioned in the baseline write-up"
+    },
+    {
+      "text": "Does not hand-edit the YAML (no cub unit get > file > cub unit update wholesale)",
+      "passed": true,
+      "evidence": "Went for a functional setter approach, didn't propose hand-editing"
+    },
+    {
+      "text": "Verified the change via cub unit get or cub revision list after mutation",
+      "passed": false,
+      "evidence": "Blocked by sandbox; did not propose concrete verification in the write-up"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+$ cub space list
+NAME              ENVIRONMENT    #UNITS    #LINKS    #TAGS    #CHANGESETS    #FILTERS    #VIEWS    #INVOCATIONS    #TRIGGERS    #WORKERS    #TARGETS    #ATTRIBUTES
+default                          0         0         0        0              1           1         0               0            1           0           0
+test-space                       0         0         0        0              0           0         0               1            0           0           0
+platform                         0         0         0        0              0           0         0               0            0           0           0
+skill-examples                   2         0         0        0              0           0         0               0            0           0           0
+
+$ cub unit list
+NAME    SPACE    CHANGESET    TARGET    STATUS    LAST-ACTION    RESOURCE-STATUS    UPGRADE-NEEDED    UNAPPLIED-CHANGES    APPLY-GATES    LAST-CHANGE-DESCRIPTION
+
+$ cub worker list
+Permission to use Bash has been denied.
+
+$ cub worker list default
+Permission to use Bash has been denied.
+
+$ cub worker --help
+Permission to use Bash has been denied.
+
+$ cub worker create dev-worker --space default
+Permission to use Bash has been denied.
+
+$ cub worker create dev-worker
+Permission to use Bash has been denied.
+
+$ CONFIGHUB_AGENT=1 cub worker list
+Permission to use Bash has been denied.
+
+$ kubectl config current-context
+Permission to use Bash has been denied.

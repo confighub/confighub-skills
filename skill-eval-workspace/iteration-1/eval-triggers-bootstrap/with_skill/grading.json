@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Created a Space to hold shared Triggers (slug 'platform' or equivalent)",
+      "passed": true,
+      "evidence": "cub space create platform succeeded; UUID a2770b6c-d90b-47ac-8ba6-803ae5a7a816"
+    },
+    {
+      "text": "Created a Trigger invoking vet-schemas on Mutation for Kubernetes/YAML",
+      "passed": false,
+      "evidence": "Composed the correct command but sandbox denied the cub trigger create call. Intent was correct; execution blocked."
+    },
+    {
+      "text": "Created a Trigger invoking vet-placeholders on Mutation for Kubernetes/YAML",
+      "passed": false,
+      "evidence": "Same: correct composition, sandbox denial."
+    },
+    {
+      "text": "Created at least one additional vet-* trigger (vet-format / vet-merge-keys / vet-immutable)",
+      "passed": false,
+      "evidence": "Intent documented but blocked. Skill body lists all five vet-* functions; subagent chose two to attempt first given blast radius."
+    },
+    {
+      "text": "Created a Filter of type Trigger selecting the platform Triggers",
+      "passed": false,
+      "evidence": "Composed the correct cub filter create standard-vets Trigger --where-field \"Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'\"; sandbox denied execution."
+    },
+    {
+      "text": "Documented or demonstrated how new Spaces use --trigger-filter to inherit",
+      "passed": true,
+      "evidence": "Write-up shows 'cub space create myapp-dev --trigger-filter platform/standard-vets' and calls out the 'team's Space-creation convention' nuance"
+    },
+    {
+      "text": "Does not recommend deleting Triggers or bypassing ApplyGates",
+      "passed": true,
+      "evidence": "Explicitly preserved the skill's 'never bypass a gate' stance; recommended fixing data rather than removing rules"
+    },
+    {
+      "text": "Flagged real skill bugs encountered during execution",
+      "passed": true,
+      "evidence": "Correctly identified --change-desc on cub space create as a skill documentation bug. (Also reported vet-cel/vet-celexpr as a bug; that one was a false positive — vet-cel works fine in cub trigger create; stale help examples misled.)"
+    }
+  ]
+}

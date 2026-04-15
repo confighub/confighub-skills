@@ -1,0 +1,11 @@
+$ cub space list
+NAME              #UNITS  #TRIGGERS  #WORKERS  #TARGETS ...
+default           0       1          0         0
+test-space        0       0          0         0
+platform          0       0          0         0
+skill-examples    2       0          0         0
+
+$ cub unit list --space skill-examples
+NAME         SPACE            STATUS   APPLY-GATES  LAST-CHANGE-DESCRIPTION
+hello-app    skill-examples   NotLive  None         Ensure every namespaced resource has a namespace field...
+hello-ns     skill-examples   NotLive  None         Add pod-security labels (baseline enforce, restricted warn)...

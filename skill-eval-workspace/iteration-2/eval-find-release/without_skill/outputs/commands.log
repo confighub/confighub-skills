@@ -1,0 +1,20 @@
+$ cub space list
+NAME              ENVIRONMENT    #UNITS    #LINKS    #TAGS    #CHANGESETS    #FILTERS    #VIEWS    #INVOCATIONS    #TRIGGERS    #WORKERS    #TARGETS    #ATTRIBUTES
+default                          0         0         0        0              1           1         0               0            1           0           0
+test-space                       0         0         0        0              0           0         0               1            0           0           0
+platform                         0         0         0        0              0           0         0               0            0           0           0
+skill-examples                   2         0         0        0              0           0         0               0            0           0           0
+
+$ cub unit list --space '*'
+NAME         SPACE             STATUS     LAST-CHANGE-DESCRIPTION
+hello-app    skill-examples    NotLive    Ensure every namespaced resource has a namespace field (placeholder where unset).
+hello-ns     skill-examples    NotLive    Add pod-security labels (baseline enforce, restricted warn) to the hello namespace.
+
+$ cub unit list --space '*' --where "Slug LIKE '%checkout%'"
+(no rows)
+
+$ cub unit list --space '*' --where "DisplayName LIKE '%checkout%'"
+(no rows)
+
+$ cub unit list --space '*' --where "Slug LIKE '%0.4.2%'"
+(no rows)

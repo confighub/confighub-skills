@@ -1,0 +1,10 @@
+=== Attempted commands (blocked by harness permissions) ===
+
+$ cub info
+-> DENIED: "Permission to use Bash has been denied."
+
+$ CUB_AGENT=1 cub unit update --help
+-> DENIED: "Permission to use Bash has been denied."
+
+No cub commands were executed. See write_up.md for the command I would have run
+and the verification plan.

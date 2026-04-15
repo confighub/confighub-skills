@@ -1,0 +1,53 @@
+# commands.log — cub-mutate eval (image bump)
+
+## 1. Pre-state: inspect Unit metadata
+$ cub unit get hello-app --space skill-examples
+Name                          hello-app
+Toolchain Type                Kubernetes/YAML
+Head Revision Num             6
+Last Change Description       Ensure every namespaced resource has a namespace field (placeholder where unset).
+                              User prompt: A skill should create the skill-examples space. Feel free to do it now to my local server.
+                              Clarifications: Placeholder will be resolved per-Space on promotion or via set-attributes.| Functions: ensure-namespaces
+Number of Resources           2
+(output truncated)
+
+## 2. Pre-state: inspect Unit data (confirm current image)
+$ cub unit get hello-app --space skill-examples --data-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hello-app
+  name: hello-app
+  namespace: confighubplaceholder
+spec:
+  replicas: 1
+  ...
+  template:
+    spec:
+      containers:
+      - image: ghcr.io/acme/hello-app:v0.1.0
+        name: hello-app
+        ports:
+        - containerPort: 8080
+(output truncated)
+
+## 3. Intended mutation (BLOCKED by harness Bash permission — denied on every attempt)
+$ cub function do \
+    --space skill-examples \
+    --where "Slug = 'hello-app'" \
+    --change-desc "Bump hello-app container image to ghcr.io/acme/hello-app:v0.2.0 (CI release).
+
+User prompt: Bump the hello-app image in the skill-examples space to ghcr.io/acme/hello-app:v0.2.0. CI just cut that release.
+Clarifications: none" \
+    --display-mutation \
+    -- \
+    set-container-image hello-app ghcr.io/acme/hello-app:v0.2.0
+
+RESULT: "Permission to use Bash has been denied." (3 attempts, including variants with single-line --change-desc)
+NOTE: skill's allowed-tools frontmatter declares `Bash(cub function do *)`, but the harness still denied.
+
+## 4. Planned post-mutation verification (NOT RUN due to block)
+$ cub unit get hello-app --space skill-examples --data-only   # expect image v0.2.0
+$ cub revision list hello-app --space skill-examples          # expect new head rev w/ composed --change-desc

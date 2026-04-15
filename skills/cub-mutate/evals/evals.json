@@ -1,0 +1,26 @@
+{
+  "skill_name": "cub-mutate",
+  "evals": [
+    {
+      "id": 1,
+      "name": "single-image-bump",
+      "prompt": "Bump the checkout deployment image in myapp-prod to ghcr.io/acme/checkout:v0.4.2. CI just cut that release.",
+      "expected_output": "Uses `cub function do --space myapp-prod --where \"Slug = 'checkout'\" -- set-container-image <name> ghcr.io/acme/checkout:v0.4.2 --change-desc '<summary> User prompt: ... Clarifications: ...'`. Does not use deprecated set-image. Does not hand-edit YAML. Verifies via cub unit get and cub revision list.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "bulk-replicas-by-label",
+      "prompt": "Our prod spaces all have Environment=prod label. Scale every Deployment in those spaces to at least 3 replicas.",
+      "expected_output": "Uses `cub function do --space \"*\" --where \"Labels.Environment = 'prod'\" -- set-replicas 3 --change-desc '<summary phrased per-unit> User prompt: ... Clarifications: ...' --wait`, scoping properly with --where on labels. Confirms the user intended the fleet-wide blast radius before running. Verifies via a query afterward.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "restore-after-bad-change",
+      "prompt": "Something about the last change to the payments unit in myapp-staging broke it. Can we just roll back to the previous revision?",
+      "expected_output": "Checks `cub revision list payments --space myapp-staging` to identify the target revision, then `cub unit update --space myapp-staging payments --restore -1 --change-desc 'Restore payments to prior revision. User prompt: ... Clarifications: ...'`. Does not hand-edit YAML.",
+      "files": []
+    }
+  ]
+}

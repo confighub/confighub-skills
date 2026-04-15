@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Declines Helm-values request (no values.yaml, no --set, no template syntax)",
+      "passed": true,
+      "evidence": "Opens with 'don't add a values.yaml'; does not propose template syntax anywhere"
+    },
+    {
+      "text": "Explains Units contain literal, fully-materialized YAML without parameterization",
+      "passed": true,
+      "evidence": "'the Unit is the data — the YAML inside a Unit is fully materialized, with literal values for every field'"
+    },
+    {
+      "text": "Recommends one Space per environment as the variation boundary",
+      "passed": true,
+      "evidence": "'One Space per environment (e.g. myapp-dev, myapp-staging, myapp-prod). The Space is your parameterization boundary'"
+    },
+    {
+      "text": "Names at least one concrete cub function for per-env variation",
+      "passed": true,
+      "evidence": "Named set-replicas, set-container-image, set-env-var, set-container-resources-defaults"
+    },
+    {
+      "text": "Mentions upstream/downstream Unit relationships or cloning for baseline reuse",
+      "passed": true,
+      "evidence": "'Your current Unit becomes the upstream/baseline. Clone it into each env Space as a downstream Unit. Changes to the baseline flow down; env-specific overrides stay local.'"
+    },
+    {
+      "text": "Does not run cub commands to create a templating construct in a Unit",
+      "passed": true,
+      "evidence": "No mutation executed; recommended commands use cub unit create --upstream-* and cub function do set-*"
+    }
+  ]
+}

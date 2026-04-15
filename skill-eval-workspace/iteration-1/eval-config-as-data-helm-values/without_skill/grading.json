@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Declines Helm-values request (no values.yaml, no --set, no template syntax)",
+      "passed": false,
+      "evidence": "Recommended config-as-data as Option 1, but explicitly offered Option 2: 'If you genuinely need a Helm chart...' — keeping a chart alongside ConfigHub contradicts the doctrine the skill would enforce"
+    },
+    {
+      "text": "Explains Units contain literal, fully-materialized YAML without parameterization",
+      "passed": true,
+      "evidence": "'ConfigHub's model is \"config as data\": the Unit is the source of truth, and you vary it per environment using spaces + upstream/downstream relationships plus mutators'"
+    },
+    {
+      "text": "Recommends one Space per environment as the variation boundary",
+      "passed": true,
+      "evidence": "'Create downstream spaces per environment (dev, staging, prod)'"
+    },
+    {
+      "text": "Names at least one concrete cub function for per-env variation",
+      "passed": false,
+      "evidence": "Used `cub unit update --patch --path spec.replicas=<N>` instead of a named setter function; flag syntax is also unverified. No named function (set-replicas / set-container-image / set-env-var) mentioned."
+    },
+    {
+      "text": "Mentions upstream/downstream Unit relationships or cloning for baseline reuse",
+      "passed": true,
+      "evidence": "'downstream Unit that inherits from the base' and 'Promote changes with cub unit update --upgrade'"
+    },
+    {
+      "text": "Does not run cub commands to create a templating construct in a Unit",
+      "passed": false,
+      "evidence": "Option 2 preserves a Helm chart as a hybrid with ConfigHub, which is effectively the templating construct the doctrine forbids"
+    }
+  ]
+}

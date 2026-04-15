@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Identifies the three-step loop: create worker entity, install into cluster, verify", "passed": true, "evidence": "Response is structured exactly as 'Create the worker entity', 'Install the worker into the kind cluster', 'Verify the worker is healthy'"},
+    {"text": "Chooses --provider-types kubernetes for direct-apply path", "passed": true, "evidence": "Explicitly cites 'right choice for a dev cluster where you want ConfigHub-native apply (not Argo/Flux rendering)'"},
+    {"text": "Specifies --namespace confighub (the documented default)", "passed": true, "evidence": "--namespace confighub in the composed install command"},
+    {"text": "Includes --wait for the install", "passed": true, "evidence": "--wait present in the cub worker install invocation"},
+    {"text": "Verifies via cub worker get + cub worker status + cub worker list-function", "passed": true, "evidence": "All three commands in the verification block, plus pod-level kubectl as fallback"},
+    {"text": "Hands off to target-bind as the next step (not trying to apply from here)", "passed": true, "evidence": "'Once that's green you're ready for target-bind (create a Target that points at this worker + a destination) and then cub-apply'"},
+    {"text": "Does not hand-author the worker manifest", "passed": true, "evidence": "Uses cub worker install which generates the manifest; doesn't propose writing Deployment/SA/RBAC YAML by hand"},
+    {"text": "Reads existing state (cub space list) to choose Space for worker", "passed": true, "evidence": "cub space list output shown and used to choose 'default' as the Space since none named 'workers' exists"}
+  ]
+}
