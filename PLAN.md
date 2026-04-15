@@ -105,7 +105,7 @@ These were settled in the originating session and are load-bearing for everythin
 3. **Argo and Flux are peers.** Not Argo-primary.
 4. **Configuration as data.** Units contain literal YAML, no parameterization at rest. `set-pod-container-security-context-defaults` and the rest of the defaults functions are how you apply policy, not Helm values.
 5. **`--change-desc` is Unit-data-mutation-only.** It does NOT exist on `cub space / trigger / filter / target / worker create/update`.
-6. **`--display-mutation` on every mutating call.** Inline diffs make changes visible without chasing them via `cub unit diff` afterward.
+6. **`--display-mutations` on every mutating call.** Inline diffs make changes visible without chasing them via `cub unit diff` afterward. Flag spelling is plural — `--display-mutation` (singular) is rejected as unknown.
 7. **Triggers are opt-in but recommended.** Best practice is the platform-Space + Filter + `TriggerFilterID` recipe documented in `references/triggers-recipes.md`.
 8. **Permission discipline.** Read set + Write set, both verb-scoped, no `Bash(cub *)`, no delete verbs in normal skills.
 9. **Standard terminology.** Revision (not receipt / change record), Evidence (not Trust surface), completion (not close / closeout), ConfigHub-managed (not governed), review links (not trust URLs). Memory rule: don't invent synonyms for product entity names.
@@ -117,6 +117,14 @@ These were settled in the originating session and are load-bearing for everythin
 - **`vet-cel` vs `vet-celexpr`.** Both work as Trigger functions; help examples on `cub trigger create` are stale (still show `vet-celexpr`). Worth a CLI-side fix; the skill is already correct.
 - **`cub unit set-target` change-desc behavior.** Likely doesn't take `--change-desc` (target binding isn't config-data mutation), but verify before drafting Wave 4 promote/rollback skills that touch target reassignment.
 - **Whether the `confighub-ai-demo` repo's CLAUDE.md should be updated** to reflect the new skills repo as the canonical end-user surface (currently CLAUDE.md is demo-specific and predates this repo). Not blocking; flag for whoever owns that repo.
+- **Server bug: `cub space update --trigger-filter <slug>` does not clear the default `WhereTrigger`.** A Space is created with `WhereTrigger = SpaceID = '<this-space>'`, which shadows the attached filter so `# Triggers = 0` even though `cub trigger list --filter <slug>` resolves correctly. Workaround documented in `triggers-and-applygates`: pass `--where-trigger "-"` alongside `--trigger-filter`. Worth a server-side fix.
+- **Server bug: `Space.WhereTrigger` evaluator rejects attributes that Filter WHERE accepts** (e.g., `FunctionName` → `HTTP 400 unrecognized attribute name`). Filter→Space attribute vocabularies diverge; should be unified.
+
+## Smaller gaps
+
+- **`cub unit push-upgrade`** — downstream bulk upgrade. Fold into `promote-release` rather than a standalone skill.
+- **Links authoring** — currently not covered. Fold into `config-as-data` as a section rather than a standalone skill.
+- **`cub unit tag`** — covered in `cub-mutate` + `release-verify`. Leave as-is unless users need a dedicated skill.
 
 ## How to start
 
