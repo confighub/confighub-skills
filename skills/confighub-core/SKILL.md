@@ -1,6 +1,6 @@
 ---
 name: confighub-core
-description: Orientation skill — load when the user is new to ConfigHub, asks "what is a Unit / Space / Target / Worker / Trigger / Filter / Link", needs to understand how entities relate, wants a quick tour before diving into specific operations, or asks "how do I do X in ConfigHub" without enough context to route yet. Explains the core vocabulary, the Read vs Write tool boundary, the change-description + --display-mutations conventions, and routes to the right dedicated skill for each kind of task. Do not load when the user's intent is already concrete enough to route (e.g., "add a trigger that blocks :latest" → triggers-and-applygates; "bump the image" → cub-mutate; "find Deployments using v1.2.3" → cub-query).
+description: Orientation skill — load when the user is new to ConfigHub, asks "what is a Unit / Space / Target / Worker / Trigger / Filter / Link", needs to understand how entities relate, wants a quick tour before diving into specific operations, or asks "how do I do X in ConfigHub" without enough context to route yet. Also covers Delete Gates and Destroy Gates — phrases like "protect this Space from accidental deletion", "stop anyone from destroying the prod Unit", "add a delete gate", "why can't I delete this?", "how do I lock down critical infra?". Explains the core vocabulary, the Read vs Write tool boundary, the change-description + --display-mutations conventions, gate semantics, and routes to the right dedicated skill for each kind of task. Do not load when the user's intent is already concrete enough to route (e.g., "add a trigger that blocks :latest" → triggers-and-applygates; "bump the image" → cub-mutate; "find Deployments using v1.2.3" → cub-query).
 phase: cross-cutting
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker logs *) Bash(cub worker status *)
 ---
@@ -45,6 +45,74 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **Every Unit-data mutation carries `--change-desc`.** Format: summary line, then the verbatim user prompt, then a condensed summary of any clarifying Q&A. Recorded in every affected Unit's head revision.
 - **Every mutating call should pass `--display-mutations`** to show the diff inline.
 - **Space topology** is one Space per app × environment/region, labeled accordingly. Triggers live in a shared `platform` Space; application Spaces inherit via `TriggerFilterID`.
+- **Critical entities carry Delete Gates (and, for Units, Destroy Gates).** See the next section.
+
+## Delete Gates and Destroy Gates — preventing accidents
+
+ConfigHub makes bulk and cross-Space operations easy, which is also how you accidentally delete a prod Space or destroy live cluster resources. Gates are the opt-in protection.
+
+Canonical doc: `https://docs.confighub.com/guide/protecting/`.
+
+Two kinds:
+
+- **Delete Gates** — attach to *any* entity (Unit, Space, Target, Worker, Trigger, Filter, ChangeSet, etc.). Block `cub <entity> delete` until every gate is removed.
+- **Destroy Gates** — **Units only**. Block `cub unit destroy`, which removes the live cluster resources owned by the Unit. Orthogonal to Delete Gates: you can have one without the other.
+
+Each gate is named. The name must match label-key rules (alphanumeric + `-`, `_`, `.`) and is where the *why* lives — use descriptive names, not `critical` everywhere. Multiple gates can stack on the same entity; all must be removed before the delete / destroy is allowed.
+
+### Adding gates
+
+```bash
+# Unit — both gates. Protect prod data; protect its live resources.
+cub unit update --patch --space <app>-prod <unit> \
+  --delete-gate prod-critical \
+  --destroy-gate prod-critical
+
+# Space — delete gate only (Spaces have no destroy).
+cub space update --patch <space> \
+  --delete-gate used-until-dec25
+
+# Target, Worker, Trigger, Filter — same pattern via the entity's update command.
+cub target update --patch --space <s> <target> --delete-gate in-use
+cub worker update --patch --space <s> <worker> --delete-gate active
+cub trigger update --patch --space platform <trigger> --delete-gate required
+cub filter update --patch --space platform <filter> --delete-gate required
+```
+
+Gates can also be set at create time — `cub <entity> create --delete-gate <name> ...` — so a new prod Space can be born protected.
+
+### Removing gates
+
+Use `<name>=-` (the `-` sentinel — empty string won't clear):
+
+```bash
+cub space update --patch <space> --delete-gate used-until-dec25=-
+cub space delete --recursive <space>
+```
+
+If multiple gates are stacked, each must be removed individually before the delete / destroy can proceed.
+
+### Naming
+
+The gate name carries the purpose. Prefer specific over generic:
+
+- Time-bounded: `used-until-dec25`, `keep-through-release-452`, `kubecon25-demo`.
+- Ownership: `team-payments-owns`, `platform-managed`, `shared-infra-core`.
+- Reason: `prod-critical`, `regulated-data`, `in-use-by-argocd`, `required-policy`.
+
+Avoid `critical` as a catch-all — when three entities all carry `critical`, nobody remembers which is which. A future teammate reading the gate name should understand *why* it's there without asking.
+
+### When to recommend a gate
+
+Any time the user creates or touches an entity that would be painful to re-create:
+
+- Production Spaces and their Units (delete + destroy on the Units).
+- Shared-infra Spaces (cert-manager, ingress, observability).
+- Platform-Space Triggers and Filters (org-wide policy).
+- Workers whose replacement is non-trivial.
+- Short-lived demo / event Spaces (time-bounded gates like `used-until-dec25`).
+
+For new prod-bound Units or Spaces, suggest the gate in the same turn you create them — the reminder-after-incident is always too late.
 
 ## Routing — pick the right skill for the task
 

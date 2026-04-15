@@ -59,7 +59,8 @@ When there's no generator to defer to, split by how the resources actually want 
 
 | Unit slug | Contents | Rationale |
 |---|---|---|
-| `<ns>-namespace` | `Namespace`, `NetworkPolicy`, `ServiceAccount`, `Role`, `RoleBinding`, per-namespace `ResourceQuota`, `LimitRange` | Platform-team owned; changes infrequently; policy resources reference the Namespace. Blast radius is the namespace. |
+| `<ns>-namespace` | The `Namespace` resource itself | Cluster-scoped; platform-team owned; changes almost never; different lifecycle from anything inside the namespace. |
+| `<ns>-policy` | `NetworkPolicy`, `ServiceAccount`, `Role`, `RoleBinding`, per-namespace `ResourceQuota`, `LimitRange` | Namespace-scoped policy; usually platform- or platform-plus-app co-owned; changes with policy updates, not app releases. |
 | `<app>` | `Deployment` (or `StatefulSet` / `DaemonSet`), `Service`, `ConfigMap`, `HorizontalPodAutoscaler`, `PodDisruptionBudget`, `ServiceMonitor` | App-team owned; day-to-day change cadence; tightly cross-referenced. Blast radius is the workload. |
 | `<app>-crds` | Any CRDs the app ships | Lifecycle + apply-order distinct from the workload. |
 | `<infra>-cluster` | `ClusterRole`, `ClusterRoleBinding`, `StorageClass`, `PriorityClass`, cluster-scoped `CRDs` | Cluster-wide blast radius; typically platform-team owned. |
@@ -86,7 +87,7 @@ TARGET=<workers-space>/<cluster-target>
 NS=<namespace>
 
 # Shell
-for u in <ns>-namespace <app> <app>-crds; do
+for u in <ns>-namespace <ns>-policy <app> <app>-crds; do
   cub unit create --space "$SPACE" "$u"
   cub unit set-target --space "$SPACE" "$u" "$TARGET"
 done
@@ -96,9 +97,16 @@ cub unit import --space "$SPACE" <app>-crds \
   --where-resource "kind = 'CustomResourceDefinition' AND import.include_cluster = true AND metadata.labels.app = '<app>'" \
   --dry-run
 
-# Namespace + policy
+# Namespace (cluster-scoped; platform-team owned).
 cub unit import --space "$SPACE" <ns>-namespace \
-  --where-resource "(kind = 'Namespace' AND metadata.name = '$NS') OR (metadata.namespace = '$NS' AND kind IN ('NetworkPolicy','ServiceAccount','Role','RoleBinding','ResourceQuota','LimitRange'))" \
+  --where-resource "kind = 'Namespace' AND metadata.name = '$NS' AND import.include_cluster = true" \
+  --dry-run
+
+# Namespace-scoped policy (NetworkPolicy, RBAC, ResourceQuota, LimitRange).
+# `--where-resource` supports AND only — if you'd want Namespace + policy in a
+# single Unit, do two imports into separate Units rather than trying to OR.
+cub unit import --space "$SPACE" <ns>-policy \
+  --where-resource "metadata.namespace = '$NS' AND kind IN ('NetworkPolicy','ServiceAccount','Role','RoleBinding','ResourceQuota','LimitRange')" \
   --dry-run
 
 # Workload

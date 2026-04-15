@@ -63,7 +63,7 @@ cub function do --space <s> --where "Slug IN ('<u1>','<u2>')" --resource-type ap
 
 # Revision numbers.
 cub unit list --space <s> --where "Slug IN ('<u1>','<u2>')" \
-  --quiet --json | jq '.[] | {slug: .Slug, head: .HeadRevisionNum, live: .LiveRevisionNum, applied: .LastAppliedRevisionNum}'
+  --jq '.[].Unit | {slug: .Slug, head: .HeadRevisionNum, live: .LiveRevisionNum, applied: .LastAppliedRevisionNum}'
 ```
 
 Controller and cluster columns come from the read-only controller CLI and `kubectl get`, respectively. Batch where practical to reduce chatter.

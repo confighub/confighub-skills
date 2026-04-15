@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "undo-last-release",
+      "prompt": "We just promoted release-20260415 from staging to prod via the app-a-home/app-a-app filter — 12 Units. Prod is crashing. Roll back the whole release."
+    },
+    {
+      "name": "apply-revision-is-not-rollback",
+      "prompt": "Can I just run `cub unit apply app-a-api --revision 47` in prod to roll back last night's image bump? I want it to stay at 47 until we fix the new version."
+    },
+    {
+      "name": "single-unit-bad-image",
+      "prompt": "I bumped the image on app-a-worker to v1.4.0 an hour ago. It's crashing. Revert to the previous image."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "kubectl-edit-stopgap",
+      "prompt": "Someone kubectl edit'd the replica count on app-a-api in prod from 3 to 6 yesterday during a traffic spike. Now ConfigHub still says 3. How do I reconcile?"
+    },
+    {
+      "name": "sidecar-injection-annotations",
+      "prompt": "Linkerd was just installed and it's injecting sidecar annotations into all my Deployments. ConfigHub now shows drift on every Unit. What's the right move?"
+    },
+    {
+      "name": "bulk-drift-after-incident",
+      "prompt": "We had a prod incident last night and SRE made a bunch of manual cluster edits to stabilize things. Now ~20 Units across app-a and app-b show LiveRevisionNum != LastAppliedRevisionNum. Help us reconcile without losing the incident fixes."
+    }
+  ]
+}

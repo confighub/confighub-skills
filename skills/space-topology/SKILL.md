@@ -25,11 +25,13 @@ Corollary: **environments are Spaces, not label values on Units in one shared Sp
 organization
 ├── platform                ← org-wide Triggers + Filters (no workloads)
 │
-├── app-a-dev               ← (app, env[, region/cluster])
+├── app-a-home              ← app team's home Space — ChangeSets, Tags, Filters, Views, Invocations
+├── app-a-dev               ← (app, env[, region/cluster]) — the deployment Spaces
 ├── app-a-staging
 ├── app-a-prod-us-east
 ├── app-a-prod-eu-west
 │
+├── app-b-home
 ├── app-b-dev
 ├── app-b-staging
 ├── app-b-prod
@@ -39,8 +41,15 @@ organization
 ```
 
 - **`platform`** — the home for baseline vet-* Triggers, CEL Triggers, approval Triggers, and the Filters that select them. Every app Space attaches the platform Filter via `--trigger-filter platform/standard-vets` (see `triggers-and-applygates`). `platform` holds no workloads.
-- **One Space per `(app, env)` or `(app, env, region)`.** Add region / cluster suffixes only when you actually deploy separately per region. Don't pre-split for hypothetical scale.
-- **Shared infrastructure** (cert-manager, ingress-nginx, observability stack) lives in its own per-env Space, same pattern.
+- **`<app>-home`** — the app team's home Space. Holds entities that describe how the team *operates* on its workloads but aren't deployed: ChangeSets (a release grouping that spans dev / staging / prod), Tags (release markers that need a stable home across deployment Spaces), Filters (`<app>-app` Filter selecting every Unit for this app via `Space.Labels.Application = '<app>'`), Views (saved queries for the team's dashboards), and Invocations (named function invocations reused across releases). Holds no workload Units. Slug convention: `<app>-home`.
+- **One deployment Space per `(app, env)` or `(app, env, region)`.** Add region / cluster suffixes only when you actually deploy separately per region. Don't pre-split for hypothetical scale.
+- **Shared infrastructure** (cert-manager, ingress-nginx, observability stack) lives in its own per-env Space, same pattern. Shared-infra often has its own home Space too (`shared-infra-home`).
+
+### Why separate the home Space from deployment Spaces
+
+Operational artifacts (ChangeSets, Tags, Filters, Views, Invocations) are cross-environment by nature: a ChangeSet for "release 452" spans dev → staging → prod Units; a Filter selecting "every Unit for app-a" crosses every env-Space. Putting them in any single env-Space would couple them to that env's lifecycle, blast radius, and permissions. The home Space is neutral ground, scoped to the app team, with its own permission grant that typically doesn't include production deploy rights.
+
+Typical references from a deployment Space to its home Space look like `--filter <app>-home/<slug>` or `--changeset <app>-home/<slug>` — cross-Space by slug, standard ConfigHub reference form.
 
 ### Naming
 
@@ -121,6 +130,7 @@ The `upstream-unit` link is what makes `--upgrade` propagate changes while prese
 
 - **Suffix naming inside one Space** (`web-dev`, `web-prod` in the same Space). Breaks Target separation, ApplyGate scoping, clone-based promotion. If you see this, recommend splitting into per-env Spaces and migrating Units with `cub unit create --dest-space`.
 - **One mega-Space per environment holding every app.** Loses blast-radius isolation (a `vet-cel` rule that breaks `web` also breaks `api`) and makes permission scoping hard.
+- **ChangeSets / Filters / Tags in a deployment Space.** Couples cross-env operational artifacts to a single env's lifecycle and permission grant. Put them in the app's home Space.
 - **Everything in `default`.** Fine for tutorials; wrong for anything real.
 - **Region in slug, environment in labels** (or vice versa). Pick a convention and keep `<app>-<env>[-<region>]` as the slug; everything else is labels.
 

@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "staging-to-prod-bulk",
+      "prompt": "Preflight says we're good to promote app-a from staging to prod. Scope is the app-a-home/app-a-app filter, 12 Units, ChangeSet name release-20260415. Run the promotion."
+    },
+    {
+      "name": "single-unit-promotion",
+      "prompt": "I only need to promote the app-a-api Unit from staging to prod — a single Unit. Do I still need a ChangeSet?"
+    },
+    {
+      "name": "push-upgrade-from-base",
+      "prompt": "I have a base chart Unit in app-a-home named app-a-base. I want to push its latest revision to every downstream Unit in all env-Spaces at once. How?"
+    }
+  ]
+}
