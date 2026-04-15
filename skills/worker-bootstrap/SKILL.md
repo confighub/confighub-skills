@@ -60,10 +60,18 @@ cub worker install <worker-slug> \
   --space <space> \
   --provider-types kubernetes \
   --namespace confighub \
-  --wait
+  --export --include-secret \
+  | kubectl apply -f -
 ```
 
-`cub worker install` generates the Kubernetes manifest (Deployment, ServiceAccount, RBAC, Secret with worker credentials), applies it to the cluster via the user's current kubeconfig, and waits for the worker to come up. Image defaults to the pinned `ghcr.io/confighubai/confighub-worker` release.
+`cub worker install` only *generates* the Kubernetes manifest (Deployment, ServiceAccount, RBAC, Secret with worker credentials) — it does not apply it. Pipe `--export` through `kubectl apply -f -` using the user's current kubeconfig to actually install. `--include-secret` inlines the credential Secret so the worker can authenticate; for a production bootstrap, prefer `--export-secret-only` and store the credential in an external SecretStore (see the managed-install path below). Image defaults to the pinned `ghcr.io/confighubai/confighub-worker` release.
+
+After applying, wait for the worker to become Ready:
+
+```bash
+kubectl -n confighub rollout status deploy/<worker-slug>
+cub worker get --space <space> <worker-slug>   # condition: Ready
+```
 
 **Managed install** (preferred once a bootstrap worker exists):
 
