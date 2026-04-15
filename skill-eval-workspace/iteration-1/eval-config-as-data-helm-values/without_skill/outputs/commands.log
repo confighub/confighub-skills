@@ -1,0 +1,7 @@
+No commands were executed. Bash access was denied in this eval harness.
+
+Attempted:
+  $ ls .../without_skill/ && which cub && cub info
+  -> Permission to use Bash has been denied.
+
+Planned commands are listed in write_up.md section (b).

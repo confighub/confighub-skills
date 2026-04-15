@@ -1,0 +1,11 @@
+{
+  "expectations": [
+    {"text": "Explains config-as-data model in plain language", "passed": true, "evidence": "'ConfigHub is a config-as-data control plane: your Kubernetes manifests ... live as versioned, typed units inside ConfigHub'"},
+    {"text": "Names all primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate)", "passed": false, "evidence": "Covered Unit, Space, Link, Target, Revision, Trigger, Worker — but conflated them ('Trigger / Worker — the runtime that actually applies units to targets'). Missed Function, Filter, ApplyGate."},
+    {"text": "Uses current terminology (Revision / --change-desc / --display-mutation / Evidence / review links)", "passed": false, "evidence": "Explicitly calls Revisions 'the receipt layer' — regressed terminology; doesn't mention --change-desc or --display-mutation"},
+    {"text": "Grounds in live state by running read-only queries", "passed": false, "evidence": "Bash was denied according to the task notification; tour is not grounded in the user's actual Spaces/Units"},
+    {"text": "Routes to specific skills per user intent", "passed": false, "evidence": "No routing table; no named skills. General prose next-steps only."},
+    {"text": "Does not mutate", "passed": true, "evidence": "Blocked anyway; vacuously true"},
+    {"text": "Offers --web GUI review link", "passed": false, "evidence": "Not mentioned"}
+  ]
+}

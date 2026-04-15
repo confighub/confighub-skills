@@ -1,0 +1,5 @@
+No cub commands were executed during this evaluation.
+
+The user's question is conversational ("Can you set that up?" in context of a design question about values.yaml vs ConfigHub-native parameterization). The correct first move per the config-as-data skill is to explain the rule and propose the Space-per-env + upstream/downstream + functions pattern, then let the user confirm target Spaces and Unit slug before any mutation.
+
+Recommended commands (not executed) are listed in write_up.md section (b).

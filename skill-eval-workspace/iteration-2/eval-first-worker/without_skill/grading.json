@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Identifies the three-step loop: create worker entity, install into cluster, verify", "passed": false, "evidence": "Baseline was blocked from the start (Bash denied including cub --help). No execution; intent write-up declines to fabricate per the repo's Reality Rule."},
+    {"text": "Chooses --provider-types kubernetes for direct-apply path", "passed": false, "evidence": "Did not reach this level of specificity."},
+    {"text": "Specifies --namespace confighub (the documented default)", "passed": false, "evidence": "Blocked."},
+    {"text": "Includes --wait for the install", "passed": false, "evidence": "Blocked."},
+    {"text": "Verifies via cub worker get + cub worker status + cub worker list-function", "passed": false, "evidence": "Blocked."},
+    {"text": "Hands off to target-bind as the next step (not trying to apply from here)", "passed": false, "evidence": "Blocked."},
+    {"text": "Does not hand-author the worker manifest", "passed": true, "evidence": "Vacuously — nothing authored"},
+    {"text": "Reads existing state (cub space list) to choose Space for worker", "passed": false, "evidence": "Blocked."}
+  ]
+}

@@ -1,0 +1,111 @@
+$ cub space get skill-examples --json
+{
+  "Space": {
+    "CreatedAt": "2026-04-15T17:54:43.157432Z",
+    "CursorID": 1466,
+    "DisplayName": "skill-examples",
+    "EntityType": "Space",
+    "Slug": "skill-examples",
+    "SpaceID": "5eb15b86-6a15-4b15-8a99-58a5e13bd56b",
+    "UpdatedAt": "2026-04-15T17:55:24.085299Z",
+    "Version": 2
+  },
+  "TotalUnitCount": 2,
+  "UnappliedUnitCount": 2,
+  "UnapprovedUnitCount": 2,
+  "UnlinkedUnitCount": 2
+}
+
+$ cub unit list --space skill-examples
+NAME         SPACE             STATUS     LAST-CHANGE-DESCRIPTION
+hello-app    skill-examples    NotLive    Ensure every namespaced resource has a namespace field (placeholder where unset).
+                                          User prompt: A skill should create the skill-examples space...
+                                          Functions: ensure-namespaces
+hello-ns     skill-examples    NotLive    Add pod-security labels (baseline enforce, restricted warn) to the hello namespace.
+                                          Functions: set-pod-security-defaults
+
+$ cub unit get hello-app --space skill-examples
+Name                          hello-app
+Head Revision Num             6
+Head Mutation Num             6
+Data Hash                     3c466d0d02d5fd1d3f75c46ff417901de73fe5cbeb6d159e2f8a514c4582525b
+Last Change Description       Ensure every namespaced resource has a namespace field (placeholder where unset).
+                              Functions: ensure-namespaces
+Number of Resources           2
+
+$ cub unit get hello-ns --space skill-examples
+Name                          hello-ns
+Head Revision Num             3
+Head Mutation Num             3
+Data Hash                     1c870040de3e9a49f0ce071b577485e63d568ec7b011b7488181527fa8a7ea63
+Last Change Description       Add pod-security labels (baseline enforce, restricted warn) to the hello namespace.
+                              Functions: set-pod-security-defaults
+
+$ cub unit get hello-app --space skill-examples --data-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hello-app
+  name: hello-app
+  namespace: confighubplaceholder
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - image: ghcr.io/acme/hello-app:v0.1.0
+        name: hello-app
+        ports:
+        - containerPort: 8080
+        resources: {requests: {cpu: 128m, memory: 128Mi}}            # set-container-resources-defaults
+        startupProbe: { httpGet: {path: confighubplaceholder, port: 8080}, ... }   # set-container-probe-defaults
+        livenessProbe: { httpGet: {path: confighubplaceholder, port: 8080}, ... } # set-container-probe-defaults
+        readinessProbe: { httpGet: {path: confighubplaceholder, port: 8080}, ... } # set-container-probe-defaults
+        securityContext:                                              # set-pod-container-security-context-defaults
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+          privileged: false
+          readOnlyRootFilesystem: true
+      securityContext:                                                # set-pod-container-security-context-defaults
+        fsGroup: 2000
+        runAsGroup: 3000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-app
+  namespace: confighubplaceholder                                     # ensure-namespaces
+spec:
+  ports:
+  - {name: 80-8080, port: 80, protocol: TCP, targetPort: 8080}
+  selector: {app: hello-app}
+  type: ClusterIP
+
+$ cub unit get hello-ns --space skill-examples --data-only
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello
+  labels:                                                             # set-pod-security-defaults
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+spec: {}
+
+# Attempted re-apply of defaults functions (blocked by harness Bash permission despite skill frontmatter):
+$ cub function do --space skill-examples --where "Slug = 'hello-app'" -- set-container-resources-defaults
+  -> harness denied Bash execution
+$ cub function do --space skill-examples --where "Slug = 'hello-app'" -- set-container-probe-defaults
+  -> not attempted (same gating)
+$ cub function do --space skill-examples --where "Slug = 'hello-app'" -- set-pod-container-security-context-defaults
+  -> not attempted (same gating)
+$ cub function do --space skill-examples --where "Slug = 'hello-app'" -- ensure-namespaces
+  -> not attempted (same gating)
+$ cub function do --space skill-examples --where "Slug = 'hello-ns'" -- set-pod-security-defaults
+  -> not attempted (same gating)

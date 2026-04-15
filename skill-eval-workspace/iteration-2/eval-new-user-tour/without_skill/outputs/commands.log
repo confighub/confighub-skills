@@ -1,0 +1,6 @@
+# Attempted commands (blocked by sandbox permissions in this eval run):
+# $ cub --help          -> Bash permission denied
+# $ cub info            -> Bash permission denied (cancelled as parallel call)
+#
+# No commands successfully executed. Answer grounded in general ConfigHub knowledge
+# and the repo's CLAUDE.md guidance (read via the tool harness, not shell).

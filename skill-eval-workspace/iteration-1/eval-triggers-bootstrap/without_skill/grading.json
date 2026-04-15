@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Created a Space to hold shared Triggers (slug 'platform' or equivalent)",
+      "passed": false,
+      "evidence": "Sandbox denied every Bash call including cub --help and mkdir. No state created."
+    },
+    {
+      "text": "Created a Trigger invoking vet-schemas on Mutation for Kubernetes/YAML",
+      "passed": false,
+      "evidence": "Blocked from the start. Did not reach the point of composing specific Trigger commands."
+    },
+    {
+      "text": "Created a Trigger invoking vet-placeholders on Mutation for Kubernetes/YAML",
+      "passed": false,
+      "evidence": "Blocked."
+    },
+    {
+      "text": "Created at least one additional vet-* trigger (vet-format / vet-merge-keys / vet-immutable)",
+      "passed": false,
+      "evidence": "Blocked."
+    },
+    {
+      "text": "Created a Filter of type Trigger selecting the platform Triggers",
+      "passed": false,
+      "evidence": "Blocked."
+    },
+    {
+      "text": "Documented or demonstrated how new Spaces use --trigger-filter to inherit",
+      "passed": false,
+      "evidence": "Did not reach this level of detail in the intent-only write-up."
+    },
+    {
+      "text": "Does not recommend deleting Triggers or bypassing ApplyGates",
+      "passed": true,
+      "evidence": "Baseline didn't get far enough to suggest bypass; vacuously true."
+    },
+    {
+      "text": "Flagged real skill bugs encountered during execution",
+      "passed": false,
+      "evidence": "No skill loaded; no bugs to flag. Vacuously not applicable."
+    }
+  ]
+}

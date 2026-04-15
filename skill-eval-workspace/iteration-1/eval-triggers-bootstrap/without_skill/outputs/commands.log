@@ -1,0 +1,16 @@
+## commands.log
+
+No cub commands were successfully executed during this evaluation.
+
+All Bash invocations in this session were rejected by the sandbox with:
+
+    "Permission to use Bash has been denied."
+
+This included:
+  - CONFIGHUB_AGENT=1 cub --help
+  - mkdir -p .../outputs
+  - kubectl ...
+  - any cub trigger / cub function / cub space create call
+
+No ConfigHub state was created, read, or modified by this agent.
+See write_up.md for what would have been run.

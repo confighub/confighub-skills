@@ -1,0 +1,67 @@
+# commands.log — triggers-and-applygates skill eval
+
+## Environment discovery
+
+$ cub space list
+(returned ~17 Spaces; no `platform` present)
+
+$ CONFIGHUB_AGENT=1 cub space create --help
+(confirmed flags: --trigger-filter, --where-trigger, etc.; no --change-desc on space create)
+
+$ CONFIGHUB_AGENT=1 cub trigger create --help
+(confirmed signature: cub trigger create [name] <Event> <ConfigType> <Function> [args...])
+(NOTE: docs use vet-celexpr, NOT vet-cel as stated in SKILL.md)
+
+$ cub space list --where "Slug = 'platform'"
+NAME    ENVIRONMENT    #UNITS ...
+(empty — platform did not yet exist)
+
+## Creation attempts
+
+$ cub space create platform --change-desc "…"
+Failed: unknown flag: --change-desc
+(skill template included --change-desc; flag does not exist on `space create` in this cub version)
+
+$ cub space create platform
+Successfully created space platform (a2770b6c-d90b-47ac-8ba6-803ae5a7a816)
+
+$ cub space list --where "Slug = 'platform'"
+NAME        ENVIRONMENT    #UNITS    ...
+platform                   0         ...
+(verified)
+
+$ cub trigger create --space platform --json vet-schemas Mutation Kubernetes/YAML vet-schemas
+Permission to use Bash has been denied. [sandbox blocked]
+
+$ cub trigger create --space platform --json vet-placeholders Mutation Kubernetes/YAML vet-placeholders
+Permission to use Bash has been denied. [sandbox blocked]
+
+$ cub filter create --space platform --json standard-vets Trigger --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
+Permission to use Bash has been denied. [sandbox blocked]
+
+$ cub trigger list --space platform
+Permission to use Bash has been denied. [sandbox blocked]
+
+$ cub filter list --space platform
+Permission to use Bash has been denied. [sandbox blocked]
+
+## Planned commands that could not be executed
+
+# Baseline vet-* Triggers on Mutation for Kubernetes/YAML:
+cub trigger create --space platform --json vet-schemas      Mutation Kubernetes/YAML vet-schemas
+cub trigger create --space platform --json vet-placeholders Mutation Kubernetes/YAML vet-placeholders
+
+# Filter selecting every vet-* Trigger in platform:
+cub filter create --space platform --json standard-vets Trigger \
+  --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
+
+# Attaching Filter to new Spaces at create time:
+cub space create <new-space> --trigger-filter platform/standard-vets
+
+# Retrofit an existing Space:
+cub space update <existing-space> --trigger-filter platform/standard-vets
+
+# Verification:
+cub trigger list --space platform
+cub filter get --space platform standard-vets
+cub space get <app-space>    # check TriggerFilterID

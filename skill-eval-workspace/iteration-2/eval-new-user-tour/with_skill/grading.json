@@ -1,0 +1,11 @@
+{
+  "expectations": [
+    {"text": "Explains config-as-data model in plain language", "passed": true, "evidence": "'ConfigHub treats configuration as data, not templates. Fully materialized YAML lives in a versioned database; you mutate it through server-side functions.'"},
+    {"text": "Names all primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate)", "passed": true, "evidence": "Each entity has its own bullet with a one-line description; ApplyGate covered alongside Trigger"},
+    {"text": "Uses current terminology (Revision / --change-desc / --display-mutation / Evidence / review links)", "passed": true, "evidence": "Uses Revision, --change-desc, --display-mutation consistently; no 'receipts' or 'trust surface'"},
+    {"text": "Grounds in live state by running read-only queries", "passed": true, "evidence": "'you already have four [Spaces]: default, test-space, platform, skill-examples' and 'hello-app (the workload)'"},
+    {"text": "Routes to specific skills per user intent", "passed": true, "evidence": "Provided a routing list mapping each intent (install worker, apply, mutate, query, policy, verify, completion) to a named skill"},
+    {"text": "Does not mutate", "passed": true, "evidence": "Only cub space list / unit list were executed"},
+    {"text": "Offers --web GUI review link", "passed": true, "evidence": "'cub unit get hello-app --space skill-examples --web will open it'"}
+  ]
+}
