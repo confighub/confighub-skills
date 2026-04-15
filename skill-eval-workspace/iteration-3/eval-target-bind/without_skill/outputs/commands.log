@@ -1,0 +1,8 @@
+$ cub info
+# (used as auth check — note: cub info does NOT require authentication, bad smell)
+
+$ cub unit update hello-ns --space skill-examples --target k8s-eval-worker --change-description "..."
+# --change-description is not a valid flag; --target may not exist either
+
+$ cub unit apply hello-ns --space skill-examples
+# baseline proceeded to apply instead of stopping at binding.

@@ -65,7 +65,7 @@ Filters are also first-class entities (`cub filter create …`) that can be refe
 
 ## Showing mutation diffs
 
-Any command that mutates configuration data (`cub unit update`, `cub function do`, `cub run`, `cub unit update --patch`) accepts `--display-mutation`, which prints a diff of the configuration change the command just produced. Include it on mutating calls by default — it's the cheapest way to verify the mutation did what you intended and gives the user something concrete to see in session output. The diff is the same one surfaced in the Unit's revision history afterward.
+Any command that mutates configuration data (`cub unit update`, `cub function do`, `cub run`, `cub unit update --patch`) accepts `--display-mutations`, which prints a diff of the configuration change the command just produced. Include it on mutating calls by default — it's the cheapest way to verify the mutation did what you intended and gives the user something concrete to see in session output. The diff is the same one surfaced in the Unit's revision history afterward.
 
 ## Review links in the GUI
 

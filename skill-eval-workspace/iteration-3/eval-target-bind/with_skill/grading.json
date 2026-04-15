@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Uses a valid cub authentication check (cub context get or cub space list), NOT cub info", "passed": true, "evidence": "Preflight runs `cub context get` and explicitly notes that `cub info` is not a valid auth check."},
+    {"text": "Checks the Worker is Ready before binding Units to the Target", "passed": true, "evidence": "Runs `cub worker get eval-worker --space skill-examples` and confirms Condition=Ready."},
+    {"text": "Inspects the existing Target before binding, confirming provider/toolchain and worker", "passed": true, "evidence": "Runs `cub target get k8s-eval-worker` and confirms Provider=Kubernetes, Toolchain=Kubernetes/YAML, Worker=eval-worker."},
+    {"text": "Uses cub unit set-target (not cub unit update --target or a cub target create for an already-existing Target)", "passed": true, "evidence": "Both bindings composed as `cub unit set-target <unit> <target> --space skill-examples`."},
+    {"text": "Does NOT pass --change-desc on cub unit set-target", "passed": true, "evidence": "Write-up explicitly says set-target is not a config-data mutation; commands omit --change-desc."},
+    {"text": "Verifies binding via cub unit get (TargetID) and the TargetID IS NOT NULL where-clause", "passed": true, "evidence": "Verify section runs `cub unit get hello-ns` (shows Target=k8s-eval-worker) and `cub unit list --where 'TargetID IS NOT NULL'` returning both units."},
+    {"text": "Stops short of apply, hands off to cub-apply", "passed": true, "evidence": "Final section: 'Route to cub-apply for the actual deployment. Do not apply from here.'"},
+    {"text": "Surfaces GUI review links via --web", "passed": true, "evidence": "Evidence block uses `cub target get … --web` and `cub unit get … --web`."}
+  ]
+}

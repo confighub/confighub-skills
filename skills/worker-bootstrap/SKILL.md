@@ -87,7 +87,7 @@ cub unit create --space <space> <worker-slug>-manifest /tmp/worker-manifest.yaml
 
 User prompt: <verbatim>
 Clarifications: <condensed>" \
-  --display-mutation
+  --display-mutations
 
 # Apply via an existing worker through cub-apply in a subsequent step.
 ```
@@ -151,5 +151,5 @@ Worker is running and advertising functions. Next steps depend on user intent:
 
 - ConfigHub worker guide: `https://docs.confighub.com/guide/workers/`
 - Worker entity: `https://docs.confighub.com/background/entities/worker/`
-- `references/cub-cli.md` — CLI conventions, `--change-desc`, `--display-mutation`.
+- `references/cub-cli.md` — CLI conventions, `--change-desc`, `--display-mutations`.
 - `references/yaml-patterns.md` — handling of Secret resources in Units.

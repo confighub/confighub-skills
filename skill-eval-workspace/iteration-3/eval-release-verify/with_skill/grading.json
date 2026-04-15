@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Preflights convergence: LiveRevisionNum = LastAppliedRevisionNum = HeadRevisionNum, empty gates, empty LastActionError", "passed": true, "evidence": "Preflight section shows Head=Applied=Live=3 and empty gates for hello-ns."},
+    {"text": "Excludes the non-converged Unit (hello-app) from the completion scope rather than closing it out prematurely", "passed": true, "evidence": "Explicitly states 'hello-app is explicitly NOT in the completion scope.'"},
+    {"text": "Surfaces the Revision history with the composed --change-desc DESCRIPTION column", "passed": true, "evidence": "`cub revision list hello-ns` + explanation that DESCRIPTION carries --change-desc."},
+    {"text": "Uses --web review-link forms (cub unit get --web, cub revision list --web), not hand-built URLs", "passed": true, "evidence": "Three `--web` calls shown and explained."},
+    {"text": "Stays read-only except for the explicit, user-requested tag exception", "passed": true, "evidence": "Tagging section explicitly skipped because not requested; no other mutations."},
+    {"text": "Explicitly tells the user the session is now read-only and a new change requires a new session", "passed": true, "evidence": "'Session is now read-only. No further changes unless a new session is started …'"},
+    {"text": "Does NOT use cub info as an auth check; uses cub context get instead", "passed": true, "evidence": "Preflight uses `cub context get` and annotates '(NOT cub info)'."},
+    {"text": "Explains what each --web page shows so the reviewer knows what to look at", "passed": true, "evidence": "Per-link descriptions for Unit / Revision list / Space pages."}
+  ]
+}

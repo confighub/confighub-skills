@@ -148,6 +148,6 @@ Right after apply:
 
 ## References
 
-- `references/cub-cli.md` — `--change-desc` scope (not on apply), `--display-mutation` (not applicable on apply).
+- `references/cub-cli.md` — `--change-desc` scope (not on apply), `--display-mutations` (not applicable on apply).
 - `references/filters-and-queries.md` — operational filter recipes (`unapplied-changes`, `apply-not-completed`, `has-apply-gates`, `needs-upgrade`).
 - Companion skills: `triggers-and-applygates` (gate diagnosis), `verify-delivery` (post-apply verification), `cub-mutate` (mutation via `--restore` for head rollback).

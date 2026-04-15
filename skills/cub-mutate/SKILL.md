@@ -120,12 +120,12 @@ cub function do \
   --space <space> \
   --where "Slug = '<slug>'" \
   --change-desc "<composed description>" \
-  --display-mutation \
+  --display-mutations \
   -- \
   <function-name> [function args]
 ```
 
-`--display-mutation` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
+`--display-mutations` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
 
 For multi-Unit runs, add `--wait` so you see completion.
 

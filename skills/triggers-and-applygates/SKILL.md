@@ -53,11 +53,13 @@ Verify flag spellings with `CONFIGHUB_AGENT=1 cub space create --help`, `cub tri
 
 ```bash
 # New Space using the filter.
-cub space create myapp-prod --trigger-filter platform/standard-vets
+cub space create myapp-prod --trigger-filter platform/standard-vets --where-trigger "-"
 
 # Existing Space — confirm flag spelling first.
-cub space update myapp-prod --trigger-filter platform/standard-vets
+cub space update myapp-prod --trigger-filter platform/standard-vets --where-trigger "-"
 ```
+
+**Why `--where-trigger "-"`**: every Space is created with a default `WhereTrigger = SpaceID = '<this-space>'` that selects Triggers defined in the Space itself. Attaching a `--trigger-filter` does not clear that default — the two predicates coexist, and the stale default shadows the filter's selection (you'll see `# Triggers = 0` in `cub space get` even though the filter resolves correctly via `cub trigger list --filter <slug>`). Passing `--where-trigger "-"` clears it (the empty-string sentinel; plain `""` is indistinguishable from "flag not set"). Verify with `cub space get --json <space>` — `Triggers` should be populated.
 
 ## Adding custom policy
 

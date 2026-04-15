@@ -1,0 +1,54 @@
+=== cub unit apply hello-ns --space skill-examples --wait --timeout 2m0s ===
+Successfully completed Apply on unit hello-ns (aabf7773-d951-479f-bcb5-fbdb6a036e48)
+=== cub unit apply hello-app --space skill-examples --wait --timeout 2m0s ===
+Action Apply on unit hello-app (ed35f5d4-d43d-4207-b811-1839452dbcac) Failed
+Failed: apply failed on unit hello-app
+=== cub unit get hello-ns --space skill-examples ===
+Name                          hello-ns                                                            
+Toolchain Type                Kubernetes/YAML                                                     
+Provider Type                                                                                     
+Target                        k8s-eval-worker                                                     
+Created At                    2026-04-15 17:55:23.982022 +0000 UTC                                
+Updated At                    2026-04-15 19:51:08.44163 +0000 UTC                                 
+Labels                                                                                            
+Delete Gates                                                                                      
+Destroy Gates                                                                                     
+Annotations                                                                                       
+Last Change Description       PatchUnit                                                           
+Head Revision Num             3                                                                   
+Last Applied Revision Num     3                                                                   
+Live Revision Num             3                                                                   
+Previous Live Revision Num    0                                                                   
+Drift Reconciliation Mode     OnDemand                                                            
+Bridge Worker                 eval-worker                                                         
+Data Hash                     1c870040de3e9a49f0ce071b577485e63d568ec7b011b7488181527fa8a7ea63    
+Head Mutation Num             3                                                                   
+Head Unit Action Num          1                                                                   
+Head Unit Event Num           5                                                                   
+Number of Resources           1                                                                   
+Provided Paths                1 paths                                                             
+=== cub unit get hello-app --space skill-examples ===
+Name                          hello-app                                                           
+Toolchain Type                Kubernetes/YAML                                                     
+Provider Type                                                                                     
+Target                        k8s-eval-worker                                                     
+Created At                    2026-04-15 17:55:28.215526 +0000 UTC                                
+Updated At                    2026-04-15 19:51:13.099978 +0000 UTC                                
+Labels                                                                                            
+Delete Gates                                                                                      
+Destroy Gates                                                                                     
+Annotations                                                                                       
+Last Change Description       PatchUnit                                                           
+Head Revision Num             6                                                                   
+Last Applied Revision Num     6                                                                   
+Live Revision Num             0                                                                   
+Previous Live Revision Num    0                                                                   
+Drift Reconciliation Mode     OnDemand                                                            
+Bridge Worker                 eval-worker                                                         
+Data Hash                     3c466d0d02d5fd1d3f75c46ff417901de73fe5cbeb6d159e2f8a514c4582525b    
+Head Mutation Num             6                                                                   
+Head Unit Action Num          1                                                                   
+Head Unit Event Num           3                                                                   
+Number of Resources           2                                                                   
+Needed Paths                  2 paths                                                             
+Provided Paths                2 paths                                                             

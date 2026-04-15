@@ -1,0 +1,23 @@
+=== cub revision list hello-ns --space skill-examples ===
+NUM    UNIT        CHANGESET    TIME                                    USER                   SOURCE        DESCRIPTION                                                                                                    APPLY-GATES          TAGS 
+3      hello-ns                 2026-04-15 18:01:45.589788 +0000 UTC    brian@confighub.com    Invoke        Add pod-security labels (baseline enforce, restricted warn) to the hello namespace.                            None                 None    
+                                                                                                                                                                                                                                                         
+                                                                                                             User prompt: A skill should create the skill-examples space. Feel free to do it now to my local server.                                     
+                                                                                                             Clarifications: Following config-as-data skill step 4 for Namespaces.| Functions: set-pod-security-defaults                                 
+2      hello-ns                 2026-04-15 17:55:24.089552 +0000 UTC    brian@confighub.com    Resolve       Self-Resolve and invoked triggers: normalize                                                                   None                 None    
+1      hello-ns                 2026-04-15 17:55:23.987302 +0000 UTC    brian@confighub.com    CreateUnit    Initial Data: 64 bytes                                                                                         awaiting/triggers    None    
+=== cub unit diff hello-ns --space skill-examples ===
+[94m 1: [0m  apiVersion: v1
+[94m 2: [0m  kind: Namespace
+[94m 3: [0m  metadata:
+[94m 4: [0m    name: hello
+[94m 5: [0m[32m+  annotations:[0m
+[94m 6: [0m[32m+    confighub.com/ResourceMergeID: ca792fcc-12a7-498a-a0df-3991e4946158[0m
+[94m 7: [0m[32m+  labels:[0m
+[94m 8: [0m[32m+    pod-security.kubernetes.io/enforce: baseline[0m
+[94m 9: [0m[32m+    pod-security.kubernetes.io/enforce-version: latest[0m
+[94m10: [0m[32m+    pod-security.kubernetes.io/warn: restricted[0m
+[94m11: [0m[32m+    pod-security.kubernetes.io/warn-version: latest[0m
+[94m12: [0m  spec: {}
+=== cub unit get hello-ns --space skill-examples --web (would open GUI) ===
+[skipped; would open browser]

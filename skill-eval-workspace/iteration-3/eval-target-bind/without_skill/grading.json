@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Uses a valid cub authentication check (cub context get or cub space list), NOT cub info", "passed": false, "evidence": "Baseline used `cub info` as an auth check — flagged invalid per user correction."},
+    {"text": "Checks the Worker is Ready before binding Units to the Target", "passed": false, "evidence": "No `cub worker get` or `cub worker status` call."},
+    {"text": "Inspects the existing Target before binding, confirming provider/toolchain and worker", "passed": false, "evidence": "No `cub target get` run."},
+    {"text": "Uses cub unit set-target (not cub unit update --target or a cub target create for an already-existing Target)", "passed": false, "evidence": "Baseline proposed `cub unit update --target` which is not the correct verb; the correct verb is `cub unit set-target`."},
+    {"text": "Does NOT pass --change-desc on cub unit set-target", "passed": false, "evidence": "Baseline invented `--change-description` (wrong flag name) on the binding step, violating the rule that target binding is not a config-data mutation."},
+    {"text": "Verifies binding via cub unit get (TargetID) and the TargetID IS NOT NULL where-clause", "passed": false, "evidence": "Baseline verifies with kubectl + cub unit get but does not use the TargetID IS NOT NULL where-clause."},
+    {"text": "Stops short of apply, hands off to cub-apply", "passed": false, "evidence": "Baseline plans to run `cub unit apply` in the same flow — does not respect the skill boundary."},
+    {"text": "Surfaces GUI review links via --web", "passed": false, "evidence": "No --web review link surfaced."}
+  ]
+}

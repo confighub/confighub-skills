@@ -1,0 +1,4 @@
+$ kubectl get ns hello
+$ cub unit get hello-ns --space skill-examples
+$ argocd app get hello-ns                    # baseline assumes Argo might be involved
+$ cub unit refresh hello-ns --space skill-examples    # MUTATION — violates reconciliation-check read-only boundary

@@ -1,0 +1,5 @@
+$ kubectl get ns hello
+$ kubectl get all -n hello
+$ cub info                                 # invalid auth check
+$ cub unit refresh hello-app --space skill-examples      # MUTATION — violates verify-only boundary
+$ cub unit apply hello-app --space skill-examples        # baseline retries instead of handing off

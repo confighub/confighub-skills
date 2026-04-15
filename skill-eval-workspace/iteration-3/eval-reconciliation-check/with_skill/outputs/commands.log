@@ -1,0 +1,70 @@
+=== cub unit list --space skill-examples ===
+NAME         SPACE             CHANGESET    TARGET             STATUS      LAST-ACTION    RESOURCE-STATUS    UPGRADE-NEEDED    UNAPPLIED-CHANGES    APPLY-GATES    LAST-CHANGE-DESCRIPTION 
+hello-ns     skill-examples                 k8s-eval-worker    Ready       ?              1/1 Ready                                                 None           PatchUnit                  
+hello-app    skill-examples                 k8s-eval-worker    Degraded    ?                                                   Yes                  None           PatchUnit                  
+=== kubectl get ns hello -o yaml | head -30 ===
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    config.k8s.io/owning-inventory: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b-hello-ns
+    confighub.com/ResourceMergeID: ca792fcc-12a7-498a-a0df-3991e4946158
+    confighub.com/RevisionNum: "3"
+    confighub.com/SpaceID: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b
+    confighub.com/UnitSlug: hello-ns
+  creationTimestamp: "2026-04-15T19:51:08Z"
+  labels:
+    kubernetes.io/metadata.name: hello
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+  name: hello
+  resourceVersion: "3698"
+  uid: 8e277758-4230-43eb-a191-bcdbdff514f4
+spec:
+  finalizers:
+  - kubernetes
+status:
+  phase: Active
+=== cub unit livestate hello-ns ===
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    config.k8s.io/owning-inventory: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b-hello-ns
+    confighub.com/ResourceMergeID: ca792fcc-12a7-498a-a0df-3991e4946158
+    confighub.com/RevisionNum: "3"
+    confighub.com/SpaceID: 5eb15b86-6a15-4b15-8a99-58a5e13bd56b
+    confighub.com/UnitSlug: hello-ns
+  creationTimestamp: "2026-04-15T19:51:08Z"
+  labels:
+    kubernetes.io/metadata.name: hello
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:config.k8s.io/owning-inventory: {}
+          f:confighub.com/ResourceMergeID: {}
+          f:confighub.com/RevisionNum: {}
+          f:confighub.com/SpaceID: {}
+          f:confighub.com/UnitSlug: {}
+        f:labels:
+          f:pod-security.kubernetes.io/enforce: {}
+          f:pod-security.kubernetes.io/enforce-version: {}
+          f:pod-security.kubernetes.io/warn: {}
+          f:pod-security.kubernetes.io/warn-version: {}
+      f:spec: {}
+    manager: confighub-bridge-worker
+    operation: Apply
+    time: "2026-04-15T19:51:08Z"
+  name: hello
+  resourceVersion: "3698"
+  uid: 8e277758-4230-43eb-a191-bcdbdff514f4
+spec:

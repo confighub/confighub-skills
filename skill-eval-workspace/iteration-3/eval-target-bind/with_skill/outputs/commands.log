@@ -1,0 +1,72 @@
+=== cub worker get eval-worker --space skill-examples ===
+ID                       fbc53d95-3f17-4a2e-8294-dad7f8a92337                                                                      
+Name                     eval-worker                                                                                               
+Space                    skill-examples                                                                                            
+Created At               2026-04-15 19:43:53.146277 +0000 UTC                                                                      
+Updated At               2026-04-15 19:46:35.027625 +0000 UTC                                                                      
+Labels                                                                                                                             
+Delete Gates                                                                                                                       
+Annotations                                                                                                                        
+Permissions              Manage: [8bc613ac-b555-4cda-99a0-073bf6e3c4a2]; ManageChildren: [8bc613ac-b555-4cda-99a0-073bf6e3c4a2]    
+OrgRole                  member                                                                                                    
+UserID                   ec497a24-123c-4661-b714-931c380f0c23                                                                      
+Secret                   ********                                                                                                  
+Condition                Ready                                                                                                     
+Last Message                                                                                                                       
+Last Seen At             2026-04-15 19:50:35.052526 +0000 UTC                                                                      
+IP Address               127.0.0.1                                                                                                 
+ConfigType[0]            Kubernetes / Kubernetes/YAML / Kubernetes/YAML                                                            
+ConfigType[0] Options    Namespace                                                                                                 
+ConfigType[0] Targets    cluster, cluster                                                                                          
+=== cub target get k8s-eval-worker --space skill-examples ===
+ID                 791ee8f0-ed23-43d1-8bd0-180545da4db0    
+Name               k8s-eval-worker                         
+Space              skill-examples                          
+Bridge Worker      eval-worker                             
+Bridge Handle      cluster                                 
+Provider Type      Kubernetes                              
+Toolchain Type     Kubernetes/YAML                         
+LiveState Type     Kubernetes/YAML                         
+Created At         2026-04-15 19:46:35.032225 +0000 UTC    
+Updated At         2026-04-15 19:46:35.032226 +0000 UTC    
+Labels                                                     
+Annotations                                                
+Delete Gates                                               
+Permissions                                                
+Where Trigger                                              
+Trigger Filter                                             
+Triggers                                                   
+Trigger Hash                                               
+Organization ID    e4758064-e360-476e-95ea-ad68af6d2d1e    
+=== cub unit set-target hello-ns k8s-eval-worker --space skill-examples ===
+Successfully updated Unit hello-ns (aabf7773-d951-479f-bcb5-fbdb6a036e48)
+=== cub unit set-target hello-app k8s-eval-worker --space skill-examples ===
+Successfully updated Unit hello-app (ed35f5d4-d43d-4207-b811-1839452dbcac)
+=== cub unit get hello-ns --space skill-examples ===
+Name                          hello-ns                                                            
+Toolchain Type                Kubernetes/YAML                                                     
+Provider Type                                                                                     
+Target                        k8s-eval-worker                                                     
+Created At                    2026-04-15 17:55:23.982022 +0000 UTC                                
+Updated At                    2026-04-15 19:50:52.104773 +0000 UTC                                
+Labels                                                                                            
+Delete Gates                                                                                      
+Destroy Gates                                                                                     
+Annotations                                                                                       
+Last Change Description       PatchUnit                                                           
+Head Revision Num             3                                                                   
+Last Applied Revision Num     0                                                                   
+Live Revision Num             0                                                                   
+Previous Live Revision Num    0                                                                   
+Drift Reconciliation Mode     OnDemand                                                            
+Bridge Worker                 eval-worker                                                         
+Data Hash                     1c870040de3e9a49f0ce071b577485e63d568ec7b011b7488181527fa8a7ea63    
+Head Mutation Num             3                                                                   
+Head Unit Action Num          0                                                                   
+Head Unit Event Num           0                                                                   
+Number of Resources           1                                                                   
+Provided Paths                1 paths                                                             
+=== cub unit list --space skill-examples --where 'TargetID IS NOT NULL' ===
+NAME         SPACE             CHANGESET    TARGET             STATUS     LAST-ACTION    RESOURCE-STATUS    UPGRADE-NEEDED    UNAPPLIED-CHANGES    APPLY-GATES    LAST-CHANGE-DESCRIPTION 
+hello-app    skill-examples                 k8s-eval-worker    NotLive    ?                                                   Yes                  None           PatchUnit                  
+hello-ns     skill-examples                 k8s-eval-worker    NotLive    ?                                                   Yes                  None           PatchUnit                  

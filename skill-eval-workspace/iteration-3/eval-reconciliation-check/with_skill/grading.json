@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Produces an explicit three-way (or N/A-for-controller) table with columns per source", "passed": true, "evidence": "Markdown table with ConfigHub / Controller / Cluster columns for hello-ns and hello-app."},
+    {"text": "Surfaces the controller column correctly — N/A because Target provider is Kubernetes, not Argo/Flux", "passed": true, "evidence": "'Controller column is N/A (direct Kubernetes Target)' — explicitly called out, not faked."},
+    {"text": "Uses LiveRevisionNum / LastAppliedRevisionNum / HeadRevisionNum as the Revision column source on the ConfigHub side", "passed": true, "evidence": "hello-ns revision row cites 'LiveRevisionNum=3, LastAppliedRevisionNum=3, HeadRevisionNum=3.'"},
+    {"text": "Uses cluster-side annotation/owner signals (managed-by=confighub, inventory ConfigMap) to populate the Owner column", "passed": true, "evidence": "Cluster Owner row cites `app.kubernetes.io/managed-by=confighub` and `confighub.com/UnitSlug=hello-ns`."},
+    {"text": "Stays read-only — no cub unit refresh / kubectl apply / argocd sync", "passed": true, "evidence": "'Tool boundary' section lists forbidden mutations and confirms none called."},
+    {"text": "Names the specific divergent pair when a row disagrees (ConfigHub ≠ cluster, etc.)", "passed": true, "evidence": "hello-app row explicitly identifies 'ConfigHub ≠ Cluster' and interprets it as broken at the cub→cluster link."},
+    {"text": "Hands off to release-verify on full agreement, and to the right remediation skill on divergence", "passed": true, "evidence": "Hand-off routes hello-ns to release-verify and hello-app to cub-mutate + cub-apply."},
+    {"text": "Surfaces --web review links as evidence", "passed": true, "evidence": "Evidence block lists `cub unit get … --web` for both units."}
+  ]
+}

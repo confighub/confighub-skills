@@ -2,7 +2,7 @@
 name: skill-examples-bootstrap
 description: Use when the user wants a working ConfigHub playground to exercise the other skills against — phrases like "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", "walk me through with a real example", "I'm new to ConfigHub, show me something I can poke at", or "reset the examples". Creates (or refreshes) a `skill-examples` Space with two seed Units — a `hello-ns` Namespace and a `hello-app` Deployment+Service bundle — and applies the canonical defaults-function chain so the end state demonstrates config-as-data with provenance intact. Idempotent: re-running is safe. Do not load for creating real application Spaces (use config-as-data + space setup directly) or for bootstrapping triggers/policy (use triggers-and-applygates).
 phase: cross-cutting
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *) Bash(kubectl create *) Bash(mkdir -p /tmp/*) Bash(egrep *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *) Bash(kubectl create *) Bash(mkdir -p /tmp/*) Bash(yq *)
 ---
 
 # skill-examples-bootstrap
@@ -73,17 +73,21 @@ Scaffold literal YAML from `kubectl` in a temp dir:
 ```bash
 mkdir -p /tmp/skill-examples-seed && cd /tmp/skill-examples-seed
 
+# Strip metadata.creationTimestamp and .status with yq — a line-based egrep
+# leaves nested children of `status:` behind (e.g., `loadBalancer: {}` from
+# `kubectl create service clusterip`) which then get absorbed into `spec:`
+# and fail `vet-schemas`.
 kubectl create namespace hello --dry-run=client -o yaml \
-  | egrep -v "creationTimestamp|status" > hello-ns.yaml
+  | yq 'del(.metadata.creationTimestamp, .status)' > hello-ns.yaml
 
 kubectl create deployment hello-app \
   --image=ghcr.io/acme/hello-app:v0.1.0 --port=8080 \
   --dry-run=client -o yaml \
-  | egrep -v "creationTimestamp|status" > hello-app-deploy.yaml
+  | yq 'del(.metadata.creationTimestamp, .status)' > hello-app-deploy.yaml
 
 kubectl create service clusterip hello-app --tcp=80:8080 \
   --dry-run=client -o yaml \
-  | egrep -v "creationTimestamp|status" > hello-app-svc.yaml
+  | yq 'del(.metadata.creationTimestamp, .status)' > hello-app-svc.yaml
 
 printf -- "---\n" > hello-app-bundle.yaml
 cat hello-app-deploy.yaml >> hello-app-bundle.yaml
