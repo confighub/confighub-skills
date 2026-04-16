@@ -39,19 +39,19 @@ Before showing hardcoded YAML, check whether the `skill-examples` Space has a re
 cub unit get <example-slug> --space skill-examples --yaml 2>/dev/null
 ```
 
-| Resource type | Example slug | Contents |
-|---|---|---|
-| Deployment + Service | `hello-app` | Deployment + ClusterIP Service bundle |
+| Resource type                  | Example slug        | Contents                                                 |
+| ------------------------------ | ------------------- | -------------------------------------------------------- |
+| Deployment + Service           | `hello-app`         | Deployment + ClusterIP Service bundle                    |
 | StatefulSet + headless Service | `hello-statefulset` | StatefulSet with volumeClaimTemplates + headless Service |
-| DaemonSet | `hello-daemonset` | Node-level DaemonSet with hostPath volumes |
-| Job | `hello-job` | One-shot Job with backoffLimit + activeDeadlineSeconds |
-| CronJob | `hello-cronjob` | Scheduled CronJob with concurrencyPolicy |
-| Ingress | `hello-ingress` | Ingress with TLS + cert-manager annotation |
-| NetworkPolicy | `hello-netpol` | Default-deny + explicit-allow pair |
-| RBAC | `hello-rbac` | ServiceAccount + Role + RoleBinding bundle |
-| HPA | `hello-hpa` | HorizontalPodAutoscaler with scale behavior |
-| PDB | `hello-pdb` | PodDisruptionBudget |
-| Namespace | `hello-ns` | Namespace with pod-security labels |
+| DaemonSet                      | `hello-daemonset`   | Node-level DaemonSet with hostPath volumes               |
+| Job                            | `hello-job`         | One-shot Job with backoffLimit + activeDeadlineSeconds   |
+| CronJob                        | `hello-cronjob`     | Scheduled CronJob with concurrencyPolicy                 |
+| Ingress                        | `hello-ingress`     | Ingress with TLS + cert-manager annotation               |
+| NetworkPolicy                  | `hello-netpol`      | Default-deny + explicit-allow pair                       |
+| RBAC                           | `hello-rbac`        | ServiceAccount + Role + RoleBinding bundle               |
+| HPA                            | `hello-hpa`         | HorizontalPodAutoscaler with scale behavior              |
+| PDB                            | `hello-pdb`         | PodDisruptionBudget                                      |
+| Namespace                      | `hello-ns`          | Namespace with pod-security labels                       |
 
 If the example Unit exists, show it to the user as the starting point and adapt it. If `skill-examples` doesn't exist or the Unit isn't there, use the patterns from `references/yaml-patterns.md`.
 
@@ -60,11 +60,12 @@ If the example Unit exists, show it to the user as the starting point and adapt 
 ### 1. Identify the resource type and gather requirements
 
 Ask the user:
+
 - What resource type do they need?
 - What Space should it go in?
-- For workloads: what image, ports, replicas?
+- For workloads: what image, ports, replicas? Do the containers need to write to disk (logs, caches, scratch space, temp files)? `set-pod-container-security-context-defaults` sets `readOnlyRootFilesystem: true`, so any write paths must be backed by a volume (see step 5).
 - For StatefulSets: storage size, access mode?
-- For Ingress: hostname, TLS required?
+- For Ingress: hostname, TLS required? Which `ingressClassName`? Note: the community `ingress-nginx` controller is being retired (https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/) — new clusters should prefer Gateway API or a maintained alternative (InGate, NGINX Inc.'s NGINX Ingress Controller, Traefik, HAProxy, etc.).
 - For NetworkPolicy: what traffic to allow?
 - For RBAC: what API resources and verbs does the app need?
 - For HPA/PDB: what scaling thresholds?
@@ -80,13 +81,14 @@ If the example exists, use it as a starting template. Adapt names, images, ports
 ### 3. Write the YAML file
 
 Write literal YAML to a temp file. Follow these rules:
+
 - Use `confighubplaceholder` for `namespace` fields — `ensure-namespaces` will add it where missing.
-- Use explicit values for everything else — no templates, no placeholders except where a value genuinely isn't known yet.
-- Set `metadata.labels` with at least an `app` label matching the workload selector.
+- Use explicit values for everything else — no templates, no placeholders except where a value genuinely isn't known yet and there is not a reasonable default.
+- Set `metadata.labels` using the [Kubernetes recommended labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/): at minimum `app.kubernetes.io/name` (matching the workload selector). Add `app.kubernetes.io/instance`, `app.kubernetes.io/version`, `app.kubernetes.io/component`, `app.kubernetes.io/part-of`, `app.kubernetes.io/managed-by` where they apply. Do not use the bare `app` label.
 - For Jobs/CronJobs: always set `restartPolicy: Never` (or `OnFailure`), `backoffLimit`, and `activeDeadlineSeconds`.
 - For NetworkPolicy: always allow DNS egress (port 53 UDP + TCP).
-- For RBAC: set `automountServiceAccountToken: false` on ServiceAccount; grant only needed verbs; use `resourceNames` for Secrets.
-- For Ingress: always set `ingressClassName` explicitly; always configure TLS for production.
+- For RBAC: set `automountServiceAccountToken: false` on the ServiceAccount **and** on the workload pod spec (see step 5); grant only needed verbs; use `resourceNames` for Secrets.
+- For Ingress: always set `ingressClassName` explicitly; always configure TLS for production. Prefer a maintained controller — community `ingress-nginx` is retired (see https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/).
 
 ### 4. Create the Unit
 
@@ -110,8 +112,25 @@ cub function do --space <space> --where "Slug = '<slug>'" \
 cub function do --space <space> --where "Slug = '<slug>'" \
   -- set-pod-container-security-context-defaults --change-desc "..."
 cub function do --space <space> --where "Slug = '<slug>'" \
+  -- set-automount-service-account-token-false --change-desc "..."
+cub function do --space <space> --where "Slug = '<slug>'" \
   -- ensure-namespaces --change-desc "..."
 ```
+
+`set-automount-service-account-token-false` sets `automountServiceAccountToken: false` on every pod spec in the Unit. Apply it to every workload; the ServiceAccount-level setting is a defense-in-depth backstop, not a replacement. Only skip (and explicitly set `true` on the pod spec) when the workload genuinely needs to call the Kubernetes API.
+
+**Writable paths for read-only root filesystems.** `set-pod-container-security-context-defaults` sets `readOnlyRootFilesystem: true`. If the container needs to write anywhere (e.g. `/tmp`, `/var/cache/<app>`, a log dir, a scratch dir), mount a volume at that path. For each write path:
+
+```bash
+cub function do --space <space> --where "Slug = '<slug>'" \
+  -- set-container-volume-mount-path <container-name> <volume-name> <volume-path> \
+     --volume-source=emptyDir \
+     --change-desc "..."
+```
+
+`set-container-volume-mount-path` adds the `volumeMount` to the named container and — if the named volume is not already in the pod spec — adds the volume too. `--volume-source` accepts `emptyDir` (default for scratch), `configMap`, `secret`, or `persistentVolumeClaim`. Use `*` as the container name to apply to all containers in the pod.
+
+If the function doesn't fit the shape the user needs (e.g. a `projected` volume, a specific `medium: Memory` emptyDir, or an existing PVC with a sub-path), edit the YAML directly via `cub unit update` or a `yq-i` run instead.
 
 For Namespace Units:
 
@@ -140,6 +159,7 @@ cub function do --space <space> --where "Slug = '<slug>'" -- vet-format
 ### 7. Guide next steps
 
 Based on what was created, suggest the logical next skill:
+
 - Workloads → `target-bind` + `cub-apply` to deploy.
 - Ingress → ensure the backing Service Unit exists; link via Needs/Provides.
 - NetworkPolicy → apply to the namespace; verify with `kubectl describe networkpolicy`.
