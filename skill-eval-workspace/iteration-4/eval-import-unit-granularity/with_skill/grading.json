@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Splits Namespace into its own Unit (cluster-scoped, platform-owned, different lifecycle)", "passed": true, "evidence": "payments-prod-namespace Unit with just the Namespace resource. Notes import.include_cluster = true needed."},
+    {"text": "Groups policy resources (NetworkPolicy, RBAC, ResourceQuota) into a separate policy Unit", "passed": true, "evidence": "payments-prod-policy Unit with NetworkPolicy, ServiceAccount, Role, RoleBinding, ResourceQuota."},
+    {"text": "Splits each workload (3 Deployments) into its own Unit with co-referenced resources", "passed": true, "evidence": "Three separate Units: payments-api, payments-worker, payments-cron — each with Deployment + Service + relevant ConfigMaps."},
+    {"text": "Does NOT recommend one-Unit-per-resource (anti-pattern)", "passed": true, "evidence": "Explicitly addresses this as an anti-pattern: 'splitting them apart means you can't roll back the Deployment without separately rolling back its ConfigMap.'"},
+    {"text": "Does NOT recommend one mega-Unit for everything", "passed": true, "evidence": "Explains why one mega-Unit is wrong: revision noise, rollback coupling, ownership collapse."},
+    {"text": "Walks the four axes: ownership, references, lifecycle, blast radius", "passed": true, "evidence": "Explicitly calls out four axes and maps them to the recommended groupings."},
+    {"text": "Provides concrete --where-resource predicates for each Unit", "passed": true, "evidence": "Full cub unit import commands with --where-resource AND --dry-run for namespace, policy, and workload Units."},
+    {"text": "Uses --dry-run before actual import", "passed": true, "evidence": "Every cub unit import uses --dry-run. Notes: 'confirm the resource set, then re-run without --dry-run.'"},
+    {"text": "Respects tool boundary — recommends the split but hands off to import-from-cluster for execution", "passed": true, "evidence": "Final section: 'Actual cub unit create / import belongs to import-from-cluster.'"},
+    {"text": "No CRD Unit needed (none mentioned in prompt) — does not fabricate one", "passed": true, "evidence": "Explicitly notes: 'No CRDs mentioned, so no CRD Unit needed.'"}
+  ]
+}

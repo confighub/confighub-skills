@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Splits Namespace into its own Unit (cluster-scoped, platform-owned, different lifecycle)", "passed": false, "evidence": "Namespace not mentioned at all. Neither option separates the Namespace resource from other resources."},
+    {"text": "Groups policy resources (NetworkPolicy, RBAC, ResourceQuota) into a separate policy Unit", "passed": false, "evidence": "Option A lumps NetworkPolicy + ResourceQuota with workloads in 'payments-shared'. Option B's 'payments-shared' mixes HPA/PDB with policy resources — mixed ownership, mixed lifecycle."},
+    {"text": "Splits each workload (3 Deployments) into its own Unit with co-referenced resources", "passed": true, "evidence": "Option B does split per-Deployment, though it misgroups HPA/PDB into 'shared' instead of with the workload they protect."},
+    {"text": "Does NOT recommend one-Unit-per-resource (anti-pattern)", "passed": true, "evidence": "Does not propose per-resource splitting."},
+    {"text": "Does NOT recommend one mega-Unit for everything", "passed": false, "evidence": "Option A is nearly a mega-Unit: all workloads + HPA + PDB in one Unit. Recommended as the simpler path."},
+    {"text": "Walks the four axes: ownership, references, lifecycle, blast radius", "passed": false, "evidence": "No structured reasoning about ownership, references, lifecycle, or blast radius. Reasoning is 'simple vs granular.'"},
+    {"text": "Provides concrete --where-resource predicates for each Unit", "passed": false, "evidence": "No --where-resource predicates. Import shown as a single unscoped cub unit import."},
+    {"text": "Uses --dry-run before actual import", "passed": false, "evidence": "No --dry-run flag used."},
+    {"text": "Respects tool boundary — recommends the split but hands off to import-from-cluster for execution", "passed": false, "evidence": "Directly runs cub unit create + cub unit import inline without routing to the import skill."},
+    {"text": "No CRD Unit needed (none mentioned in prompt) — does not fabricate one", "passed": true, "evidence": "Does not mention CRDs."}
+  ]
+}

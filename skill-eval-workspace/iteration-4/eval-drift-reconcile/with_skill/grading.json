@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Uses Data vs LiveData for drift comparison (not LiveState, which is too noisy)", "passed": true, "evidence": "Explicit: 'Read drift as Data vs LiveData (both cleaned of status, controller fields).' Uses cub unit diff with --from=LastAppliedRevisionNum --to=LiveRevisionNum."},
+    {"text": "Names the three resolutions (ConfigHub wins, cluster wins, selective merge)", "passed": true, "evidence": "Step 3 discusses ConfigHub wins (recommended), then notes the user might want cluster wins or cub-mutate to adjust Data."},
+    {"text": "Names the likely source of drift (manual kubectl edit, not HPA)", "passed": true, "evidence": "Step 2: 'This is a manual kubectl edit. The Worker's bridge already strips HPA-managed fields, so if spec.replicas shows in the diff, it was set by a human.'"},
+    {"text": "Shows the observation + revert pattern (refresh → restore → apply) for audit trail", "passed": true, "evidence": "Second option: refresh to absorb, restore -1 with --change-desc, then apply. Notes: 'use when postmortem needs to see what was in the cluster.'"},
+    {"text": "Shows the simple re-apply path when audit trail isn't needed", "passed": true, "evidence": "First option: cub unit apply payments-api --wait."},
+    {"text": "Addresses recurrence at the source (route through cub-mutate, consider HPA)", "passed": true, "evidence": "Step 5: 'Route the operator through cub-mutate for future scaling. If traffic spikes are expected, consider an HPA and remove spec.replicas from Data.'"},
+    {"text": "Uses --change-desc with proper format on the restore", "passed": true, "evidence": "--change-desc includes description + user prompt + clarifications."},
+    {"text": "Verifies drift is resolved (diff empty, revision nums aligned)", "passed": true, "evidence": "Verify section: cub unit diff (should be empty) + --jq for HeadRevisionNum/LastApplied/LiveRevisionNum."},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": true, "evidence": "Preflight uses cub context get."},
+    {"text": "Never uses kubectl edit/apply/patch to fix drift", "passed": true, "evidence": "Tool boundary: 'Never use kubectl edit/apply/patch to fix drift — that creates more drift.'"}
+  ]
+}

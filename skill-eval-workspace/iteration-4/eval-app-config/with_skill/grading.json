@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Uses AppConfig/Properties toolchain (not raw Kubernetes/YAML ConfigMap)", "passed": true, "evidence": "cub unit create --toolchain AppConfig/Properties. Notes: 'matches what the Java app already reads — never one-way convert.'"},
+    {"text": "Includes required configHub.configName + configHub.configSchema metadata", "passed": true, "evidence": "Both fields in the .properties file: configHub.configName=MyApplicationConfig, configHub.configSchema=SimpleApp."},
+    {"text": "Picks mutable mode for auto-restart use case (RevisionHistoryLimit=0)", "passed": true, "evidence": "Decision section explicitly chooses mutable. Target created with --option RevisionHistoryLimit=0."},
+    {"text": "Creates the server-worker (ConfigMapRenderer runs inside ConfigHub server)", "passed": true, "evidence": "cub worker create --is-server-worker --allow-exists default/server-worker."},
+    {"text": "Creates a ConfigMapRenderer Target with the right toolchain + livestate-type", "passed": true, "evidence": "cub target create --provider ConfigMapRenderer --toolchain AppConfig/Properties --livestate-type Kubernetes/YAML."},
+    {"text": "Creates a sink Unit + link with --use-live-state --auto-update --update-type MergeUnits", "passed": true, "evidence": "Step 7: my-app-configmap sink Unit with link to my-app-config using --use-live-state --auto-update --update-type MergeUnits."},
+    {"text": "Workload YAML uses confighub.com/Hash annotation on pod template (mutable mode pattern)", "passed": true, "evidence": "Workload YAML shows confighub.com/Hash: confighubplaceholder annotation on template.metadata.annotations."},
+    {"text": "Workload references stable ConfigMap name = Unit slug (not confighubplaceholder for the name)", "passed": true, "evidence": "configMap.name: my-app-config (stable, no hash suffix). Comment: 'stable name = Unit slug, no hash suffix.'"},
+    {"text": "Uses set-*-path functions for value mutations (not editing the file directly)", "passed": true, "evidence": "set-string-path SimpleApp spring.datasource.url ... and set-int-path SimpleApp server.port 8443. configSchema as first positional arg."},
+    {"text": "Notes that ToolchainType is immutable post-create", "passed": true, "evidence": "Stop conditions: 'ToolchainType is immutable — switching from Properties to YAML requires a new Unit.'"}
+  ]
+}

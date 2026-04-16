@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Uses Data vs LiveData for drift comparison (not LiveState, which is too noisy)", "passed": false, "evidence": "No drift comparison shown. Skips straight to re-apply without examining what changed."},
+    {"text": "Names the three resolutions (ConfigHub wins, cluster wins, selective merge)", "passed": false, "evidence": "Only two options: re-apply (ConfigHub wins) or update Data. No structured resolution framework."},
+    {"text": "Names the likely source of drift (manual kubectl edit, not HPA)", "passed": false, "evidence": "No source analysis. Doesn't explain Worker field-manager elision."},
+    {"text": "Shows the observation + revert pattern (refresh → restore → apply) for audit trail", "passed": false, "evidence": "No refresh or restore pattern. No audit trail consideration."},
+    {"text": "Shows the simple re-apply path when audit trail isn't needed", "passed": true, "evidence": "cub unit apply payments-api shown as the primary solution."},
+    {"text": "Addresses recurrence at the source (route through cub-mutate, consider HPA)", "passed": true, "evidence": "Mentions HPA as a future consideration, though doesn't note removing spec.replicas from Data."},
+    {"text": "Uses --change-desc with proper format on the restore", "passed": false, "evidence": "No --change-desc on any command."},
+    {"text": "Verifies drift is resolved (diff empty, revision nums aligned)", "passed": false, "evidence": "No verification step."},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": false, "evidence": "No auth check."},
+    {"text": "Never uses kubectl edit/apply/patch to fix drift", "passed": true, "evidence": "Does not propose kubectl-based fixes."}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Wraps the promotion in a ChangeSet (create → open → upgrade → close)", "passed": true, "evidence": "Full ChangeSet lifecycle: cub changeset create, open via --changeset on cub unit update --patch, bulk --upgrade, close via --changeset -."},
+    {"text": "Uses bulk --patch + --filter for all mutations (not per-Unit commands)", "passed": true, "evidence": "All cub unit update commands use --patch --filter orders-home/orders-app, not per-Unit iteration."},
+    {"text": "Uses --upgrade flag for the bulk promotion", "passed": true, "evidence": "Step 3: --upgrade flag on the bulk cub unit update command."},
+    {"text": "Reviews diffs before closing the ChangeSet", "passed": true, "evidence": "Step 4: for loop with cub unit diff per Unit, --from-revision -2."},
+    {"text": "ChangeSet lives in the home Space (orders-home)", "passed": true, "evidence": "cub changeset create --space orders-home."},
+    {"text": "Shows approval path if vet-approvedby is active", "passed": true, "evidence": "Approval section with cub unit approve --revision ChangeSet:$CHANGESET_REF."},
+    {"text": "Hands off to cub-apply for the actual cluster rollout", "passed": true, "evidence": "cub unit apply with --revision ChangeSet:$CHANGESET_REF --wait --timeout 10m0s. Notes: cub-apply / verify-delivery / reconciliation-check own the runtime."},
+    {"text": "Shows rollback path using Before:ChangeSet: (not cub unit apply --revision)", "passed": true, "evidence": "Rollback section uses --restore Before:ChangeSet:$CHANGESET_REF, not --revision."},
+    {"text": "Uses --change-desc (not --change-description) with proper format", "passed": true, "evidence": "All mutations use --change-desc with user prompt + clarifications format."},
+    {"text": "Verifies promotion (needs-upgrade empty, revisions tagged, ChangeSet closed)", "passed": true, "evidence": "Three verify steps: needs-upgrade empty, revision list with ChangeSet filter, changeset get."}
+  ]
+}

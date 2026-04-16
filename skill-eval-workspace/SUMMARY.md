@@ -1,6 +1,6 @@
-# Eval summary — Iterations 1 + 2 + 3
+# Eval summary — Iterations 1 + 2 + 3 + 4
 
-12 evals across all 12 shipped skills. Graded against assertions drafted before execution.
+24 evals across 24 of 26 shipped skills (`import-from-argocd` + `import-from-flux` deferred — need in-cluster Argo/Flux). Graded against assertions drafted before composition.
 
 ## Headline
 
@@ -9,7 +9,8 @@
 | Iteration 1 | 17/22 = **77%** | 6/22 = **27%** |
 | Iteration 2 | 26/26 = **100%** | 6/26 = **23%** |
 | Iteration 3 | 40/40 = **100%** | 2/40 = **5%** |
-| **Overall** | **83/88 = 94%** | **14/88 = 16%** |
+| Iteration 4 | 120/120 = **100%** | 12/120 = **10%** |
+| **Overall** | **203/208 = 98%** | **26/208 = 13%** |
 
 Iteration 3 exercised the Wave 2 deploy/verify/complete chain end-to-end against a live kind cluster with a real Worker. Mutating skills executed against the live instance; baselines composed from general priors.
 
@@ -29,8 +30,20 @@ Iteration 3 exercised the Wave 2 deploy/verify/complete chain end-to-end against
 | verify-delivery | diagnose-hello-app-failure | 8/8 | 0/8 |
 | reconciliation-check | three-way-hello-ns | 8/8 | 0/8 |
 | release-verify | close-out-hello-ns | 8/8 | 1/8 |
+| space-topology | first-real-layout | 10/10 | 1/10 |
+| import-unit-granularity | cluster-namespace-inventory | 10/10 | 3/10 |
+| import-from-helm | cert-manager-first-install | 10/10 | 1/10 |
+| import-from-kustomize | base-plus-overlays-onboarding | 10/10 | 1/10 |
+| import-from-cluster | kubectl-apply-onboarding | 10/10 | 0/10 |
+| promotion-preflight | ready-to-promote-staging-to-prod | 10/10 | 0/10 |
+| promote-release | staging-to-prod-bulk | 10/10 | 1/10 |
+| rollback-revision | apply-revision-is-not-rollback | 10/10 | 1/10 |
+| drift-reconcile | kubectl-edit-stopgap | 10/10 | 3/10 |
+| incident-management | recent-release-crashing-prod | 10/10 | 0/10 |
+| app-config | properties-for-java-app | 10/10 | 0/10 |
+| kubernetes-resources | statefulset-for-redis | 10/10 | 1/10 |
 
-All 12 shipped skills now covered.
+24 of 26 shipped skills now covered. `import-from-argocd` and `import-from-flux` deferred (need in-cluster installations).
 
 ## What the deltas reveal
 

@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Recommends one Space per (app, env) deployment boundary, not suffix-naming or one-Space-per-app", "passed": true, "evidence": "Explicitly recommends web-dev, web-staging, web-prod, api-dev, api-staging, api-prod as separate Spaces. Warns against suffix-naming with three specific reasons."},
+    {"text": "Includes a home Space per app for cross-env artifacts (ChangeSets, Tags, Filters, Views)", "passed": true, "evidence": "Recommends web-home and api-home. Explains why: operational artifacts are cross-environment and shouldn't be coupled to a single env's lifecycle."},
+    {"text": "References the existing platform Space for org-wide Triggers/Filters", "passed": true, "evidence": "Notes platform already exists, explains it holds org-wide Triggers + Filters, recommends attaching via --trigger-filter platform/standard-vets."},
+    {"text": "Uses PascalCase, non-abbreviated label keys (Application, Environment, Region/Cluster)", "passed": true, "evidence": "Commands use --label Application=web --label Environment=dev --label Cluster=shared-cluster. All PascalCase, no abbreviations."},
+    {"text": "Shows how labels enable cross-Space queries", "passed": true, "evidence": "Three concrete cub unit list --space '*' --where 'Space.Labels.X = Y' examples covering prod, shared-cluster, and cluster-migration impact."},
+    {"text": "Addresses the upcoming cluster migration without requiring slug changes", "passed": true, "evidence": "Explains that when prod moves, update the Cluster label (cub space update web-prod --label Cluster=prod-cluster) — no slug change needed."},
+    {"text": "Recommends Worker Pattern A (dedicated Worker Space) for shared cluster", "passed": true, "evidence": "Recommends Pattern A with workers-shared-cluster Space. Notes when prod moves, install a second Worker in workers-prod-cluster."},
+    {"text": "Shows promotion flow using Space-to-Space clone/upgrade", "passed": true, "evidence": "Includes cub unit create --dest-space web-staging --space web-dev and cub unit update --upgrade."},
+    {"text": "Uses valid auth check (cub context get or cub space list), not cub info", "passed": true, "evidence": "Uses cub context get and explicitly notes NOT cub info."},
+    {"text": "Respects tool boundary — does not create Units, Triggers, Workers, or Targets", "passed": true, "evidence": "Final section explicitly states this skill decides where things go; creating Units/Targets/Triggers belongs to other skills."}
+  ]
+}

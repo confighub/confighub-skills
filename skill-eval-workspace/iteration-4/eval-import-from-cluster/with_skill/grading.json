@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Uses cub unit import with --where-resource (not kubectl get -o yaml piped into cub unit update)", "passed": true, "evidence": "All imports use cub unit import with scoped --where-resource predicates. Worker pulls live state directly."},
+    {"text": "Pre-creates Units and binds to Target before importing", "passed": true, "evidence": "Step 3: for loop creating Units + set-target. Notes: 'Units must exist and have a Target before cub unit import can pull.'"},
+    {"text": "Splits resources into multiple Units per import-unit-granularity (namespace, policy, workloads)", "passed": true, "evidence": "Four Units: payments-namespace, payments-policy, payments-api, payments-worker. Split by ownership/lifecycle/blast-radius."},
+    {"text": "Dry-runs before actual import", "passed": true, "evidence": "Step 4 shows full --dry-run commands for all four Units. Step 5: 'Re-run without --dry-run.'"},
+    {"text": "Uses import.include_cluster = true for the Namespace (cluster-scoped)", "passed": true, "evidence": "payments-namespace import: --where-resource includes 'import.include_cluster = true'."},
+    {"text": "Reviews imported data for cluster-added defaults and admission-webhook artifacts", "passed": true, "evidence": "Step 6 checks for imagePullPolicy defaults, last-applied-configuration annotation, and Secrets."},
+    {"text": "Establishes config-as-data discipline (no more kubectl apply, use cub-mutate + cub-apply)", "passed": true, "evidence": "Step 7: 'Never round-trip through the cluster. Changes go through cub-mutate + cub-apply.'"},
+    {"text": "Verifies Worker health before importing", "passed": true, "evidence": "Preflight checks cub worker get eval-worker — Condition: Ready."},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": true, "evidence": "Preflight uses cub context get."},
+    {"text": "Warns against importing Helm/ArgoCD/Flux-managed resources via this path", "passed": true, "evidence": "Tool boundary: 'If any of these resources turn out to be Helm-installed or Flux-managed, redirect to the specialized import skill.'"}
+  ]
+}
