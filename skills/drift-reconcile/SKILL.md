@@ -7,31 +7,32 @@ allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --
 
 # drift-reconcile
 
-Resolve divergence between a Unit's Data (what ConfigHub thinks is the desired state) and its LiveState (what the cluster currently has). The decision isn't mechanical — it's a judgment call about which side is authoritative for the drift, and the right answer depends on what the drift contains and how it got there.
+Resolve divergence between a Unit's Data (what ConfigHub thinks is the desired state) and its LiveData/LiveState (what the cluster currently has). The decision isn't mechanical — it's a judgment call about which side should be authoritative for the drift, and the right answer depends on what the drift contains and how it got there.
 
 ## The three resolutions
 
-| Resolution | Meaning | Commands |
-|---|---|---|
-| **ConfigHub wins** | Drift is unauthorized / noise (manual `kubectl edit`, controller mutation, drift-by-default fields). ConfigHub's Data is the source of truth. | Re-apply via the `cub-apply` skill — `cub unit apply <slug>`. If the drift recurs, address the source (who's running the out-of-band edits, what controller is rewriting the field) rather than treating it as a repeat symptom. |
-| **Cluster wins** | Drift represents an intentional change made in-cluster that should now be absorbed into ConfigHub. | `cub unit refresh <slug>` (pulls LiveState into Data as a new head revision), then commit the result via `cub unit apply` when ready. |
-| **Selective merge** | Some drift accepted, some rejected. Common when a controller adds annotations/fields you want to keep while a hand-edit you want to reject sits in the same Unit. | `cub unit refresh` to pull LiveState into a staging revision, then `cub-mutate` (functions) to keep only the subset you want, then apply. |
+| Resolution          | Meaning                                                                                                                                                           | Commands                                                                                                                                                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ConfigHub wins**  | Drift is unauthorized / noise (manual `kubectl edit`, controller mutation, drift-by-default fields). ConfigHub's Data is the source of truth.                     | Re-apply via the `cub-apply` skill — `cub unit apply <slug>`. If the drift recurs, address the source (who's running the out-of-band edits, what controller is rewriting the field) rather than treating it as a repeat symptom. |
+| **Cluster wins**    | Drift represents an intentional change made in-cluster that should now be absorbed into ConfigHub.                                                                | `cub unit refresh <slug>` (pulls LiveData into Data as a new head revision), then commit the result via `cub unit apply` when ready.                                                                                             |
+| **Selective merge** | Some drift accepted, some rejected. Common when a controller adds annotations/fields you want to keep while a hand-edit you want to reject sits in the same Unit. | `cub unit refresh` to pull LiveData into a staging revision, then `cub-mutate` (functions) to keep only the subset you want, then apply.                                                                                         |
 
-The decision goes through the user, not the skill. The skill's job is to *show* the diff clearly, name the likely sources of drift, and execute the user's chosen resolution.
+The decision goes through the user, not the skill. The skill's job is to _show_ the diff clearly, name the likely sources of drift, and execute the user's chosen resolution.
 
 ## When to use
 
 - User says drift, divergence, out-of-band, "someone kubectl edit'd", "ConfigHub and Kubernetes disagree", "is the cluster still in sync?"
-- `cub unit list` shows a Unit with `LiveRevisionNum != LastAppliedRevisionNum` or a Bridgestate that suggests the cluster has changed since the last apply.
+- LiveData that suggests the cluster has changed since the last apply.
 - A `cub unit refresh` (run manually or by another skill) surfaced changes and the user needs to decide what to do.
 - After an incident where manual cluster edits were made to stabilize production, and now the user needs to bring ConfigHub back in line.
 
 ## Do not load for
 
-- Revision-history rollback (user wants to revert a change made *in ConfigHub*, not reconcile against the cluster) — use `rollback-revision`.
+- Revision-history rollback (user wants to revert a change made _in ConfigHub_, not reconcile against the cluster) — use `rollback-revision`.
 - Three-way agreement check when everything is supposed to be in sync (ConfigHub ↔ controller ↔ cluster) — use `reconciliation-check`. That skill assumes convergence; this one handles divergence.
+- `cub unit list` shows a Unit with `LiveRevisionNum != LastAppliedRevisionNum`. That indicates an incomplete or stuck apply or destroy.
 - First-time apply of a Unit that was just bound to a Target — use the `cub-apply` skill.
-- Bringing new, unmanaged resources into ConfigHub for the first time — use `import-from-cluster` (which *creates* a Unit from live state; drift-reconcile operates on existing Units).
+- Bringing new, unmanaged resources into ConfigHub for the first time — use `import-from-cluster` (which _creates_ a Unit from live state; drift-reconcile operates on existing Units).
 
 ## Preflight gates
 
@@ -46,13 +47,13 @@ The decision goes through the user, not the skill. The skill's job is to *show* 
 
 ## What the Worker already elides
 
-Before the skill decides anything, know that the Worker's Kubernetes bridge already strips fields managed by a long list of controllers during refresh / import — HPA / VPA, Deployment / ReplicaSet / StatefulSet / DaemonSet / Job / CronJob controllers, the scheduler and cluster-autoscaler / descheduler, Istio / Linkerd sidecar injectors, NGINX / Traefik ingress, cert-manager, plus `status` fields across the board. Full list: `https://github.com/confighub/sdk/blob/main/bridge-impl/kubernetes/kubernetes_lib.go` (search for `ignoredFieldManagers`).
+Before the skill decides anything, know that the Worker's Kubernetes bridge already strips fields managed by a long list of controllers during refresh / import — HPA / VPA, Deployment / ReplicaSet / StatefulSet / DaemonSet / Job / CronJob controllers, the scheduler and cluster-autoscaler / descheduler, Istio / Linkerd sidecar injectors, Traefik ingress, cert-manager, plus `status` fields across the board. Full list: `https://github.com/confighub/sdk/blob/main/bridge-impl/kubernetes/kubernetes_lib.go` (search for `ignoredFieldManagers`).
 
 Consequences:
 
-- The HPA-writes-`spec.replicas` case usually doesn't show up as drift — the Worker strips it. If it *does*, the field manager isn't the HPA; dig into what's writing it.
+- The HPA-writes-`spec.replicas` case usually doesn't show up as drift — the Worker strips it. If it _does_, the field manager isn't the HPA; dig into what's writing it.
 - Linkerd / Istio sidecar annotations and init containers injected by those webhooks are stripped; you won't see them in a refresh.
-- What you *will* see is: user-owned field edits (manual `kubectl edit`, debugging patches), controllers not in the ignored list, and fields the admission chain writes but attributes to the original applier (cleaned-up SecurityContext fields, for example).
+- What you _will_ see is: user-owned field edits (manual `kubectl edit`, debugging patches), controllers not in the ignored list, and fields the admission chain writes but attributes to the original applier (cleaned-up SecurityContext fields, for example).
 
 Frame the "name the likely source" step around what the Worker leaves in, not around every category of controller activity — most of the noise has already been removed.
 
@@ -67,12 +68,12 @@ Read the drift as **Data vs LiveData** — both are cleaned of `.status`, contro
 # should be informed by examples, not a summary.
 cub unit diff <slug> --space <s> --from=LastAppliedRevisionNum --to=LiveRevisionNum
 
-# If the Unit's LiveRevisionNum is stale (e.g., hasn't been refreshed recently),
-# look directly at current cluster state, cleaned:
+# The cluster state corresponding to the unit, cleaned, at the time of the last action (apply, refresh, or import; will be empty after destroy):
 cub unit livedata <slug> --space <s>
 
 # For cluster debugging (status, managedFields, full detail), use livestate —
 # NOT for drift diffs (too noisy against Data).
+# Also current at the time of the last action (apply, refresh, or import; will be empty after destroy).
 cub unit livestate <slug> --space <s>
 ```
 
@@ -80,26 +81,20 @@ For a preview of what a refresh would bring in — without touching the Unit —
 
 ```bash
 opID=$(cub unit refresh --wait --space <s> <slug> --dry-run --jq '.QueuedOperationID')
-cub unit-action get --space <s> <slug> "$opID"
-cub unit-action get --space <s> <slug> "$opID" --live-state    # live state at operation time
+cub unit-action get --space <s> <slug> "$opID" --data    # the refreshed data that would be returned
 ```
 
-The Data / LiveData the operation computed stay in the QueuedOperation record; read them via `cub unit-action get` rather than expecting them on the Unit. Useful to answer "what would refresh absorb?" before committing to the refresh.
+When performing a dry run, the Data / LiveData / LiveState the operation computed stay in the QueuedOperation record; read them via `cub unit-action get` rather than expecting them on the Unit. Useful to answer "what would refresh absorb?" before committing to the refresh.
 
-Bulk:
+It's a good idea to use refresh to check for drift before making changes to the configuration data, to ensure you are operating on up-to-date data, rather than waiting until apply time.
 
-```bash
-cub unit list --space "*" --filter <app>-home/<app>-app \
-  --where "LiveRevisionNum != LastAppliedRevisionNum"
-```
-
-Each row is a candidate for reconciliation. Resolve per-Unit or in batches where the drift shape is the same.
+`cub unit apply` also supports `--dry-run` similarly, and can be used to test whether updates will work in the cluster, after changes have been made to the configuration data. Resource creates sometimes can't be verified in this way due to dependencies that aren't actually created.
 
 ### 2. Name the likely source
 
 After Worker-side elision (above), what's left is usually one of:
 
-- **Manual `kubectl edit` / `kubectl patch`.** Someone debugged in prod and left the edit in place. Ask the user whether the edit is meant to stick (absorb → cluster wins) or was a stopgap (ConfigHub wins, re-apply to overwrite).
+- **Manual `kubectl edit` / `kubectl patch`.** Someone debugged in prod and left the edit in place (a "break glass" operational change). Ask the user whether the edit is meant to stick (absorb → cluster wins) or was a stopgap (ConfigHub wins, re-apply to overwrite).
 - **Admission mutations the webhook attributed to the original applier.** Some mutating webhooks stamp a field and keep the `manager` field pointing at the client that sent the request, so the Worker's field-manager elision doesn't catch them. These usually represent real workload requirements; absorb into Data.
 - **Controllers not in the ignored list.** Operators and custom controllers that write to Unit-managed resources. Check the `manager` field in the diff's `metadata.managedFields` to identify them. Absorb if the field is legitimately controller-owned; restore from Data if the write is wrong.
 - **Fields the user expected to own but are being mutated.** e.g., SecurityContext fields written by a PodSecurity admission rewriter. Absorb — the workload needs the rewritten values.
@@ -107,7 +102,7 @@ After Worker-side elision (above), what's left is usually one of:
 
 ### 3. Decide
 
-Walk through the diff with the user and reach one of the three resolutions. For bulk drift, decide per-Unit *or* group Units that have the same drift shape and decide for the group.
+Walk through the diff with the user and reach one of the three resolutions. For bulk drift, decide per-Unit _or_ group Units that have the same drift shape and decide for the group.
 
 ### 4a. Resolution — ConfigHub wins
 
@@ -131,7 +126,9 @@ Clarifications: <condensed — what was changed in-cluster and why it's rejected
 cub unit apply <slug> --space <s> --wait
 ```
 
-Use this when it's important for the audit trail to show *what was in the cluster*, not just that ConfigHub's Data was re-applied.
+Use this when it's important for the audit trail to show _what was in the cluster_, not just that ConfigHub's Data was re-applied.
+
+Note that due to asynchronous triggers and changes made due to links (aka "resolve"), refresh and other mutations sometimes generate two revisions rather than just one. Either create a tag and set it with `cub unit tag` prior to refresh, or simply look at the revisions with `cub revision list` after performing `cub unit refresh`.
 
 ### 4b. Resolution — cluster wins
 
@@ -141,22 +138,19 @@ Absorb live state into Data:
 cub unit refresh <slug> --space <s>
 ```
 
-`cub unit refresh` creates a new head revision whose Data matches current LiveState. Review the revision, then apply:
+`cub unit refresh` creates a new head revision whose Data matches current LiveData. Review the revision:
 
 ```bash
 cub unit diff <slug> --space <s> --from=-1    # new head vs prior head
-cub unit update <slug> --space <s> \
-  --change-desc "Absorb out-of-band cluster changes.
-
-User prompt: <verbatim>
-Clarifications: <condensed — e.g. 'accepted HPA-driven replica change; sidecar injection annotations'>"
-# (if you want to keep refresh's head exactly, the above is a no-op update that records the desc;
-#  alternatively use cub unit tag to mark this revision as the absorbed baseline.)
-
-cub unit apply <slug> --space <s> --wait
 ```
 
-Apply-after-refresh is the canonical pattern: refresh captures what's there, then apply makes ConfigHub's Data the new declared state going forward.
+Refresh updates LiveRevisionNum and LastAppliedRevisionNum to match the new HeadRevisionNum, so an apply is not necessary - the changes were already in the cluster.
+
+If you had unapplied changes before doing the reset, you may want to merge them into the updated configuration data so that they can be applied.
+
+```bash
+cub unit update --patch --space <s> <slug> --merge-source Self --merge-base PreviousLiveRevisionNum --merge-end Before:HeadRevisionNum --change-desc "Merge unapplied changes from before refresh"
+```
 
 ### 4c. Resolution — selective merge
 
@@ -193,12 +187,14 @@ Scheduling a drift-reconcile run for regular recurrence is a workaround, not a f
 Apply the same loop per-Unit, or for same-shape drift use bulk commands:
 
 ```bash
+# Bulk drift detection check.
+cub unit refresh --space "*" --filter <app>-home/<app>-app --wait --dry-run --display-mutations
+
 # Bulk refresh.
-cub unit refresh --space "*" --filter <app>-home/<app>-app --where "LiveRevisionNum != LastAppliedRevisionNum" --dry-run
-cub unit refresh --space "*" --filter <app>-home/<app>-app --where "LiveRevisionNum != LastAppliedRevisionNum"
+cub unit refresh --space "*" --filter <app>-home/<app>-app --wait
 
 # Bulk re-apply (ConfigHub wins resolution).
-cub unit apply --space "*" --filter <app>-home/<app>-app --where "LiveRevisionNum != LastAppliedRevisionNum" --wait
+cub unit apply --space "*" --filter <app>-home/<app>-app --wait
 ```
 
 Always `--dry-run` first on bulk refresh — you're creating new head revisions on every matching Unit.
@@ -210,16 +206,14 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 
 ## Stop conditions
 
-- The drift is actually a cluster error (e.g., `status.conditions[].type = "ReplicaFailure"`) rather than a data divergence — that's a delivery / health problem, route to `verify-delivery`.
 - The "drift" is the ConfigHub Unit being one revision behind a very recent apply that hasn't fully converged — wait for `verify-delivery` to clear first, then re-check.
 - The Unit has an open ChangeSet — close it first; drift-reconcile against an open ChangeSet would layer more mutations into the release.
 - User wants to keep both the ConfigHub state and the cluster state as "sources of truth" indefinitely. Push back: that's permanent drift and defeats ConfigHub's premise. Either accept the drift into Data, or remove the diverging field from Data so a controller owns it unambiguously.
 
 ## Verify chain
 
-1. After resolution: `cub unit diff <slug> --space <s> --from=LastAppliedRevisionNum --to=LiveRevisionNum` — empty (or the only remaining differences are ones you explicitly left in the merge resolution).
-2. `cub unit get <slug> --space <s> --jq '.Unit | {HeadRevisionNum, LastAppliedRevisionNum, LiveRevisionNum}'` — after apply, LastAppliedRevisionNum advances to match the new head; LiveRevisionNum matches LastAppliedRevisionNum.
-3. Whatever source-level change step 5 called for has landed (operator trained, admission policy adjusted, field removed from Data).
+1. `cub unit refresh --wait --dry-run --display-mutations` shows no additional changes.
+2. Whatever source-level change step 5 called for has landed (operator trained, admission policy adjusted, field removed from Data).
 
 ## Evidence
 
@@ -229,6 +223,5 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 ## References
 
 - `references/cub-cli.md` — `--change-desc` scope; `--display-mutations` on mutating calls.
-- `references/revisions.md` — `LiveRevisionNum`, `LastAppliedRevisionNum`, `HeadRevisionNum` semantics.
-- `references/functions-catalog.md` — functions for selective merge (strip-metadata-*, set-label, set-annotation, set-cel).
+- `references/functions-catalog.md` — functions for selective merge (strip-metadata-\*, set-label, set-annotation, set-cel).
 - Companion skills: `cub-apply` (runtime for ConfigHub-wins), `cub-mutate` (surgical edits during selective merge), `reconciliation-check` (the in-agreement check; this is its divergence counterpart), `rollback-revision` (ConfigHub-history rewind, different problem), `verify-delivery` (when the "drift" is actually a delivery failure).
