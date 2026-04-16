@@ -72,7 +72,7 @@ For each review link, tell the user what they'll see there and why it's the auth
 Only if the user explicitly asks. Tagging is a mutation (see `cub-mutate`) but it's a small, intentional, completion-time action:
 
 ```bash
-cub unit tag <slug> --space <s> --add Tag:release-v1.2.3
+cub unit tag release-v1.2.3 --space <s> --unit <slug>
 ```
 
 ### 5. Stop

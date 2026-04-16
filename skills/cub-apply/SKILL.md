@@ -113,7 +113,7 @@ Cancels an in-flight apply. Use when an apply is stuck or the user changed their
 For intentional releases the user wants to mark:
 
 ```bash
-cub unit tag <slug> --space <s> --add Tag:release-v1.2.3
+cub unit tag release-v1.2.3 --space <s> --unit <slug>
 ```
 
 Tagged revisions become first-class `--revision` targets (`Tag:release-v1.2.3`) for future apply; rollback uses them via `cub unit update --restore Tag:...` in `rollback-revision`, not via `--revision` here.
