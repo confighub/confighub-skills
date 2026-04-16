@@ -35,18 +35,25 @@ Ask (or derive from context) in order. Stop at the first one that routes clearly
    Only applies change live state — ChangeSet opens, mutations, upgrades, and `--restore` operations don't hit the cluster until the corresponding `cub unit apply`. Ignore the head-revision / ChangeSet noise; look at what the Worker actually deployed in the incident window.
 
    ```bash
-   # Applies that started after <incident-window-start>. Correlates UnitID +
-   # SpaceID because a Slug alone can repeat across Spaces.
-   cub unit list --space "*" --filter <app>-home/<app>-app \
-     --jq '[.[] | select(.UnitStatus.Action == "Apply"
-                         and .UnitStatus.ActionStartedAt >= "<ISO-timestamp>")
-            | {UnitID: .Unit.UnitID, SpaceID: .Unit.SpaceID, Slug: .Unit.Slug,
-               ActionStartedAt: .UnitStatus.ActionStartedAt,
-               ActionResult: .UnitStatus.ActionResult,
-               LastChangeDescription: .Unit.LastChangeDescription}]'
+   # Apply actions across the org that started after <incident-window-start>.
+   # Returns at most one row per Unit (the latest Apply), with Unit + Space
+   # slug columns so a repeated slug across Spaces is disambiguated.
+   cub unit-action list --space '*' \
+     --where "Action = 'Apply' AND CreatedAt > '<ISO-timestamp>'"
+
+   # To scope by app, first get the Unit IDs from the app filter, then use
+   # UnitID IN (...) in the where clause:
+   cub unit list --space '*' --filter <app>-home/<app>-app \
+     --jq '[.[] | .Unit.UnitID] | join("'"'"','"'"'")' \
+     --no-header
+   # => paste the IDs into:
+   cub unit-action list --space '*' \
+     --where "Action = 'Apply' AND CreatedAt > '<ISO-timestamp>' AND UnitID IN ('<id1>','<id2>',...)"
    ```
 
    If this returns rows plausibly linked to symptoms → **rollback path** (Path A). If it returns rows but symptoms don't match, or returns empty → **mitigate path** (Path B).
+
+   Inspect a specific action with `cub unit-action get <unit-slug> <num>` (the Num column from list), adding `--data`, `--livedata`, `--livestate`, or `--bridgestate` when the payload matters for triage.
 
 2. **Did anyone make out-of-band cluster changes (kubectl, argocd sync, flux reconcile) to stabilize?**
    - Yes → after incident is contained, `drift-reconcile` to decide who wins per change.
