@@ -43,7 +43,7 @@ Published guides:
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. Target Space exists (`cub space list`). User has write permission.
 3. `helm` is on PATH — `cub helm` shells out to it for template rendering.
 4. The chart's Helm repo is already added (`helm repo list`). If not, add it: `helm repo add <name> <url> --force-update` and `helm repo update`.

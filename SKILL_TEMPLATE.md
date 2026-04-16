@@ -28,7 +28,7 @@ One or two sentences on what the skill enables, in plain terms.
 
 Before acting, confirm:
 
-1. `cub auth login` is current (`cub context get` returns a user).
+1. `cub auth login` is current (`cub organization list` succeeds — any authenticated read would work, but `cub context get` / `cub info` / `cub version` do not, since they don't require a valid token).
 2. Target Space exists and the user has write permission.
 3. <skill-specific gates>
 

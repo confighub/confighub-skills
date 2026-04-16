@@ -24,7 +24,7 @@ Read-only decision skill. Confirms that promoting a release from one env-Space t
 
 ## Preflight gates (for this skill to do its work)
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. The source env-Space and destination env-Space are known (per `space-topology`: `<app>-<from-env>` → `<app>-<to-env>`).
 3. The app's home Space is known (`<app>-home`) — the `<app>-app` Filter, release ChangeSets, and Tags live there.
 4. User has at least read permission on both env-Spaces and the home Space.

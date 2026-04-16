@@ -42,7 +42,7 @@ Published guide:
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. Target Space exists and the user has write permission.
 3. `kustomize` or `kubectl kustomize` is on PATH. `kustomize build` and `kubectl kustomize` produce identical output for straightforward overlays; prefer `kustomize` CLI for full feature coverage (plugins, helm inflator, etc.).
 4. The overlay path the user points at actually has a `kustomization.yaml`.

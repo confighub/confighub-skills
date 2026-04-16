@@ -46,6 +46,20 @@ cub unit list --space "*" --where "Space.Labels.Environment = 'production'"
 cub trigger list --space "*" --where "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
+### `--unit <slug|uuid>[,…]` — slug-targeting for bulk-only commands
+
+On the bulk-operation commands that have no single-unit form — `cub function do` and `cub run` — prefer `--unit` over `--where "Slug = '<slug>'"` when the Space is pinned. It's shorter, reads like what a human would actually type, and accepts multiple values (repeat the flag or comma-separate).
+
+```
+cub function do --space <space> --unit <slug> -- <function> [args]
+cub function do --space <space> --unit a,b,c -- <function> [args]
+cub run --space <space> --unit <slug> set-image <container> <image>
+```
+
+- Accepts UUIDs as well as slugs. For `--space "*"` (cross-space), slugs aren't unique across spaces — pass UUIDs, or use `--where` against other metadata.
+- Composes with `--where` and `--where-data` via AND when you need to narrow further: `--unit <slug> --where "TargetID IS NOT NULL"`.
+- For anything other than a slug/UUID list (label selection, `TargetID IS NOT NULL`, `LEN(ApplyGates) > 0`, etc.), stay on `--where`.
+
 ### `--where-field "<expr>"` — on `cub filter create` / `update` only
 
 The stored metadata predicate of a named Filter entity. **Not accepted** on `list` commands or bulk operations — those use `--where`. Same SQL-ish syntax as `--where`.

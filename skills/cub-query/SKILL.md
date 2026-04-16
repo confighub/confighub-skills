@@ -30,7 +30,7 @@ Configuration is stored as data. Every field of every resource in every Unit in 
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. For cross-space queries (`--space "*"`), user has read permission on the spaces of interest.
 
 ## The query toolkit

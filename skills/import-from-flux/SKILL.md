@@ -41,7 +41,7 @@ Published guide:
 
 Before running `cub gitops discover`:
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. `kubectl config current-context` points at the cluster Flux is actually running in.
 3. The Flux namespace (usually `flux-system`) has the controllers running, and the HelmRelease / Kustomization resources you expect are visible: `kubectl get helmreleases.helm.toolkit.fluxcd.io -A` and `kubectl get kustomizations.kustomize.toolkit.fluxcd.io -A`.
 4. A **Worker is installed in that cluster with the three bridges**: `-t kubernetes,fluxrenderer,fluxoci`. Verify `cub worker list-function --space <workers-space> <worker>` advertises all three provider-type function sets. If not, run `worker-bootstrap` first.

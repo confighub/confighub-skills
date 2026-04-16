@@ -27,7 +27,7 @@ The runtime verb. Takes a Unit's head (or a specific revision) and pushes it thr
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. The Unit(s) have a `TargetID` (use the `has-target`-equivalent check: `cub unit list --space <s> --where "Slug = '<u>' AND TargetID IS NOT NULL"`). If missing, route to `target-bind`.
 3. The Worker backing the Target is healthy: `cub worker status --space <worker-space> <worker-slug>`. If down, route to `worker-bootstrap`.
 4. No ApplyGates attached, unless the plan is explicitly to *resolve* gates before apply: `cub unit list --space <s> --where "Slug = '<u>' AND LEN(ApplyGates) > 0"`. If gates are present, stop and route to `triggers-and-applygates`.

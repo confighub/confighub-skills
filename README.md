@@ -20,7 +20,7 @@ The plugin manifest is at `.claude-plugin/plugin.json`; Claude Code auto-discove
 
 Prerequisites for the skills to actually *do* anything:
 
-- `cub` CLI on PATH, with `cub context get` returning a valid user.
+- `cub` CLI on PATH, with a valid session (`cub organization list` succeeds — `cub context get` only reads local login state and can still show a user when the token is expired).
 - `kubectl` on PATH for skills that touch clusters.
 - A running ConfigHub server (self-hosted or `https://hub.confighub.com/`).
 - For GitOps imports: `argocd` / `flux` CLI on PATH as read-only diagnostic helpers.

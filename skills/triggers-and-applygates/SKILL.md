@@ -24,7 +24,7 @@ Make validation enforced, not advisory. Without Triggers, `vet-*` functions are 
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. User has write permission on the `platform` Space (or whichever Space will hold Triggers) and on the target application Spaces.
 3. Confirm with the user: should Triggers be centralized in a `platform` Space, or do they already have a different convention? Default recommendation is `platform`.
 

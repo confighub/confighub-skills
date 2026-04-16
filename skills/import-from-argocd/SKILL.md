@@ -41,7 +41,7 @@ Published guide:
 
 Before running `cub gitops discover`:
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. `kubectl config current-context` points at the cluster ArgoCD is actually running in.
 3. The ArgoCD namespace (usually `argocd`) has the Application resources you expect: `kubectl get applications.argoproj.io -A`.
 4. A **Worker is installed in that cluster with the three bridges**: `-t kubernetes,argocdrenderer,argocdoci`. Verify `cub worker list-function --space <workers-space> <worker>` advertises all three provider-type function sets. If not, run `worker-bootstrap` first.

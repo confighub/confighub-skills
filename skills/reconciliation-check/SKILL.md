@@ -28,7 +28,7 @@ Three-way agreement: ConfigHub ↔ controller ↔ cluster.
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. `kubectl config current-context` matches the cluster the Unit targets. If not, the cluster column will be wrong; stop and fix context before reporting.
 3. For controller columns: `argocd login` / Flux kubectl context is usable; otherwise skip that column and say so explicitly.
 
@@ -57,7 +57,7 @@ Prefer getter functions for the ConfigHub-side content columns (they're structur
 
 ```bash
 # Image per Deployment, across the scope.
-cub function do --space <s> --where "Slug IN ('<u1>','<u2>')" --resource-type apps/v1/Deployment \
+cub function do --space <s> --unit <u1>,<u2> --resource-type apps/v1/Deployment \
   get-container-image <container> \
   --quiet --output-jq '.[] | {unit: .UnitSlug, image: .Value}'
 

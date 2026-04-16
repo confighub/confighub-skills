@@ -36,7 +36,7 @@ If the user's cluster state came from a Helm chart, ArgoCD, or Flux — even if 
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. `kubectl config current-context` points at the right cluster.
 3. A **Worker with the `Kubernetes` bridge** is installed in that cluster (`cub worker list-function <worker>` advertises Kubernetes/YAML functions). If not, run `worker-bootstrap` first — the Worker is what performs the import.
 4. A cluster **Target** exists (typically in a `workers-<cluster>` Space per `space-topology`) backed by that Worker. Confirm with `cub target list --space "*"`.

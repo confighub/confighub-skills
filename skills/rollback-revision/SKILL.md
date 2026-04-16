@@ -30,7 +30,7 @@ Rollback always means: create a new head whose data equals some prior revision's
 
 ## Preflight gates
 
-1. `cub context get` returns a user. User has write permission on the target Space(s).
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one). User has write permission on the target Space(s).
 2. The rollback scope is explicit: single Unit slug, or a Filter (usually the `<app>-home/<app>-app` Filter from the promotion that's being rolled back) + optional `--where` narrowing.
 3. The rollback target is explicit. Valid `--restore` targets:
    - Absolute revision number (`--restore 42`).

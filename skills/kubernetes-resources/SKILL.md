@@ -27,7 +27,7 @@ Author common Kubernetes resource types as ConfigHub Units — literal YAML, bes
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. Target Space exists and the user has write permission.
 3. **Resource type identified.** If the user's request is vague ("set up my app"), ask what specific resources they need before proceeding.
 
@@ -105,15 +105,15 @@ Clarifications: <condensed>"
 For workload Units (Deployment, StatefulSet, DaemonSet, Job, CronJob):
 
 ```bash
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- set-container-resources-defaults --change-desc "..."
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- set-container-probe-defaults --change-desc "..."
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- set-pod-container-security-context-defaults --change-desc "..."
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- set-automount-service-account-token-false --change-desc "..."
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- ensure-namespaces --change-desc "..."
 ```
 
@@ -122,7 +122,7 @@ cub function do --space <space> --where "Slug = '<slug>'" \
 **Writable paths for read-only root filesystems.** `set-pod-container-security-context-defaults` sets `readOnlyRootFilesystem: true`. If the container needs to write anywhere (e.g. `/tmp`, `/var/cache/<app>`, a log dir, a scratch dir), mount a volume at that path. For each write path:
 
 ```bash
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- set-container-volume-mount-path <container-name> <volume-name> <volume-path> \
      --volume-source=emptyDir \
      --change-desc "..."
@@ -135,14 +135,14 @@ If the function doesn't fit the shape the user needs (e.g. a `projected` volume,
 For Namespace Units:
 
 ```bash
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- set-pod-security-defaults --change-desc "..."
 ```
 
 For non-workload namespaced resources (Ingress, NetworkPolicy, RBAC, HPA, PDB):
 
 ```bash
-cub function do --space <space> --where "Slug = '<slug>'" \
+cub function do --space <space> --unit <slug> \
   -- ensure-namespaces --change-desc "..."
 ```
 
@@ -151,9 +151,9 @@ Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containe
 ### 6. Validate
 
 ```bash
-cub function do --space <space> --where "Slug = '<slug>'" -- vet-schemas
-cub function do --space <space> --where "Slug = '<slug>'" -- vet-placeholders
-cub function do --space <space> --where "Slug = '<slug>'" -- vet-format
+cub function do --space <space> --unit <slug> -- vet-schemas
+cub function do --space <space> --unit <slug> -- vet-placeholders
+cub function do --space <space> --unit <slug> -- vet-format
 ```
 
 ### 7. Guide next steps
@@ -193,8 +193,8 @@ Based on what was created, suggest the logical next skill:
 ## Verify chain
 
 1. `cub unit get <slug> --space <space> --yaml` — inspect the stored YAML.
-2. `cub function do --space <space> --where "Slug = '<slug>'" -- vet-schemas` — valid against target K8s version.
-3. `cub function do --space <space> --where "Slug = '<slug>'" -- vet-placeholders` — no stray placeholders.
+2. `cub function do --space <space> --unit <slug> -- vet-schemas` — valid against target K8s version.
+3. `cub function do --space <space> --unit <slug> -- vet-placeholders` — no stray placeholders.
 
 ## Evidence
 

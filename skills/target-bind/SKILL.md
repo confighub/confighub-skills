@@ -30,7 +30,7 @@ Best practice: one Target per Kubernetes cluster per Space, since a Target corre
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. The intended Worker exists in a Space the user can read: `cub worker list --space <worker-space>`. If not, stop and route to `worker-bootstrap`.
 3. For Kubernetes-provider targets: the `KubeContext` value matches a context name the worker's kubeconfig knows about. If unsure, `cub target access` can verify.
 4. Confirm with the user: single-provider target or multi-provider (e.g., both `Kubernetes` direct apply AND `ArgoCDRenderer` output)?
