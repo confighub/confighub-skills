@@ -82,9 +82,9 @@ Once every skill has at least one eval iteration, run `skill-creator/scripts/run
 
 These are settled and load-bearing. Don't relitigate without strong reason.
 
-1. **End-user audience, not demo.** Skills target end users operating their own Kubernetes via ConfigHub.
+1. **End-user audience, not demo.** Skills target end users operating their own Kubernetes via ConfigHub. Don't overfit the skills for specific demos or examples.
 2. **Plugin-only delivery.** Claude Code plugin + agentskills.io-style harnesses. Not Claude.ai / API.
-3. **Argo and Flux are peers.** Not Argo-primary.
+3. **ArgoCD and Flux are peers.** Not ArgoCD-primary.
 4. **Configuration as data.** Units contain literal YAML, no parameterization at rest. Helm / Kustomize are onboarding ramps, not ongoing workflows.
 5. **`--change-desc` is Unit-data-mutation-only.** Not on `cub space / trigger / filter / target / worker create/update`.
 6. **`--display-mutations` (plural)** on every mutating call. The singular `--display-mutation` is rejected.

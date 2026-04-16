@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Wraps the promotion in a ChangeSet (create → open → upgrade → close)", "passed": false, "evidence": "No ChangeSet. Per-Unit commands with no grouping, lock, or rollback path."},
+    {"text": "Uses bulk --patch + --filter for all mutations (not per-Unit commands)", "passed": false, "evidence": "Six separate cub unit update commands, one per Unit. No --filter or --patch."},
+    {"text": "Uses --upgrade flag for the bulk promotion", "passed": true, "evidence": "Each cub unit update uses --upgrade."},
+    {"text": "Reviews diffs before closing the ChangeSet", "passed": false, "evidence": "No diff review step."},
+    {"text": "ChangeSet lives in the home Space (orders-home)", "passed": false, "evidence": "No ChangeSet, no home Space reference."},
+    {"text": "Shows approval path if vet-approvedby is active", "passed": false, "evidence": "No approval mechanism mentioned."},
+    {"text": "Hands off to cub-apply for the actual cluster rollout", "passed": false, "evidence": "Runs cub unit apply inline, does not hand off to cub-apply skill."},
+    {"text": "Shows rollback path using Before:ChangeSet: (not cub unit apply --revision)", "passed": false, "evidence": "No rollback path shown."},
+    {"text": "Uses --change-desc (not --change-description) with proper format", "passed": false, "evidence": "Uses --change-description (incorrect flag name)."},
+    {"text": "Verifies promotion (needs-upgrade empty, revisions tagged, ChangeSet closed)", "passed": false, "evidence": "Verification is just kubectl get pods and cub unit list. No needs-upgrade check or revision verification."}
+  ]
+}

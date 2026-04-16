@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Recommends one Space per (app, env) deployment boundary, not suffix-naming or one-Space-per-app", "passed": false, "evidence": "Option 1 recommends one Space per app with suffix-naming (web-dev, web-staging, web-prod as Units). Option 2 recommends one Space per env holding all apps. Neither matches the correct pattern."},
+    {"text": "Includes a home Space per app for cross-env artifacts (ChangeSets, Tags, Filters, Views)", "passed": false, "evidence": "No mention of home Spaces, ChangeSets, Tags, Filters, or Views."},
+    {"text": "References the existing platform Space for org-wide Triggers/Filters", "passed": false, "evidence": "No mention of the platform Space or Trigger Filter attachment."},
+    {"text": "Uses PascalCase, non-abbreviated label keys (Application, Environment, Region/Cluster)", "passed": false, "evidence": "Uses lowercase abbreviated labels: env=dev, env=staging. Not PascalCase, not the ConfigHub convention."},
+    {"text": "Shows how labels enable cross-Space queries", "passed": false, "evidence": "No cross-Space query examples shown."},
+    {"text": "Addresses the upcoming cluster migration without requiring slug changes", "passed": false, "evidence": "Mentions 'create a new Worker' but no structured plan. No label-based approach to track cluster assignment."},
+    {"text": "Recommends Worker Pattern A (dedicated Worker Space) for shared cluster", "passed": false, "evidence": "Says 'create a single Worker and attach it to each Space' — no dedicated Worker Space pattern."},
+    {"text": "Shows promotion flow using Space-to-Space clone/upgrade", "passed": false, "evidence": "No promotion flow mentioned."},
+    {"text": "Uses valid auth check (cub context get or cub space list), not cub info", "passed": false, "evidence": "Uses cub info for auth check, which does not require authentication and is not a valid auth check."},
+    {"text": "Respects tool boundary — does not create Units, Triggers, Workers, or Targets", "passed": true, "evidence": "Does not attempt to create Units, Triggers, Workers, or Targets directly."}
+  ]
+}

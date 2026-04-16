@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Includes a headless Service (clusterIP: None) bundled with the StatefulSet", "passed": false, "evidence": "No Service. StatefulSet alone — pod DNS won't resolve correctly."},
+    {"text": "Pulls the live example from skill-examples (hello-statefulset) before authoring", "passed": false, "evidence": "No mention of skill-examples or live examples."},
+    {"text": "Uses confighubplaceholder for namespace (resolved by ensure-namespaces)", "passed": false, "evidence": "Hardcodes namespace: redis-prod (treats Space slug as namespace)."},
+    {"text": "Includes volumeClaimTemplates for per-pod persistent storage (not a separate PVC Unit)", "passed": true, "evidence": "Has volumeClaimTemplates with 10Gi storage."},
+    {"text": "Sets serviceName matching the headless Service name", "passed": false, "evidence": "No serviceName field on the StatefulSet spec."},
+    {"text": "Applies the four defaults functions (resources, probes, security-context, ensure-namespaces)", "passed": false, "evidence": "No function calls. No defaults applied."},
+    {"text": "Overrides HTTP probes with TCP for Redis (not HTTP)", "passed": false, "evidence": "No probes defined at all."},
+    {"text": "Runs vet-schemas, vet-placeholders, vet-format for validation", "passed": false, "evidence": "No validation functions run."},
+    {"text": "Includes --change-desc on cub unit create with proper format", "passed": false, "evidence": "No --change-desc."},
+    {"text": "Hands off deploy to target-bind + cub-apply (not running cub unit apply directly)", "passed": false, "evidence": "Runs cub unit apply directly after create."}
+  ]
+}

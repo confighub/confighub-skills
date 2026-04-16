@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Checks source env convergence: HeadRevisionNum > LiveRevisionNum, ApplyGates, LiveRevisionNum != LastApplied", "passed": true, "evidence": "Three separate queries per condition in Section A, each with correct --where predicates."},
+    {"text": "Checks destination needs-upgrade scope (what would actually change)", "passed": true, "evidence": "Section B: cub unit list --filter platform/needs-upgrade. Notes: if empty, nothing to promote — stop."},
+    {"text": "Shows pre-promotion diffs (cub unit diff --from Upstream)", "passed": true, "evidence": "Section C: for loop running cub unit diff per Unit with --from Upstream."},
+    {"text": "Checks destination policy (Trigger Filter attached, lingering ApplyGates)", "passed": true, "evidence": "Section D: cub space get with --jq for filter/triggers, plus ApplyGates check."},
+    {"text": "Verifies upstream linkage (cub unit tree)", "passed": true, "evidence": "Section E: cub unit tree --filter orders-home/orders-app. Notes: confirm upstream points where user expects."},
+    {"text": "Produces a structured go/no-go with scope, count, blockers, ChangeSet proposal", "passed": true, "evidence": "Output section has all seven fields: Scope, Count, Blockers, Diffs, ChangeSet proposal, Approval plan, Recommendation."},
+    {"text": "Uses the app's home Space Filter (orders-home/orders-app) for scoping", "passed": true, "evidence": "All queries use --filter orders-home/orders-app."},
+    {"text": "Is purely read-only — no mutations, hands off to promote-release", "passed": true, "evidence": "Tool boundary: 'Read-only. No cub unit update / apply / changeset create.'"},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": true, "evidence": "Preflight uses cub context get."},
+    {"text": "Uses --jq for UnitStatus inspection (not piping to jq)", "passed": true, "evidence": "Cross-check uses --jq with structured select for Status/SyncStatus/ActionResult."}
+  ]
+}

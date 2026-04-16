@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Knows cub helm install auto-splits CRDs — does not propose manual splitting", "passed": false, "evidence": "Proposes manual splitting via helm template + grep. Does not know cub helm install auto-creates cert-manager-crds."},
+    {"text": "Recommends --namespace cert-manager with rationale about chart namespace references", "passed": false, "evidence": "No mention of --namespace flag or why it matters for cert-manager's chart."},
+    {"text": "Confirms --version is pinned (already good) and explains why", "passed": true, "evidence": "Uses --version v1.17.2 in helm template command, though doesn't explain the pinning rationale."},
+    {"text": "Notes cub helm install does NOT accept --change-desc", "passed": false, "evidence": "No mention of --change-desc."},
+    {"text": "Shows correct apply order: CRDs → kubectl wait → main", "passed": false, "evidence": "Shows CRDs first then main (correct order) but no kubectl wait for CRD establishment between the two steps."},
+    {"text": "Provides a verify step using --where Labels.helmrelease", "passed": false, "evidence": "No verification step."},
+    {"text": "Shows multi-env pattern (clone from base or per-env install)", "passed": false, "evidence": "No multi-environment strategy discussed."},
+    {"text": "Notes that Helm is an onboarding ramp, not the ongoing workflow (config-as-data trajectory)", "passed": false, "evidence": "No discussion of ConfigHub's config-as-data philosophy or trajectory beyond Helm."},
+    {"text": "Uses valid auth check, not cub info", "passed": false, "evidence": "No auth check performed."},
+    {"text": "Hands off apply to cub-apply, customization to cub-mutate", "passed": false, "evidence": "No mention of cub-apply hand-off or cub-mutate for customization."}
+  ]
+}

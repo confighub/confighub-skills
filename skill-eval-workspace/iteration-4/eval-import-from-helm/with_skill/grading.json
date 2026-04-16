@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Knows cub helm install auto-splits CRDs — does not propose manual splitting", "passed": true, "evidence": "Lead answer: 'you don't need to — cub helm install already does it.' Creates cert-manager + cert-manager-crds automatically."},
+    {"text": "Recommends --namespace cert-manager with rationale about chart namespace references", "passed": true, "evidence": "Calls out that cert-manager computes .Release.Namespace into webhooks, RBAC subjects, ConfigMap keys."},
+    {"text": "Confirms --version is pinned (already good) and explains why", "passed": true, "evidence": "Notes --version v1.17.2 already pinned, adds: 'Never install without --version.'"},
+    {"text": "Notes cub helm install does NOT accept --change-desc", "passed": true, "evidence": "Explicit: 'cub helm install does not accept --change-desc. Chart provenance is recorded as Unit labels.'"},
+    {"text": "Shows correct apply order: CRDs → kubectl wait → main", "passed": true, "evidence": "Three-step apply: cub unit apply cert-manager-crds --wait, kubectl wait --for=condition=established, cub unit apply cert-manager --wait."},
+    {"text": "Provides a verify step using --where Labels.helmrelease", "passed": true, "evidence": "cub unit list --space <target-space> --where \"Labels.helmrelease = 'cert-manager'\""},
+    {"text": "Shows multi-env pattern (clone from base or per-env install)", "passed": true, "evidence": "Both Pattern A (per-env install) and Pattern B (clone with --upstream-unit) explained with concrete commands."},
+    {"text": "Notes that Helm is an onboarding ramp, not the ongoing workflow (config-as-data trajectory)", "passed": true, "evidence": "Trajectory section: 'Over time, you'll rely less on chart values and more on cub-mutate functions. The chart is a bootstrap input, not an ongoing parameterization surface.'"},
+    {"text": "Uses valid auth check, not cub info", "passed": true, "evidence": "Preflight uses cub context get."},
+    {"text": "Hands off apply to cub-apply, customization to cub-mutate", "passed": true, "evidence": "Tool boundary section: 'Hand off to cub-apply for deployment. Customizations post-install go through cub-mutate.'"}
+  ]
+}

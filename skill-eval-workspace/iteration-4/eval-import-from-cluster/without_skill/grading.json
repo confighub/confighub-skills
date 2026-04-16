@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Uses cub unit import with --where-resource (not kubectl get -o yaml piped into cub unit update)", "passed": false, "evidence": "Uses kubectl get all -o yaml piped into a file then cub unit update. Does not know about cub unit import."},
+    {"text": "Pre-creates Units and binds to Target before importing", "passed": false, "evidence": "Creates Unit but does not bind to Target before import. Worker/Target setup comes after."},
+    {"text": "Splits resources into multiple Units per import-unit-granularity (namespace, policy, workloads)", "passed": false, "evidence": "One Unit for everything. No splitting by ownership or lifecycle."},
+    {"text": "Dry-runs before actual import", "passed": false, "evidence": "No dry-run step."},
+    {"text": "Uses import.include_cluster = true for the Namespace (cluster-scoped)", "passed": false, "evidence": "No mention of import.include_cluster or cluster-scoped resource handling."},
+    {"text": "Reviews imported data for cluster-added defaults and admission-webhook artifacts", "passed": false, "evidence": "No review step for defaults or cleanup."},
+    {"text": "Establishes config-as-data discipline (no more kubectl apply, use cub-mutate + cub-apply)", "passed": false, "evidence": "Mentions cub unit apply but no config-as-data doctrine. Still proposes 'cub unit update < updated-payments.yaml' as the change flow."},
+    {"text": "Verifies Worker health before importing", "passed": false, "evidence": "No Worker health check. Worker setup happens after import."},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": false, "evidence": "No auth check performed."},
+    {"text": "Warns against importing Helm/ArgoCD/Flux-managed resources via this path", "passed": false, "evidence": "No mention of routing to specialized import skills for managed resources."}
+  ]
+}

@@ -41,22 +41,51 @@
         "without_skill_pass_rate": "2/40 = 5%",
         "delta_pp": 95
       }
+    },
+    {
+      "iteration": 4,
+      "evals": [
+        {"name": "eval-space-topology", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 1, "without_skill_total": 10},
+        {"name": "eval-import-unit-granularity", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 3, "without_skill_total": 10},
+        {"name": "eval-import-from-helm", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 1, "without_skill_total": 10},
+        {"name": "eval-import-from-kustomize", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 1, "without_skill_total": 10},
+        {"name": "eval-import-from-cluster", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 0, "without_skill_total": 10},
+        {"name": "eval-promotion-preflight", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 0, "without_skill_total": 10},
+        {"name": "eval-promote-release", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 1, "without_skill_total": 10},
+        {"name": "eval-rollback-revision", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 1, "without_skill_total": 10},
+        {"name": "eval-drift-reconcile", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 3, "without_skill_total": 10},
+        {"name": "eval-incident-management", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 0, "without_skill_total": 10},
+        {"name": "eval-app-config", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 0, "without_skill_total": 10},
+        {"name": "eval-kubernetes-resources", "with_skill_passed": 10, "with_skill_total": 10, "without_skill_passed": 1, "without_skill_total": 10}
+      ],
+      "summary": {
+        "with_skill_pass_rate": "120/120 = 100%",
+        "without_skill_pass_rate": "12/120 = 10%",
+        "delta_pp": 90
+      }
     }
   ],
   "overall": {
-    "with_skill_pass_rate": "83/88 = 94%",
-    "without_skill_pass_rate": "14/88 = 16%",
-    "delta_pp": 78
+    "with_skill_pass_rate": "203/208 = 98%",
+    "without_skill_pass_rate": "26/208 = 13%",
+    "delta_pp": 85
   },
   "timing": {
     "with_skill_tokens_avg": 32193,
     "without_skill_tokens_avg": 22726,
     "with_skill_duration_avg_s": 103.8,
     "without_skill_duration_avg_s": 54.4,
-    "notes": "Timing averages cover iterations 1+2 only; iteration 3 subagent token/duration not instrumented (run composed + executed from parent session)."
+    "notes": "Timing averages cover iterations 1+2 only; iterations 3+4 subagent token/duration not instrumented (run composed + executed from parent session)."
   },
   "evals_covered": {
-    "skills_tested": ["config-as-data", "triggers-and-applygates", "cub-mutate", "confighub-core", "cub-query", "skill-examples-bootstrap", "worker-bootstrap", "target-bind", "cub-apply", "verify-delivery", "reconciliation-check", "release-verify"],
-    "skills_not_yet_tested": []
+    "skills_tested": [
+      "config-as-data", "triggers-and-applygates", "cub-mutate",
+      "confighub-core", "cub-query", "skill-examples-bootstrap", "worker-bootstrap",
+      "target-bind", "cub-apply", "verify-delivery", "reconciliation-check", "release-verify",
+      "space-topology", "import-unit-granularity", "import-from-helm", "import-from-kustomize", "import-from-cluster",
+      "promotion-preflight", "promote-release", "rollback-revision", "drift-reconcile", "incident-management",
+      "app-config", "kubernetes-resources"
+    ],
+    "skills_not_yet_tested": ["import-from-argocd", "import-from-flux"]
   }
 }

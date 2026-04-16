@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Maps overlays to separate env-Spaces (orders-dev, orders-staging, orders-prod), not suffix-naming in one Space", "passed": true, "evidence": "Explicitly maps each overlay to its own Space. Notes: 'environments are Spaces, not suffixes.'"},
+    {"text": "Unit slug is the app name (orders), not orders-dev/orders-prod", "passed": true, "evidence": "'The Unit slug inside each Space is `orders` (not `orders-dev`).'"},
+    {"text": "Shows both patterns: per-overlay render (Pattern A) and clone+upstream (Pattern B)", "passed": true, "evidence": "Both patterns presented with concrete commands and guidance on when to use each."},
+    {"text": "Uses kustomize build (not kubectl apply -k) to render locally", "passed": true, "evidence": "kustomize build overlays/$env used in both patterns. Explicitly warns against kubectl apply -k."},
+    {"text": "Records Kustomize source provenance in --change-desc (git ref, overlay path)", "passed": true, "evidence": "--change-desc includes git rev-parse --short HEAD and overlay path."},
+    {"text": "Notes the config-as-data trajectory — Kustomize is onboarding, not ongoing", "passed": true, "evidence": "Trajectory section: 'Replace per-overlay kustomization.yaml with per-env cloned Units customized via cub-mutate functions.'"},
+    {"text": "Customization post-import goes through cub-mutate, not direct editing", "passed": true, "evidence": "Shows cub function do set-replicas for prod customization. Notes: 'Drop patch files in favor of named functions.'"},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": true, "evidence": "Preflight uses cub context get."},
+    {"text": "Warns against editing the base Unit in Pattern B", "passed": true, "evidence": "'Edit the base Unit if using Pattern B — edits are clobbered on the next re-render.'"},
+    {"text": "Provides a verify chain (unit list, yaml diff, revision list)", "passed": true, "evidence": "Three verify steps: unit list, yaml diff against rendered file, revision list for provenance."}
+  ]
+}

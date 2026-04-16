@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Correctly diagnoses that cub unit apply --revision does NOT move head", "passed": true, "evidence": "Explicit: 'cub unit apply --revision 5 applied revision 5's data to the cluster but did not move the Unit's head. Revision 6 is still head.'"},
+    {"text": "States the doctrinal rule: cub unit apply --revision is NOT a rollback", "passed": true, "evidence": "Bold callout: 'cub unit apply --revision <N> is NOT a rollback. It leaves head unchanged, so the bad state comes back on the next forward change.'"},
+    {"text": "Uses cub unit update --restore <target> as the correct rollback", "passed": true, "evidence": "cub unit update --restore 5 with --change-desc explaining the rollback."},
+    {"text": "Explains --restore creates a NEW head revision (not modifying existing ones)", "passed": true, "evidence": "'Creates a NEW revision (7) whose data = revision 5's data.' And: 'bad revision 6 stays in history for audit.'"},
+    {"text": "Shows that subsequent mutations branch from the restored head", "passed": true, "evidence": "'Every subsequent mutation branches from the restored head — the bad state stays gone.'"},
+    {"text": "Mentions named restore targets (Tag:, Before:ChangeSet:, relative)", "passed": true, "evidence": "'Works with named targets: --restore Tag:<tag>, --restore Before:ChangeSet:<slug>, --restore -1 (relative).'"},
+    {"text": "Includes --change-desc on the restore with proper format", "passed": true, "evidence": "--change-desc with user prompt + clarifications format."},
+    {"text": "Provides verification (revision list, diff, bridgestate)", "passed": true, "evidence": "Three verify steps: yaml data, revision list with rollback change-desc, bridgestate showing LiveRevisionNum = HeadRevisionNum."},
+    {"text": "Optionally tags the rollback for future reference", "passed": true, "evidence": "cub tag create + cub unit tag to mark the rollback."},
+    {"text": "Hands off apply to cub-apply", "passed": true, "evidence": "'Hand off to cub-apply for the post-restore apply.'"}
+  ]
+}

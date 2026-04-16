@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Leads with stabilize-first principle (return to known-good state before root cause)", "passed": false, "evidence": "Mentions investigating after stabilizing, but no explicit stabilize-first principle."},
+    {"text": "Walks the five triage questions (recent apply, out-of-band changes, wide/narrow, ConfigHub healthy, paging vs post-mortem)", "passed": false, "evidence": "Only checks current pod state via kubectl. No structured triage."},
+    {"text": "Identifies the recent ChangeSet apply as the rollback scope", "passed": false, "evidence": "Doesn't reference the ChangeSet. Treats each Unit individually."},
+    {"text": "Hands off to rollback-revision (does not mutate directly)", "passed": false, "evidence": "Runs cub unit apply --revision inline without skill routing."},
+    {"text": "Uses Before:ChangeSet:<slug> as the restore target (not --revision)", "passed": false, "evidence": "Uses cub unit apply --revision <N> — explicitly the wrong rollback mechanism."},
+    {"text": "Includes doctrinal reminder that cub unit apply --revision is NOT a rollback", "passed": false, "evidence": "Actively recommends the anti-pattern. Doesn't know head won't move."},
+    {"text": "Composes a --change-desc draft with Incident: ticket + user prompt + clarifications", "passed": false, "evidence": "No --change-desc on any command."},
+    {"text": "Plans close-out: tag, reconciliation-check, release-verify, drift-reconcile if needed", "passed": false, "evidence": "No close-out plan beyond 'investigate after.'"},
+    {"text": "Does not mutate — pure orchestration", "passed": false, "evidence": "Runs mutations directly (cub unit apply)."},
+    {"text": "Checks Worker health (mutations can't apply if Worker is down)", "passed": false, "evidence": "No Worker health check."}
+  ]
+}

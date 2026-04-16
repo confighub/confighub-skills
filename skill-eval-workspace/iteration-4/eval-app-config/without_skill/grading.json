@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Uses AppConfig/Properties toolchain (not raw Kubernetes/YAML ConfigMap)", "passed": false, "evidence": "Wraps application.properties as a string inside a Kubernetes/YAML ConfigMap. Doesn't know about AppConfig toolchain."},
+    {"text": "Includes required configHub.configName + configHub.configSchema metadata", "passed": false, "evidence": "No configHub metadata. Doesn't know about the AppConfig metadata convention."},
+    {"text": "Picks mutable mode for auto-restart use case (RevisionHistoryLimit=0)", "passed": false, "evidence": "No mode selection. No RevisionHistoryLimit knowledge."},
+    {"text": "Creates the server-worker (ConfigMapRenderer runs inside ConfigHub server)", "passed": false, "evidence": "No server-worker creation."},
+    {"text": "Creates a ConfigMapRenderer Target with the right toolchain + livestate-type", "passed": false, "evidence": "No ConfigMapRenderer Target."},
+    {"text": "Creates a sink Unit + link with --use-live-state --auto-update --update-type MergeUnits", "passed": false, "evidence": "No sink Unit or link with auto-update."},
+    {"text": "Workload YAML uses confighub.com/Hash annotation on pod template (mutable mode pattern)", "passed": false, "evidence": "Suggests manual hash computation, kubectl rollout restart, or installing third-party Reloader operator."},
+    {"text": "Workload references stable ConfigMap name = Unit slug (not confighubplaceholder for the name)", "passed": false, "evidence": "No workload YAML pattern shown."},
+    {"text": "Uses set-*-path functions for value mutations (not editing the file directly)", "passed": false, "evidence": "No mention of set-*-path functions."},
+    {"text": "Notes that ToolchainType is immutable post-create", "passed": false, "evidence": "No ToolchainType awareness."}
+  ]
+}

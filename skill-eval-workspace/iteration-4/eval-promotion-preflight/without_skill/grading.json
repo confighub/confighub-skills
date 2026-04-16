@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Checks source env convergence: HeadRevisionNum > LiveRevisionNum, ApplyGates, LiveRevisionNum != LastApplied", "passed": false, "evidence": "Only checks 'cub unit list' and kubectl get pods. No structured convergence checks."},
+    {"text": "Checks destination needs-upgrade scope (what would actually change)", "passed": false, "evidence": "No needs-upgrade check. Directly proceeds to promotion without scoping."},
+    {"text": "Shows pre-promotion diffs (cub unit diff --from Upstream)", "passed": false, "evidence": "No diffs shown. Only 'cub unit get' to review current state."},
+    {"text": "Checks destination policy (Trigger Filter attached, lingering ApplyGates)", "passed": false, "evidence": "No policy check. No mention of Triggers, Filters, or ApplyGates."},
+    {"text": "Verifies upstream linkage (cub unit tree)", "passed": false, "evidence": "No upstream linkage verification."},
+    {"text": "Produces a structured go/no-go with scope, count, blockers, ChangeSet proposal", "passed": false, "evidence": "No structured output. Just a loose checklist."},
+    {"text": "Uses the app's home Space Filter (orders-home/orders-app) for scoping", "passed": false, "evidence": "No home Space or Filter mentioned."},
+    {"text": "Is purely read-only — no mutations, hands off to promote-release", "passed": false, "evidence": "Includes cub unit update --upgrade and cub unit apply inline — mixes preflight with execution."},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": false, "evidence": "Uses cub info."},
+    {"text": "Uses --jq for UnitStatus inspection (not piping to jq)", "passed": false, "evidence": "No --jq or UnitStatus inspection."}
+  ]
+}

@@ -1,0 +1,9 @@
+=== cub context get ===
+User: <authenticated>
+
+=== cub space list ===
+NAME              ENVIRONMENT    #UNITS    #LINKS    #TAGS    #CHANGESETS    #FILTERS    #VIEWS    #INVOCATIONS    #TRIGGERS    #WORKERS    #TARGETS    #ATTRIBUTES
+default                          0         0         0        0              1           1         0               0            1           0           0
+platform                         0         0         0        0              1           0         0               5            0           0           0
+test-space                       0         0         0        0              0           0         0               1            0           0           0
+skill-examples    dev            11        1         4        1              2           0         0               0            1           2           0

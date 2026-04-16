@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Includes a headless Service (clusterIP: None) bundled with the StatefulSet", "passed": true, "evidence": "YAML has Service with clusterIP: None and matching selector. Notes: 'headless — required for StatefulSet pod DNS.'"},
+    {"text": "Pulls the live example from skill-examples (hello-statefulset) before authoring", "passed": true, "evidence": "Step 1: cub unit get hello-statefulset --space skill-examples --yaml. Lists what the example contains, then adapts."},
+    {"text": "Uses confighubplaceholder for namespace (resolved by ensure-namespaces)", "passed": true, "evidence": "Both Service and StatefulSet use namespace: confighubplaceholder. ensure-namespaces invoked in Step 4."},
+    {"text": "Includes volumeClaimTemplates for per-pod persistent storage (not a separate PVC Unit)", "passed": true, "evidence": "volumeClaimTemplates with 10Gi storage. Granularity note: 'PVC not separate — volumeClaimTemplates handles per-pod storage.'"},
+    {"text": "Sets serviceName matching the headless Service name", "passed": true, "evidence": "spec.serviceName: redis matches the headless Service name."},
+    {"text": "Applies the four defaults functions (resources, probes, security-context, ensure-namespaces)", "passed": true, "evidence": "Step 4 runs all four: set-container-resources-defaults, set-container-probe-defaults, set-pod-container-security-context-defaults, ensure-namespaces."},
+    {"text": "Overrides HTTP probes with TCP for Redis (not HTTP)", "passed": true, "evidence": "Step 5 explicitly notes Redis isn't HTTP and uses yq-i to switch to tcpSocket probes on 6379."},
+    {"text": "Runs vet-schemas, vet-placeholders, vet-format for validation", "passed": true, "evidence": "Step 6 runs all three vet functions."},
+    {"text": "Includes --change-desc on cub unit create with proper format", "passed": true, "evidence": "--change-desc with summary + user prompt + clarifications."},
+    {"text": "Hands off deploy to target-bind + cub-apply (not running cub unit apply directly)", "passed": true, "evidence": "Tool boundary: 'target-bind to bind the Unit to a Worker's Target. cub-apply to apply.'"}
+  ]
+}

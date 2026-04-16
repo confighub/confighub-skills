@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Maps overlays to separate env-Spaces (orders-dev, orders-staging, orders-prod), not suffix-naming in one Space", "passed": false, "evidence": "Creates a single 'orders' Space with suffix-named Units (orders-dev, orders-staging, orders-prod). Collapses Space boundaries."},
+    {"text": "Unit slug is the app name (orders), not orders-dev/orders-prod", "passed": false, "evidence": "Uses orders-dev, orders-staging, orders-prod as Unit slugs."},
+    {"text": "Shows both patterns: per-overlay render (Pattern A) and clone+upstream (Pattern B)", "passed": false, "evidence": "Only shows per-overlay render. No clone/upstream pattern for merge-preserving promotion."},
+    {"text": "Uses kustomize build (not kubectl apply -k) to render locally", "passed": true, "evidence": "Uses kustomize build correctly."},
+    {"text": "Records Kustomize source provenance in --change-desc (git ref, overlay path)", "passed": false, "evidence": "No --change-desc on cub unit create. No source provenance recorded."},
+    {"text": "Notes the config-as-data trajectory — Kustomize is onboarding, not ongoing", "passed": false, "evidence": "Says 'keep using your Kustomize overlays as the source of truth' — opposite of the config-as-data trajectory."},
+    {"text": "Customization post-import goes through cub-mutate, not direct editing", "passed": false, "evidence": "Recommends re-rendering from Kustomize for updates, not cub-mutate."},
+    {"text": "Uses valid auth check (cub context get), not cub info", "passed": false, "evidence": "Uses cub info for authentication check."},
+    {"text": "Warns against editing the base Unit in Pattern B", "passed": false, "evidence": "No clone pattern, so no base Unit warning."},
+    {"text": "Provides a verify chain (unit list, yaml diff, revision list)", "passed": false, "evidence": "Only cub unit list. No yaml diff or revision check."}
+  ]
+}

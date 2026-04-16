@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Leads with stabilize-first principle (return to known-good state before root cause)", "passed": true, "evidence": "Opening: 'Principle: stabilize first, diagnose later. The bleeding stops by getting to a known-good state.'"},
+    {"text": "Walks the five triage questions (recent apply, out-of-band changes, wide/narrow, ConfigHub healthy, paging vs post-mortem)", "passed": true, "evidence": "All five questions explicitly addressed with cub commands for each."},
+    {"text": "Identifies the recent ChangeSet apply as the rollback scope", "passed": true, "evidence": "Cross-references the ChangeSet via cub revision list with ChangeSet.Slug filter to confirm wide scope."},
+    {"text": "Hands off to rollback-revision (does not mutate directly)", "passed": true, "evidence": "Path A explicitly hands off scope + restore target + change-desc draft to rollback-revision."},
+    {"text": "Uses Before:ChangeSet:<slug> as the restore target (not --revision)", "passed": true, "evidence": "Restore target: Before:ChangeSet:orders-home/release-20260415-a3b2c1."},
+    {"text": "Includes doctrinal reminder that cub unit apply --revision is NOT a rollback", "passed": true, "evidence": "Explicit doctrinal reminder block: 'cub unit apply --revision <N> is NOT a rollback.'"},
+    {"text": "Composes a --change-desc draft with Incident: ticket + user prompt + clarifications", "passed": true, "evidence": "Change-desc draft includes ticket reference (INC-512), user prompt verbatim, condensed clarifications."},
+    {"text": "Plans close-out: tag, reconciliation-check, release-verify, drift-reconcile if needed", "passed": true, "evidence": "Five-step close-out: tag the resolution, reconciliation-check, release-verify, drift-reconcile, plan root-cause."},
+    {"text": "Does not mutate — pure orchestration", "passed": true, "evidence": "Tool boundary: 'This skill orchestrates and decides. It does NOT mutate. Every mutation goes through the hand-off skill.'"},
+    {"text": "Checks Worker health (mutations can't apply if Worker is down)", "passed": true, "evidence": "Question 4: cub worker status. Notes: 'If Worker is down, mutations can't apply — fix Worker first via worker-bootstrap.'"}
+  ]
+}

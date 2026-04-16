@@ -1,0 +1,14 @@
+{
+  "expectations": [
+    {"text": "Correctly diagnoses that cub unit apply --revision does NOT move head", "passed": true, "evidence": "Correctly identifies: 'deployed revision 5 but didn't update the Unit's current version pointer.'"},
+    {"text": "States the doctrinal rule: cub unit apply --revision is NOT a rollback", "passed": false, "evidence": "Partially understands the problem but still proposes 'cub unit apply --revision 5 --force' as an alternative — doubling down on the anti-pattern with a non-existent flag."},
+    {"text": "Uses cub unit update --restore <target> as the correct rollback", "passed": false, "evidence": "Does not know about --restore. Proposes exporting revision data to a file and piping into cub unit update."},
+    {"text": "Explains --restore creates a NEW head revision (not modifying existing ones)", "passed": false, "evidence": "No mention of --restore or its behavior."},
+    {"text": "Shows that subsequent mutations branch from the restored head", "passed": false, "evidence": "No discussion of what happens to subsequent mutations."},
+    {"text": "Mentions named restore targets (Tag:, Before:ChangeSet:, relative)", "passed": false, "evidence": "No named restore targets."},
+    {"text": "Includes --change-desc on the restore with proper format", "passed": false, "evidence": "Uses --change-description (incorrect flag name)."},
+    {"text": "Provides verification (revision list, diff, bridgestate)", "passed": false, "evidence": "No verification steps."},
+    {"text": "Optionally tags the rollback for future reference", "passed": false, "evidence": "No tagging."},
+    {"text": "Hands off apply to cub-apply", "passed": false, "evidence": "Runs cub unit apply inline."}
+  ]
+}
