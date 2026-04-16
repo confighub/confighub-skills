@@ -43,6 +43,7 @@ confighub-skills/
     ├── confighub-core/         orientation + routing + Delete/Destroy Gates
     ├── config-as-data/         authoring doctrine
     ├── kubernetes-resources/   author common K8s resource types as ConfigHub Units
+    ├── app-config/             AppConfig Units + ConfigMapRenderer for .properties/.env/.yaml/etc.
     ├── space-topology/         one Space per (app, env[, region]); <app>-home for ChangeSets/Tags/Filters
     ├── cub-query/              read-only query across Units, Spaces, Revisions
     ├── cub-mutate/             bulk + surgical mutation; ChangeSet-wrapped multi-Unit changes
