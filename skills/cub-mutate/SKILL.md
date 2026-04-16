@@ -56,7 +56,7 @@ cub function do <fn>    Is this a small, surgical path edit (1–3 fields)?
                           │
                           genuinely needs a whole-unit rewrite
                           ▼
-             cub unit get … → edit locally → cub unit update
+             cub unit get --data-only … → edit locally → cub unit update
                           │
                           ▼
 Restoring history instead? cub unit update --restore <revision-or-tag>
@@ -70,7 +70,7 @@ Restoring history instead? cub unit update --restore <revision-or-tag>
 
 Ask only what you need to compose the mutation:
 
-- Which Unit(s)? (Single slug, a `--where` filter, or a `--where-data` CEL expression.)
+- Which Unit(s)? (Single slug, a `--where` filter, or a `--where-data` filter.)
 - What field or behavior changes?
 - Which Space? (Single Space vs. `--space "*"` for fleet-wide.)
 
@@ -80,16 +80,16 @@ Record answers as condensed clarifications for `--change-desc`.
 
 Consult `references/functions-catalog.md`. Examples:
 
-| Change | Function |
-|---|---|
-| Container image | `set-container-image <container> <image>` |
-| Image tag only | `set-container-image-reference <container> <ref>` |
-| Replicas | `set-replicas` |
-| Env var | `set-env-var` / `set-env key=value` |
-| Resource requests/limits | `set-container-resources` |
-| Probe | `set-container-probe-defaults` (defaults) or `set-cel` (surgical) |
-| Annotation / label | `set-annotation` / `set-label` |
-| Generic path | `set-string-path` / `set-int-path` / `set-bool-path` / `set-cel` |
+| Change                   | Function                                                                  |
+| ------------------------ | ------------------------------------------------------------------------- |
+| Container image          | `set-container-image <container> <image>`                                 |
+| Image tag only           | `set-container-image-reference <container> <ref>`                         |
+| Replicas                 | `set-replicas <replicas>`                                                 |
+| Env var                  | `set-env-var <container> <var> <value>` / `set-env <container> key=value` |
+| Resource requests/limits | `set-container-resources`                                                 |
+| Probe                    | `set-container-probe-defaults` (defaults) or `set-starlark` (surgical)    |
+| Annotation / label       | `set-annotation` / `set-label`                                            |
+| Generic path             | `set-string-path` / `set-int-path` / `set-bool-path` / `set-starlark`     |
 
 Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-uri`, `cel-validate`, `no-placeholders`, `is-approved`.
 
@@ -127,6 +127,8 @@ cub function do \
 
 `--display-mutations` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
 
+`--dry-run` will return what the modified data would look like, but without persisting the change. It can be used with `--display-mutations`.
+
 For multi-Unit runs, add `--wait` so you see completion.
 
 ### 6. Whole-unit replacement (fallback)
@@ -139,6 +141,8 @@ cub unit get <slug> --space <space> --yaml > /tmp/edit.yaml
 cub unit update --space <space> <slug> /tmp/edit.yaml \
   --change-desc "<composed description>"
 ```
+
+`cub unit update` also supports `--display-mutations`, `--dry-run`, and `--wait`.
 
 ### 7. Restore a prior revision
 
@@ -194,6 +198,8 @@ cub unit apply --space <target-space> \
 
 Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --where-field "…"`) over inlined `--where` so the same selection flows through open / mutate / close / approve / apply. See `references/filters-and-queries.md`.
 
+The `cub-apply` skill goes into the use of apply in more detail.
+
 ## Tool boundary
 
 - Allowed: `cub unit / function / run / revision` — always with `--change-desc` when mutating.
@@ -210,7 +216,7 @@ Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --wh
 
 1. `cub unit get <slug> --space <space>` — confirm the field now reflects the intended value.
 2. `cub revision list <slug> --space <space>` — new revision present, `--change-desc` matches what you composed.
-3. `cub function do --space <space> --unit <slug> vet-schemas vet-placeholders vet-format vet-merge-keys` (or rely on Triggers) — validation passes.
+3. `cub function do --space <space> --unit <slug> vet-schemas`, `vet-placeholders`, `vet-format`, `vet-merge-keys` (or rely on Triggers) — validation passes.
 
 ## Evidence
 
