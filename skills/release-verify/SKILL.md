@@ -27,7 +27,7 @@ The story a release tells only sticks if it's documented at the moment it conver
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. For each Unit in scope:
    - `LiveRevisionNum = LastAppliedRevisionNum = HeadRevisionNum` (the change has converged).
    - `LastActionError` is empty.

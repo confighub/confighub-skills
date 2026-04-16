@@ -29,7 +29,7 @@ A Worker is the runtime that actually *does* things — apply a Unit, refresh li
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. `kubectl config current-context` points at the cluster where the worker should run, and the user has permission to create Deployments / ServiceAccounts / RBAC in the worker namespace (defaults to `confighub`).
 3. Confirm with the user: which provider types does this worker need? Pick from:
    - `Kubernetes` — applies plain K8s YAML directly to the cluster.

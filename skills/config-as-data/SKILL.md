@@ -31,7 +31,7 @@ If you're tempted to reach for Helm, Kustomize, Jsonnet, cdk8s, or a values file
 
 ## Preflight gates
 
-1. `cub context get` returns a user and a default space.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one) and `cub context get` returns a default space.
 2. User has write permission on the target Space.
 3. If authoring new config, confirm with the user which Space this Unit belongs to. Best practice: one Space per app × environment/region.
 
@@ -77,13 +77,13 @@ Clarifications: <condensed or 'none'>"
 Prefer the defaults functions over hand-editing — they're hermetic, idempotent, and record a clean revision:
 
 ```bash
-cub function do --space <space> --where "Slug = '<unit-slug>'" \
+cub function do --space <space> --unit <unit-slug> \
   set-container-resources-defaults --change-desc "..."
 
-cub function do --space <space> --where "Slug = '<unit-slug>'" \
+cub function do --space <space> --unit <unit-slug> \
   set-container-probe-defaults --change-desc "..."
 
-cub function do --space <space> --where "Slug = '<unit-slug>'" \
+cub function do --space <space> --unit <unit-slug> \
   set-pod-container-security-context-defaults --change-desc "..."
 ```
 
@@ -98,6 +98,8 @@ To vary config across environments:
 - Apply differences via functions: `set-container-image`, `set-replicas`, `set-env-var`, etc. — each recorded as a revision.
 
 Don't introduce a values file. Don't introduce an overlay. The Space is the parameterization boundary.
+
+For deeper guidance on Space layout (app-home Spaces, per-env Spaces, platform Spaces, naming conventions, and the upstream/downstream topology), load `space-topology`.
 
 ## Tool boundary
 
@@ -123,9 +125,17 @@ Clarifications: <condensed: "user confirmed target env is prod" / "user chose bu
 ## Verify chain
 
 1. `cub unit get <slug> --space <space>` — inspect the stored YAML; confirm it is literal.
-2. `cub function do --space <space> --where "Slug = '<slug>'" vet-placeholders` — no remaining placeholders (unless intentional for later fill).
-3. `cub function do --space <space> --where "Slug = '<slug>'" vet-schemas` — valid against the target K8s version.
-4. `cub function do --space <space> --where "Slug = '<slug>'" vet-format` — clean YAML.
+2. If the Space has validation Triggers wired up (see `triggers-and-applygates` for the setup), every `cub unit create` / `cub unit update` / `cub function do` / `cub run` already runs them against the new revision — no extra step needed. If not, run the vet functions directly:
+   - `cub function do --space <space> --unit <slug> vet-placeholders` — no remaining placeholders (unless intentional for later fill).
+   - `cub function do --space <space> --unit <slug> vet-schemas` — valid against the target K8s version.
+   - `cub function do --space <space> --unit <slug> vet-format` — clean YAML.
+3. To re-run a specific Trigger against a Unit — useful for validators whose arguments are awkward to retype on the CLI, like `vet-cel` and `vet-starlark`, where the configured Trigger already carries the CEL/Starlark expression:
+
+   ```bash
+   cub function do --space <space> --unit <slug> --trigger <trigger-space>/<trigger-slug>
+   ```
+
+   The Trigger supplies the function name and its arguments, so the result matches what automatic validation would produce on a write. Less valuable for validators that take no arguments (`vet-schemas`, `vet-placeholders`, `vet-format`) — just call those directly.
 
 ## Evidence
 
@@ -136,5 +146,5 @@ Clarifications: <condensed: "user confirmed target env is prod" / "user chose bu
 - `references/cub-cli.md`
 - `references/functions-catalog.md`
 - `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all common resource types.
-- Companion skills: `kubernetes-resources` (authoring specific resource types), `skill-examples-bootstrap` (seeds live examples in `skill-examples` Space).
+- Companion skills: `kubernetes-resources` (authoring specific resource types), `space-topology` (Space layout, upstream/downstream conventions), `triggers-and-applygates` (automatic validation on writes, running Triggers explicitly), `skill-examples-bootstrap` (seeds live examples in `skill-examples` Space).
 - Upstream doctrine: the "Configuration as Data" page at https://docs.confighub.com/

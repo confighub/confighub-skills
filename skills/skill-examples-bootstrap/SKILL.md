@@ -46,7 +46,7 @@ Every mutation call passes `--change-desc` with the user prompt verbatim so the 
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. Confirm with the user: is this a first-time bootstrap, or a refresh? A refresh preserves the Space but re-runs the recipe against the existing Units.
 
 ## The loop
@@ -114,7 +114,7 @@ On workload Units (`hello-app`, `hello-statefulset`, `hello-daemonset`, `hello-j
 for slug in hello-app hello-statefulset hello-daemonset hello-job hello-cronjob; do
   for fn in set-container-resources-defaults set-container-probe-defaults \
             set-pod-container-security-context-defaults ensure-namespaces; do
-    cub function do --space skill-examples --where "Slug = '$slug'" \
+    cub function do --space skill-examples --unit "$slug" \
       --change-desc "Apply $fn to $slug.
 
 User prompt: <verbatim>
@@ -127,7 +127,7 @@ done
 On `hello-ns`:
 
 ```bash
-cub function do --space skill-examples --where "Slug = 'hello-ns'" \
+cub function do --space skill-examples --unit hello-ns \
   --change-desc "Apply pod-security labels to hello namespace.
 
 User prompt: <verbatim>
@@ -139,7 +139,7 @@ On non-workload Units that have namespaced resources (`hello-ingress`, `hello-ne
 
 ```bash
 for slug in hello-ingress hello-netpol hello-rbac hello-hpa hello-pdb; do
-  cub function do --space skill-examples --where "Slug = '$slug'" \
+  cub function do --space skill-examples --unit "$slug" \
     --change-desc "Apply ensure-namespaces to $slug.
 
 User prompt: <verbatim>
@@ -151,7 +151,7 @@ done
 On `hello-rbac`, also disable auto-mounted service account tokens:
 
 ```bash
-cub function do --space skill-examples --where "Slug = 'hello-rbac'" \
+cub function do --space skill-examples --unit hello-rbac \
   --change-desc "Disable automountServiceAccountToken on hello-rbac ServiceAccount.
 
 User prompt: <verbatim>
@@ -175,7 +175,7 @@ Point them at the GUI and the other skills:
 
 ## Stop conditions
 
-- User is not authenticated (`cub context get` fails). Tell them to run `cub auth login`.
+- User is not authenticated (`cub organization list` fails). Tell them to run `cub auth login`.
 - User lacks permission to create Spaces in the current organization.
 
 ## Verify chain

@@ -29,7 +29,7 @@ The get / modify / write-back loop for ConfigHub Units.
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. User has write permission on the target Space(s).
 3. The Space is covered by a `TriggerFilterID` (or its Triggers are otherwise in place) so validation will enforce the change. If not, suggest `triggers-and-applygates` — but don't block.
 
@@ -95,7 +95,7 @@ Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-u
 
 ### 3. Scope the target
 
-- Single unit: `--space <space> --where "Slug = '<slug>'"`.
+- Single unit: `--space <space> --unit <slug>` (bulk-only commands like `cub function do` / `cub run` accept `--unit` as a shortcut for `--where "Slug = '<slug>'"`; also takes a comma list or UUID).
 - Many units by metadata: `--space <space> --where "Labels.Environment = 'prod'"`.
 - Cross-space: `--space "*" --where …`.
 - By content: `--where-data "spec.replicas > 5"`.
@@ -118,7 +118,7 @@ For bulk `cub run` / `cub function do` across many Units: phrase the summary so 
 ```bash
 cub function do \
   --space <space> \
-  --where "Slug = '<slug>'" \
+  --unit <slug> \
   --change-desc "<composed description>" \
   --display-mutations \
   -- \
@@ -210,7 +210,7 @@ Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --wh
 
 1. `cub unit get <slug> --space <space>` — confirm the field now reflects the intended value.
 2. `cub revision list <slug> --space <space>` — new revision present, `--change-desc` matches what you composed.
-3. `cub function do --space <space> --where "Slug = '<slug>'" vet-schemas vet-placeholders vet-format vet-merge-keys` (or rely on Triggers) — validation passes.
+3. `cub function do --space <space> --unit <slug> vet-schemas vet-placeholders vet-format vet-merge-keys` (or rely on Triggers) — validation passes.
 
 ## Evidence
 

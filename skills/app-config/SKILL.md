@@ -62,7 +62,7 @@ See the published doc for side-by-side examples in each format.
 
 ## Preflight gates
 
-1. `cub context get` returns a user, on the right organization.
+1. `cub organization list` succeeds and shows the right organization (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. Target Space exists; user has write permission.
 3. **Toolchain decided** — match the existing file's format if the user has one, otherwise the format the app actually reads.
 4. **Mode decided** — immutable (default, hashed name, history for old pods during rolling update) or mutable (`RevisionHistoryLimit=0`, stable name, `confighub.com/Hash` annotation on pod template). If the user doesn't know, recommend immutable for workload-config-with-rolling-updates; mutable for simpler single-cluster cases where the content rarely changes or a single stable name matters for observability tooling.

@@ -24,7 +24,7 @@ Apply returning success is not the same as the change landing. This skill verifi
 ## Preflight gates
 
 1. The apply actually happened — there's a `LastActionAt` on the Unit that matches the event the user is asking about. If not, the question is "did the apply run?", not "did delivery succeed?"; route back to `cub-apply` for the actual apply.
-2. `cub context get` returns a user.
+2. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 3. For cluster-level checks: the user's current `kubectl` context matches the cluster the Unit targets. If not, read-only commands still work but the answer may be misleading; flag the mismatch.
 
 ## The chain — check in this order

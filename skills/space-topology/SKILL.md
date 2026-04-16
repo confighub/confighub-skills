@@ -136,7 +136,7 @@ The `upstream-unit` link is what makes `--upgrade` propagate changes while prese
 
 ## Preflight when applying this skill
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. User has permission to create Spaces in the org.
 3. Identify what's changing: are they adding a new env? a new region? a new app? The right answer differs.
 4. If the user is already deep into a one-Space / suffix-naming layout, propose the migration path explicitly (don't just say "you're doing it wrong").

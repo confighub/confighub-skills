@@ -35,7 +35,7 @@ The decision goes through the user, not the skill. The skill's job is to *show* 
 
 ## Preflight gates
 
-1. `cub context get` returns a user.
+1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. The affected Unit(s) have a Target bound and a healthy Worker:
    ```bash
    cub unit get <slug> --space <s> --jq '{TargetID: .Unit.TargetID, BridgeWorker: .BridgeWorker.Slug}'

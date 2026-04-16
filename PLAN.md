@@ -15,7 +15,7 @@ This doc tracks what's left.
 
 - Repo: `~/ConfigHub/confighub-skills`. Launch `claude` from inside it so `.claude/settings.local.json` loads.
 - `.claude/settings.local.json.example` is the committed template; copy to `.claude/settings.local.json` (gitignored).
-- Brian's local ConfigHub instance is the eval target. `cub context get` should show the user; `cub space list` is the canonical auth check.
+- Brian's local ConfigHub instance is the eval target. `cub organization list` is the canonical auth check (`cub context get` / `cub info` / `cub version` don't require a valid token).
 - A kind cluster `confighub-eval` is used for live exercises; recreate if missing: `kind create cluster --name confighub-eval`.
 - The `skill-examples` Space has seeded `hello-ns` + `hello-app` (now resolved + applied, hello-app ImagePullBackOff because the image tag is fake). Don't delete them.
 - `platform` Space holds the 5 baseline `vet-*` Triggers + the `standard-vets` Filter, attached to `skill-examples` with `WhereTrigger` cleared via `-`.
