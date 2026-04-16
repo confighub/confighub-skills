@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "statefulset-for-redis",
+      "prompt": "I need to deploy a Redis cluster as a StatefulSet in ConfigHub with 3 replicas and persistent storage. The Redis pods should use the redis:7.2 image and listen on port 6379. Set it up in my redis-prod Space."
+    },
+    {
+      "name": "lock-down-namespace-networking",
+      "prompt": "I want to lock down networking in my app namespace. Default deny everything, then allow my frontend pods to talk to backend pods on port 8080, and backend to reach the database on port 5432. All pods need DNS. How do I set this up in ConfigHub?"
+    },
+    {
+      "name": "cronjob-with-rbac",
+      "prompt": "I need a CronJob that runs every hour to clean up expired sessions from our database. It needs a ServiceAccount with permission to read Secrets (just the one named db-credentials) and ConfigMaps. The cleanup script is in our image at ghcr.io/myorg/session-cleanup:v2.1.0. Put it in the myapp-prod Space."
+    }
+  ]
+}
