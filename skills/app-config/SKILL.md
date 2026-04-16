@@ -17,15 +17,15 @@ ConfigHub's `AppConfig/*` toolchains let the user keep config in its native form
 
 ## Supported formats (ToolchainType)
 
-| Toolchain | File | When |
-|---|---|---|
-| `AppConfig/Env` | `.env` | `envFrom` injection (pair with `--option AsKeyValue=true`); simple key=value. |
-| `AppConfig/Properties` | `.properties` | Java apps. |
-| `AppConfig/YAML` | `.yaml` | Most app frameworks; full structured config. |
-| `AppConfig/JSON` | `.json` | Node / JVM apps that prefer JSON. |
-| `AppConfig/TOML` | `.toml` | Rust / Python apps. |
-| `AppConfig/INI` | `.ini` | Legacy apps. |
-| `AppConfig/Text` | `.txt` | Plain text; metadata in YAML frontmatter delimited by `---`. |
+| Toolchain              | File          | When                                                                          |
+| ---------------------- | ------------- | ----------------------------------------------------------------------------- |
+| `AppConfig/Env`        | `.env`        | `envFrom` injection (pair with `--option AsKeyValue=true`); simple key=value. |
+| `AppConfig/Properties` | `.properties` | Java apps.                                                                    |
+| `AppConfig/YAML`       | `.yaml`       | Most app frameworks; full structured config.                                  |
+| `AppConfig/JSON`       | `.json`       | Node / JVM apps that prefer JSON.                                             |
+| `AppConfig/TOML`       | `.toml`       | Rust / Python apps.                                                           |
+| `AppConfig/INI`        | `.ini`        | Legacy apps.                                                                  |
+| `AppConfig/Text`       | `.txt`        | Plain text; metadata in YAML frontmatter delimited by `---`.                  |
 
 Pick the format **before** creating the Unit — `ToolchainType` is set at Unit-create and not changeable afterward. Matching what the application already reads is almost always right; a one-way conversion to a "better" format is extra churn without payoff.
 
@@ -87,6 +87,8 @@ DATABASE_PORT=5432
 DATABASE_SSL_ENABLED=true
 ```
 
+Note for AppConfig/Env: all values are treated as strings. The other AppConfig ToolchainTypes, other than AppConfig/Text, support int and bool values as well.
+
 ### 2. Create the Unit
 
 ```bash
@@ -105,25 +107,27 @@ Clarifications: <condensed — e.g. 'source: ./app.env at <git ref>'>"
 `set-*-path` functions take the `configSchema` as the first positional argument, then the dotted path, then the value:
 
 ```bash
-cub function do --space <space> --unit <config-slug> \
+cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Env \
   --change-desc "Point DATABASE_HOST at prod. User prompt: <verbatim>. Clarifications: <condensed>" \
   --display-mutations \
   -- set-string-path SimpleApp DATABASE_HOST postgres.prod.internal
 
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Env \
+cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
   --change-desc "Turn off dev-only flag. User prompt: <verbatim>. Clarifications: <condensed>" \
-  -- set-bool-path SimpleApp DATABASE_SSL_ENABLED false
+  -- set-bool-path SimpleApp database.ssl.enabled false
 
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Env \
+cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
   --change-desc "Bump DB port. User prompt: <verbatim>. Clarifications: <condensed>" \
-  -- set-int-path SimpleApp DATABASE_PORT 5433
+  -- set-int-path SimpleApp database.port 5433
 ```
 
 For schema validation (requires a schema registered with ConfigHub):
 
 ```bash
-cub function do --space <space> --unit <config-slug> -- vet-jsonschema
+cub function do --space <space> --unit <config-slug> --toolchain AppConfig/INI -- vet-jsonschema
 ```
+
+`vet-jsonschema` works for all AppConfig ToolchainTypes, not just AppConfig/JSON and AppConfig/YAML.
 
 ### 4. Ensure the server-worker exists
 
@@ -214,15 +218,15 @@ spec:
   template:
     spec:
       containers:
-        - name: nginx
+        - name: main
           volumeMounts:
             - name: config-volume
-              mountPath: /etc/nginx/app.properties
+              mountPath: /etc/app/app.properties
               subPath: app.properties
       volumes:
         - name: config-volume
           configMap:
-            name: confighubplaceholder     # resolved to the latest hashed name
+            name: confighubplaceholder # resolved to the latest hashed name
 ```
 
 Optionally scope the link to the latest rendered revision so older ConfigMaps aren't in scope:
@@ -232,7 +236,7 @@ cub link create --space <space> - <workload-slug> <configmap-slug> \
   --where-resource "metadata.annotations.confighub~1com/RenderRevision = 'Latest'"
 ```
 
-(`~1` is the JSON-Pointer escape for `/` in the annotation key.)
+(`~1` is the JSON-Pointer-like escape for `.` in the annotation key.)
 
 **Mutable mode** — stable name, triggered by a hash annotation on the pod template:
 
@@ -241,18 +245,18 @@ spec:
   template:
     metadata:
       annotations:
-        confighub.com/Hash: confighubplaceholder   # resolved to the content hash
+        confighub.com/Hash: confighubplaceholder # resolved to the content hash
     spec:
       containers:
-        - name: nginx
+        - name: main
           volumeMounts:
             - name: config-volume
-              mountPath: /etc/nginx/app.properties
+              mountPath: /etc/app/app.properties
               subPath: app.properties
       volumes:
         - name: config-volume
           configMap:
-            name: my-config                # the Unit slug (no hash suffix)
+            name: my-config # the Unit slug (no hash suffix)
 ```
 
 When ConfigHub renders a new ConfigMap, the `Hash` annotation on the pod template changes, which Kubernetes treats as a pod-template change and triggers a rolling update.
@@ -264,7 +268,7 @@ spec:
   template:
     spec:
       containers:
-        - name: nginx
+        - name: main
           envFrom:
             - configMapRef:
                 name: confighubplaceholder
