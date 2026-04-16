@@ -1,142 +1,119 @@
 # confighub-skills — plan for remaining work
 
-Status as of 2026-04-15 (PR [#1](https://github.com/confighubai/confighub-skills/pull/1) on `brian-skill-pack-initial`):
+Status as of 2026-04-15, `main` at `c9fcbd8` after PRs [#1](https://github.com/confighubai/confighub-skills/pull/1) + [#3](https://github.com/confighubai/confighub-skills/pull/3) + [#4](https://github.com/confighubai/confighub-skills/pull/4) + [#5](https://github.com/confighubai/confighub-skills/pull/5) merged:
 
-- 12 skills shipped (Waves 1 + 2).
-- Shared scaffolding, references, and conventions in place.
-- Eval results from 7 of 12 skills: with-skill 90% pass rate vs baseline 25%.
-- 1 real skill bug caught (`--change-desc` scope) and fixed.
-- 5 skills still need evals; 8 more skills planned across Waves 3–5.
+- **25 skills shipped** across Waves 1–4 + Wave 5's `space-topology` + `app-config`.
+- **Plugin manifest** (`.claude-plugin/plugin.json`) in place — installs via `/plugin install https://github.com/confighubai/confighub-skills`.
+- **Iteration 3 evals**: 5 Wave 2 skills run live against a kind cluster; overall benchmark 83/88 = 94% with-skill vs 14/88 = 16% baseline across 12 skills.
+- **4 real skill bugs fixed** during iteration 3 / Wave 4 drafting (worker-bootstrap direct install, `--display-mutations` plural, `triggers-and-applygates` `--where-trigger "-"` gotcha, `skill-examples-bootstrap` `egrep`-status leak).
+- **Reference docs expanded**: `changesets.md`; `cub-cli.md` gains extended-envelope, four Unit views (Data / LiveData / LiveState / BridgeState), `--where` AND-only, `ConfigHub.ResourceType` pseudo-attributes, `--filter` one-per-command.
+- **Memory captured** for load-bearing session feedback (cub-auth-check, PascalCase labels, rollback means `--restore`, `--jq` on extended envelope, branch-creation convention, etc.).
 
-This doc is the handoff to whatever session picks up next.
-
-## Reference to the originating session
-
-The skill pack and eval results were authored in a Claude Code session running from `~/ConfigHub/confighub-ai-demo` on 2026-04-15. The session transcript is at:
-
-```
-~/.claude/projects/-Users-briangrant-ConfigHub-confighub-ai-demo/e6832d25-73a5-44d0-8df8-6e7c61e7f07d.jsonl
-```
-
-That's a local-only artifact — not pushed anywhere — but useful for tracing how decisions were made (terminology choices, function discovery, eval scoping, sandbox limitations encountered).
-
-Durable design context that survives across sessions lives in the repo itself:
-
-- `README.md` — installation, conventions, permission discipline, eval guide.
-- `SKILL_TEMPLATE.md` — the scaffolding every new skill inherits.
-- `references/` — CLI discipline, function catalog, query/filter recipes, trigger patterns, YAML authoring, Revision data model.
-- `skill-eval-workspace/SUMMARY.md` — what the existing skills do well + where they need improvement.
-
-When starting a new session in this repo, **read those four first** before adding a skill.
+This doc tracks what's left.
 
 ## Operating context for the next session
 
-- Run Claude Code from inside `confighub-skills/` so `.claude/settings.local.json` is loaded at session start. That gives subagents the cub allow-list (Read + Write sets, scoped per `references/cub-cli.md`).
+- Repo: `~/ConfigHub/confighub-skills`. Launch `claude` from inside it so `.claude/settings.local.json` loads.
 - `.claude/settings.local.json.example` is the committed template; copy to `.claude/settings.local.json` (gitignored).
-- Brian's local ConfigHub test instance is the eval target. `cub auth login` should already be active; verify via `cub context get`.
-- A kind cluster `confighub-eval` was created on 2026-04-15 for cluster-dependent evals. Verify it's still up: `kind get clusters`. If not, recreate: `kind create cluster --name confighub-eval`.
-- The `skill-examples` Space on the local instance has two seeded Units (`hello-ns`, `hello-app`) used by the bootstrap and image-bump evals. Don't delete them.
-- The `platform` Space exists (created during eval iteration 1) but is empty — no Triggers or Filters were created because the subagent sandbox blocked them. Future eval runs on `triggers-and-applygates` should populate it.
+- Brian's local ConfigHub instance is the eval target. `cub context get` should show the user; `cub space list` is the canonical auth check.
+- A kind cluster `confighub-eval` is used for live exercises; recreate if missing: `kind create cluster --name confighub-eval`.
+- The `skill-examples` Space has seeded `hello-ns` + `hello-app` (now resolved + applied, hello-app ImagePullBackOff because the image tag is fake). Don't delete them.
+- `platform` Space holds the 5 baseline `vet-*` Triggers + the `standard-vets` Filter, attached to `skill-examples` with `WhereTrigger` cleared via `-`.
+- Worker `eval-worker` runs in the kind cluster (patched to `CONFIGHUB_URL=http://host.docker.internal:9090` to escape kind loopback).
 
 ## Priority queue
 
-### P0 — Eval the five remaining Wave 2 skills
+### P0 — Evals for Wave 3 / 4 skills + `app-config`
 
-These skills depend on each other (Worker → Target → apply → verify → reconcile → completion), so the eval makes the most sense as an end-to-end chain. Expected to be the highest-signal eval batch in the repo.
+Twelve skills shipped since iteration 3 have `evals/evals.json` prompts but no actual run:
 
-Skills to cover: `target-bind`, `cub-apply`, `verify-delivery`, `reconciliation-check`, `release-verify`.
+- Wave 3: `import-from-helm`, `import-from-kustomize`, `import-from-argocd`, `import-from-flux`, `import-from-cluster`, `import-unit-granularity`.
+- Wave 4: `promotion-preflight`, `promote-release`, `rollback-revision`, `drift-reconcile`, `incident-management`.
+- Wave 5 (partial): `space-topology`.
+- New: `app-config`.
 
-Prerequisites:
-1. Session rooted in this repo so `settings.local.json` applies to subagents.
-2. `kubectl config current-context` set to `kind-confighub-eval`.
-3. Optionally: a Worker installed via `worker-bootstrap` first (manual, from the parent session, since that's the seed step), then subagent-evaluate the rest of the chain against the live Worker.
+Iteration 3 caught 4 real bugs in its 5 target skills; iteration 4 is the same kind of bet for twelve more. Eval infrastructure (`skill-eval-workspace/iteration-N/<eval-name>/{with_skill,without_skill}/{grading.json,timing.json,outputs/}`) is already the convention — follow it.
 
-Plan:
-1. Manually install a Worker in the kind cluster following `skills/worker-bootstrap/SKILL.md`.
-2. Spawn one with-skill + baseline subagent per remaining skill, each eval prompt referencing the live Worker by slug.
-3. Grade per `skill-eval-workspace/iteration-1/assertions-draft.md` patterns.
-4. Aggregate into `skill-eval-workspace/iteration-3/SUMMARY.md` and update `benchmark.json`.
+Prerequisites for live execution:
 
-### P1 — Wave 3: import skills
+1. Live kind cluster with `eval-worker` Ready (above).
+2. For `import-from-helm`: `helm` on PATH, a chart repo added (e.g., `helm repo add jetstack https://charts.jetstack.io`).
+3. For `import-from-argocd` / `import-from-flux`: Argo CD and/or Flux installed in-cluster; Worker installed with `-t kubernetes,argocdrenderer,argocdoci` or `-t kubernetes,fluxrenderer,fluxoci` respectively. Non-trivial setup; consider deferring these two until the eval environment supports them.
+4. For `app-config`: a server-worker (`cub worker create --is-server-worker --allow-exists server-worker`).
 
-Biggest user-facing gap. Most new ConfigHub adopters arrive with existing Helm charts, Kustomize overlays, ArgoCD Applications, or Flux Kustomizations and need a path in.
+Reasoning-only evals (sandbox-blocked mutations) are still valuable — iterations 1–2 graded primarily on reasoning and caught multiple bugs. If live execution isn't available, run reasoning-only and annotate.
 
-Skills to draft:
-- `import-from-helm` — render once via `helm template`, store as Unit, never re-render.
-- `import-from-kustomize` — same shape with `kustomize build`.
-- `import-from-argocd` — `cub unit import` against an ArgoCD Application.
-- `import-from-flux` — `cub unit import` against a Flux Kustomization / HelmRelease.
-- `import-unit-granularity` — decision helper for one-Unit-per-what (per chart, per workload, per namespace, per release).
+Aggregate into `skill-eval-workspace/iteration-4/SUMMARY.md` and append to `benchmark.json`.
 
-All five use `cub unit import` (verified to exist via `cub unit --help`). Authoring-side discipline (no re-rendering after import) is already enforced by `config-as-data`.
+### P1 — Doctrine skills for uncovered doc topics
 
-### P2 — Wave 4: operate verbs
+Topics from the published docs that aren't yet a skill, ranked by operational value:
 
-Most are refactors/ports of demo skills from `~/ConfigHub/confighub-ai-demo/skills/`. Strip demo-specific vocabulary; align with the new conventions.
+- **`links-and-needs-provides`** — `dependencies.md`. Links + Needs/Provides is referenced by `app-config`, `rendered-manifests`, `space-topology`, and every import skill, but has no doctrine home. Highest value.
+- **`variants`** — `variants.md`. The clone / upstream-downstream mental model that `promote-release` operationalizes. A decide-phase doctrine skill.
+- **`attributes`** — Space-level Attributes used for per-env substitution on promotion (referenced in `skill-examples-bootstrap` change-desc). Currently no home; pairs well with `promote-release` and `variants`.
+- **`views`** — saved-query entity; `cub-query` covers Filters but not Views. Thin skill or a section inside `cub-query`.
 
-Skills:
-- `promote-release` + `promotion-preflight` — uses `needs-upgrade` filter recipe and `cub unit update --upgrade`.
-- `rollback-revision` — head restore via `cub unit update --restore`, distinct from `cub-apply --revision <n>` (which doesn't move head).
-- `drift-reconcile` — `cub unit refresh` + diff + decide-who-wins.
-- `rotate-secrets` — bounded sensitive change.
-- `incident-management` — stabilize / mitigate-vs-rollback / hand-off orchestrator.
+### P2 — Optional / specialist
 
-### P3 — Wave 5: governance
+- `admission-webhook-functions` — writing custom Worker-side validator functions.
+- `custom-workers` — building Worker bridges for non-K8s providers.
+- `secrets-handling` — doctrine skill for ConfigHub + external SecretStore. Replaces the `rotate-secrets` skill that Brian explicitly skipped; scope is "how do we think about secrets," not "how do we rotate them."
+- `approval-flow` — explicitly skipped by Brian. `cub unit approve` + `vet-approvedby` Trigger pattern.
+- `rotate-secrets` — explicitly skipped.
 
-- `space-topology` — app × env/region naming, label strategy, platform-Space pattern. Mostly teaching; no unique commands.
-- `approval-flow` — `cub unit approve` + the `vet-approvedby` Trigger pattern. Currently a gap.
+### P3 — Description optimization
 
-### P4 — Description optimization
+Once every skill has at least one eval iteration, run `skill-creator/scripts/run_loop.py` per skill with a 20-query trigger eval set (mix should-trigger / should-not-trigger). Goal: >90% trigger accuracy on a held-out test set. Defer until P0 evals are in; reasoning gaps would compound.
 
-Once skill bodies are stable across all waves, run `skill-creator/scripts/run_loop.py` per skill with a 20-query trigger eval set (mix should-trigger / should-not-trigger). Goal: push trigger accuracy on each skill > 90% on a held-out test set. Defer until WaveS 3–5 are landed; reasoning gaps would compound.
+### P4 — Packaging + distribution
 
-### P5 — Packaging + distribution
+- `.skill` artifacts via `skill-creator/scripts/package_skill.py` for downloadable installs (alongside the git-URL `/plugin install` path).
+- Optional marketplace manifest (`.claude-plugin/marketplace.json`) if distributing through the Claude Code marketplace.
+- Lightweight CI for SKILL.md schema: frontmatter required fields, `allowed-tools` syntax sanity, no `Bash(cub *)` wildcards, no deprecated function names, no `--display-mutation` (singular), no `cub-apply --revision` framed as rollback.
 
-- `.skill` artifacts via `skill-creator/scripts/package_skill.py` for downloadable installs.
-- Installation instructions specific to Claude Code, agentskills.io.
-- Lightweight CI for SKILL.md schema (frontmatter required fields, `allowed-tools` syntax, no `Bash(cub *)` wildcards, no deprecated function names).
+### P5 — Smaller gaps
+
+- **`cub unit push-upgrade`** — folded into `promote-release` as Shape B. No further action unless user demand surfaces.
+- **Links authoring** — partially covered in `app-config` / `import-from-helm`. Full home is P1's `links-and-needs-provides` skill.
+- **`cub unit tag`** — covered in `cub-mutate`, `release-verify`, `rollback-revision`, `promote-release`. Leave as-is.
 
 ## Decisions to preserve
 
-These were settled in the originating session and are load-bearing for everything that follows. Don't relitigate without strong reason.
+These are settled and load-bearing. Don't relitigate without strong reason.
 
-1. **End-user audience, not demo.** Skills target end users operating their own K8s via ConfigHub.
+1. **End-user audience, not demo.** Skills target end users operating their own Kubernetes via ConfigHub.
 2. **Plugin-only delivery.** Claude Code plugin + agentskills.io-style harnesses. Not Claude.ai / API.
 3. **Argo and Flux are peers.** Not Argo-primary.
-4. **Configuration as data.** Units contain literal YAML, no parameterization at rest. `set-pod-container-security-context-defaults` and the rest of the defaults functions are how you apply policy, not Helm values.
-5. **`--change-desc` is Unit-data-mutation-only.** It does NOT exist on `cub space / trigger / filter / target / worker create/update`.
-6. **`--display-mutations` on every mutating call.** Inline diffs make changes visible without chasing them via `cub unit diff` afterward. Flag spelling is plural — `--display-mutation` (singular) is rejected as unknown.
-7. **Triggers are opt-in but recommended.** Best practice is the platform-Space + Filter + `TriggerFilterID` recipe documented in `references/triggers-recipes.md`.
+4. **Configuration as data.** Units contain literal YAML, no parameterization at rest. Helm / Kustomize are onboarding ramps, not ongoing workflows.
+5. **`--change-desc` is Unit-data-mutation-only.** Not on `cub space / trigger / filter / target / worker create/update`.
+6. **`--display-mutations` (plural)** on every mutating call. The singular `--display-mutation` is rejected.
+7. **Triggers are opt-in but recommended.** Platform-Space + Filter + `TriggerFilterID` recipe, attached with `--where-trigger "-"` to clear the default.
 8. **Permission discipline.** Read set + Write set, both verb-scoped, no `Bash(cub *)`, no delete verbs in normal skills.
-9. **Standard terminology.** Revision (not receipt / change record), Evidence (not Trust surface), completion (not close / closeout), ConfigHub-managed (not governed), review links (not trust URLs). Memory rule: don't invent synonyms for product entity names.
-10. **No local paths in shipped artifacts.** Use `https://github.com/confighub/sdk` and `https://docs.confighub.com/`.
+9. **Standard terminology.** Revision / Evidence / completion / ConfigHub-managed / review links. Don't invent synonyms.
+10. **No local paths in shipped artifacts.** `https://github.com/confighub/sdk` / `https://docs.confighub.com/`.
+11. **Environments are Spaces, not slug suffixes.** One Space per `(app, env[, region])`; app team's home Space `<app>-home` for ChangeSets / Tags / Filters / Views / Invocations.
+12. **Rollback = `cub unit update --restore` then apply.** `cub unit apply --revision <N>` is NOT a rollback (head unchanged).
+13. **Drift diff = Data vs LiveData.** Not LiveState (noisy); not BridgeState (bridge-dependent blob).
+14. **Labels are PascalCase, non-abbreviated** (`Environment`, `Application`, `Region`, `Cluster`, `Tier`).
+15. **`cub --jq` over piping to `jq`.** `cub get` / `list` return an extended envelope with the entity under `.Unit` / `.Space` / etc. and related entities at top level (`.BridgeWorker`, `.TriggerFilter`, `.Triggers`).
+16. **`--where` / `--where-field` / `--where-data` / `--where-resource` are AND only.** No OR. Disjunctions split into separate commands, `IN (...)`, or separate Units.
+17. **`--filter` takes one argument per command.** Combine with `--where`, or create a third Filter expressing the intersection.
 
 ## Known unknowns
 
-- **Subagent permission model.** The asymmetry observed in eval iterations (with-skill subagents got cub access via skill `allowed-tools`; baselines didn't) is worth understanding more deeply. May affect how iteration 3 evals are designed.
-- **`vet-cel` vs `vet-celexpr`.** Both work as Trigger functions; help examples on `cub trigger create` are stale (still show `vet-celexpr`). Worth a CLI-side fix; the skill is already correct.
-- **`cub unit set-target` change-desc behavior.** Likely doesn't take `--change-desc` (target binding isn't config-data mutation), but verify before drafting Wave 4 promote/rollback skills that touch target reassignment.
-- **Whether the `confighub-ai-demo` repo's CLAUDE.md should be updated** to reflect the new skills repo as the canonical end-user surface (currently CLAUDE.md is demo-specific and predates this repo). Not blocking; flag for whoever owns that repo.
-- **`WhereTrigger` + `TriggerFilterID` combine by design.** Spaces default to `WhereTrigger = SpaceID = '<this-space>'` so local Triggers apply automatically; a cross-Space `--trigger-filter` combines with (not replaces) that default, so `# Triggers = 0` when the two predicates have no intersection. To use the filter alone, pass `--where-trigger "-"` alongside `--trigger-filter`. Documented in `skills/triggers-and-applygates/SKILL.md`.
-- **`Space.WhereTrigger` vocabulary is narrower than Filter WHERE** — e.g., `FunctionName` is accepted by `cub filter create --where-field` but rejected by `cub space update --where-trigger`. Not blocking (just use the filter path for cross-attribute predicates), but worth noting if a future skill wants to set Space-level Trigger selection without a separate Filter entity.
-
-## Smaller gaps
-
-- **`cub unit push-upgrade`** — downstream bulk upgrade. Fold into `promote-release` rather than a standalone skill.
-- **Links authoring** — currently not covered. Fold into `config-as-data` as a section rather than a standalone skill.
-- **`cub unit tag`** — covered in `cub-mutate` + `release-verify`. Leave as-is unless users need a dedicated skill.
+- **Subagent permission model.** Iteration 1–2 observed asymmetric grants. May affect how future iteration-N evals are designed if the harness still blocks mutations for baselines.
+- **`vet-cel` vs `vet-celexpr` in `cub trigger create --help` examples.** Stale; skill is correct. CLI fix deferred upstream.
+- **Whether the `confighub-ai-demo` repo's CLAUDE.md should be updated** to reflect this repo as the canonical end-user skill pack. Not blocking; flag for whoever owns that repo.
 
 ## How to start
 
 ```bash
 cd ~/ConfigHub/confighub-skills
 cp .claude/settings.local.json.example .claude/settings.local.json
-# verify cluster
 kubectl config current-context   # expect kind-confighub-eval
 kind get clusters                # expect confighub-eval
-# verify cub
-cub context get
-# launch claude
+cub space list                    # auth check
 claude
 ```
 
