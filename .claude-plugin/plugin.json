@@ -1,0 +1,11 @@
+{
+  "name": "confighub-skills",
+  "description": "ConfigHub-native skills for operating Kubernetes with ConfigHub as the source of truth and ArgoCD / Flux for delivery. Covers authoring (config-as-data), bulk mutation, validation triggers, worker install, target binding, apply, verification, reconciliation, release completion, onboarding imports (Helm / Kustomize / ArgoCD / Flux / live cluster), promotion, rollback, drift reconciliation, and incident triage.",
+  "version": "0.2.0",
+  "author": {
+    "name": "ConfigHub"
+  },
+  "homepage": "https://docs.confighub.com/",
+  "repository": "https://github.com/confighubai/confighub-skills",
+  "license": "MIT"
+}

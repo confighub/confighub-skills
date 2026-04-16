@@ -8,34 +8,63 @@ Skills here assume:
 - Mutations go through `cub` (unit update, function do, run). `kubectl` / `argocd` / `flux` are used for read-only diagnosis only.
 - You deploy via ArgoCD or Flux Targets bound to Spaces.
 
+## Install
+
+As a Claude Code plugin (recommended):
+
+```
+/plugin install https://github.com/confighubai/confighub-skills
+```
+
+The plugin manifest is at `.claude-plugin/plugin.json`; Claude Code auto-discovers the `skills/` directory and the `references/` relative paths.
+
+Prerequisites for the skills to actually *do* anything:
+
+- `cub` CLI on PATH, with `cub context get` returning a valid user.
+- `kubectl` on PATH for skills that touch clusters.
+- A running ConfigHub server (self-hosted or `https://hub.confighub.com/`).
+- For GitOps imports: `argocd` / `flux` CLI on PATH as read-only diagnostic helpers.
+
 ## Layout
 
 ```
 confighub-skills/
+├── .claude-plugin/plugin.json  Claude Code plugin manifest
 ├── SKILL_TEMPLATE.md           shared scaffolding every skill inherits
 ├── references/                 shared reference material (loaded on demand)
-│   ├── cub-cli.md              CLI discipline + agent help mode + permission sets
+│   ├── cub-cli.md              CLI discipline + extended envelope + AND-only where + four Unit views
+│   ├── changesets.md           ChangeSet lifecycle (create/open/mutate/close/approve/apply/rollback)
 │   ├── revisions.md            Revision data model (fields, provenance, lifecycle)
 │   ├── filters-and-queries.md  filter vocabulary + operational Unit-filter recipes
 │   ├── functions-catalog.md    K8s/YAML functions worth knowing
 │   ├── triggers-recipes.md     platform-Space + Filter + TriggerFilterID recipe
 │   └── yaml-patterns.md        literal-value K8s authoring patterns
 └── skills/
-    ├── config-as-data/         authoring doctrine (Wave 1)
-    ├── triggers-and-applygates/
-    ├── cub-mutate/
-    ├── cub-query/
-    ├── skill-examples-bootstrap/  creates the skill-examples playground Space
-    ├── confighub-core/         orientation + routing (Wave 2)
+    ├── confighub-core/         orientation + routing + Delete/Destroy Gates
+    ├── config-as-data/         authoring doctrine
+    ├── space-topology/         one Space per (app, env[, region]); <app>-home for ChangeSets/Tags/Filters
+    ├── cub-query/              read-only query across Units, Spaces, Revisions
+    ├── cub-mutate/             bulk + surgical mutation; ChangeSet-wrapped multi-Unit changes
+    ├── triggers-and-applygates/  platform-Space policy + vet-* Triggers + gate diagnosis
+    ├── skill-examples-bootstrap/ creates the skill-examples playground Space
     ├── worker-bootstrap/       install bridge workers in clusters
     ├── target-bind/            create Targets, attach Units to destinations
-    ├── cub-apply/              apply Units to their Targets
+    ├── cub-apply/              apply Units to their Targets (incl. ChangeSet bulk release)
     ├── verify-delivery/        cub → controller → cluster link verification
     ├── reconciliation-check/   three-way ConfigHub/controller/cluster agreement
-    └── release-verify/         final read-only completion with Revision history + GUI review links
+    ├── release-verify/         final read-only completion with Revision history + review links
+    ├── import-from-helm/       cub helm install/upgrade onboarding for existing charts
+    ├── import-from-kustomize/  kustomize build → cub unit create
+    ├── import-from-argocd/     cub gitops discover/import against ArgoCD Applications
+    ├── import-from-flux/       cub gitops discover/import against Flux HelmReleases + Kustomizations
+    ├── import-from-cluster/    cub unit import for plain live-resource adoption
+    ├── import-unit-granularity/ decision helper — one Unit or many?
+    ├── promotion-preflight/    five-axis readiness check before a promotion
+    ├── promote-release/        ChangeSet-wrapped bulk upgrade (env-by-env or push-upgrade)
+    ├── rollback-revision/      head-moving rollback via cub unit update --restore
+    ├── drift-reconcile/        ConfigHub ↔ cluster divergence; decide who wins
+    └── incident-management/    orchestrator for the ConfigHub side of a production incident
 ```
-
-More skills arrive in subsequent waves (CRUD + delivery, import paths, operate verbs, governance).
 
 ## Conventions every skill follows
 
