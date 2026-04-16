@@ -44,17 +44,23 @@ If you're tempted to reach for Helm, Kustomize, Jsonnet, cdk8s, or a values file
 
 ### 2. Produce literal YAML
 
-Scaffold from Kubernetes itself, not from a chart:
+First, check if the `skill-examples` Space has a relevant example Unit to use as a starting point:
+
+```bash
+cub unit get <example-slug> --space skill-examples --yaml 2>/dev/null
+```
+
+The `skill-examples-bootstrap` skill seeds Units for common resource types (`hello-app`, `hello-statefulset`, `hello-daemonset`, `hello-job`, `hello-cronjob`, `hello-ingress`, `hello-netpol`, `hello-rbac`, `hello-hpa`, `hello-pdb`). If a matching example exists, adapt it. If not, scaffold from Kubernetes or hand-author:
 
 ```bash
 kubectl create deployment my-app --image=confighubplaceholder:confighubplaceholder \
   --dry-run=client -o yaml \
-  | egrep -v "creationTimestamp|status" > my-app.yaml
+  | yq 'del(.metadata.creationTimestamp, .status)' > my-app.yaml
 ```
 
 Use `confighubplaceholder` for string fields and `999999999` for numeric fields that need to be supplied later. `vet-placeholders` will block apply while any remain.
 
-For fields `kubectl create` doesn't cover, hand-author literal YAML — don't template. Consult `references/yaml-patterns.md` for common shapes.
+For fields `kubectl create` doesn't cover, hand-author literal YAML — don't template. Consult `references/yaml-patterns.md` for common shapes. For specific resource types (StatefulSet, Ingress, NetworkPolicy, etc.), use the `kubernetes-resources` skill.
 
 ### 3. Store in a Unit
 
@@ -129,5 +135,6 @@ Clarifications: <condensed: "user confirmed target env is prod" / "user chose bu
 
 - `references/cub-cli.md`
 - `references/functions-catalog.md`
-- `references/yaml-patterns.md`
+- `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all common resource types.
+- Companion skills: `kubernetes-resources` (authoring specific resource types), `skill-examples-bootstrap` (seeds live examples in `skill-examples` Space).
 - Upstream doctrine: the "Configuration as Data" page at https://docs.confighub.com/

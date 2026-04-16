@@ -38,10 +38,11 @@ confighub-skills/
 │   ├── filters-and-queries.md  filter vocabulary + operational Unit-filter recipes
 │   ├── functions-catalog.md    K8s/YAML functions worth knowing
 │   ├── triggers-recipes.md     platform-Space + Filter + TriggerFilterID recipe
-│   └── yaml-patterns.md        literal-value K8s authoring patterns
+│   └── yaml-patterns.md        literal-value K8s authoring patterns for all common resource types
 └── skills/
     ├── confighub-core/         orientation + routing + Delete/Destroy Gates
     ├── config-as-data/         authoring doctrine
+    ├── kubernetes-resources/   author common K8s resource types as ConfigHub Units
     ├── space-topology/         one Space per (app, env[, region]); <app>-home for ChangeSets/Tags/Filters
     ├── cub-query/              read-only query across Units, Spaces, Revisions
     ├── cub-mutate/             bulk + surgical mutation; ChangeSet-wrapped multi-Unit changes
