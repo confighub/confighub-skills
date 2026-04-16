@@ -73,7 +73,7 @@ Gates and warnings are snapshotted per revision. If you fix the data in a later 
 | Field | Meaning |
 |---|---|
 | `ChangeSetID` | Optional UUID that groups multiple revisions across multiple Units into a single logical change set — e.g., "release v1.4.0 touched these 12 Units". Apply by `ChangeSet:<slug>` references this. |
-| `Tags` | `map[string]string` of TagID → label. Set via `cub unit tag … --add Tag:<slug>`. Tagged revisions are first-class `--revision` / `--restore` targets. |
+| `Tags` | `map[string]string` of TagID → label. Set via `cub unit tag <tag-slug> --unit <unit>`. Tagged revisions are first-class `--revision` / `--restore` targets. |
 
 ## What appears in `cub revision list`
 

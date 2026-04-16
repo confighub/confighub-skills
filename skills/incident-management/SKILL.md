@@ -158,10 +158,10 @@ Once symptoms are gone and the user confirms stable:
 
    ```bash
    cub tag create --space <app>-home incident-<YYYYMMDD>-<ticket> \
-     --description "<short incident description> — resolution type: rollback|mitigate|reconcile"
+     --annotation "description=<short incident description> — resolution type: rollback|mitigate|reconcile"
 
-   cub unit tag --space <env-space> --filter <app>-home/<app>-app \
-     --add Tag:<app>-home/incident-<YYYYMMDD>-<ticket>
+   cub unit tag <app>-home/incident-<YYYYMMDD>-<ticket> \
+     --space <env-space> --filter <app>-home/<app>-app
    ```
 
 2. **Run `reconciliation-check`** on the affected scope. ConfigHub, controller, and cluster must agree. If they don't, you're not actually done — investigate.

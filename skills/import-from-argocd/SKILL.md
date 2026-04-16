@@ -155,7 +155,7 @@ Dry Units typically stay in the import Space or move into a `<app>-renderers` Sp
 
 1. `cub worker list-function --space <workers-space> <worker>` — includes `ArgoCDRenderer` + `ArgoCDOCI` + `Kubernetes` function sets.
 2. `cub unit list --space <import-space>` — dry / wet / crd Units present for each imported Application.
-3. `cub unit tree --space <import-space> <wet-unit>` — shows the MergeUnits link back to the dry Unit.
+3. `cub unit tree --space <import-space>` — shows the MergeUnits link back to the dry Unit.
 4. `kubectl get application <imported-app> -n argocd -o jsonpath='{.spec.syncPolicy.automated}'` — empty / missing (auto-sync disabled).
 5. After first `cub unit apply <dry>`: `cub unit get <wet> --space <import-space> --yaml` — contains rendered Deployment/Service/etc.
 6. After first `cub unit apply <wet>`: `kubectl get application -A` — a *new* Application exists that references ConfigHub's OCI registry URL.
@@ -163,7 +163,7 @@ Dry Units typically stay in the import Space or move into a `<app>-renderers` Sp
 ## Evidence
 
 - `cub unit get <wet> --space <import-space> --web` — the wet Unit's rendered data + Revision history.
-- `cub unit tree --space <import-space> <wet> --web` — dry/wet link in the GUI.
+- `cub unit tree --space <import-space> --web` — dry/wet link in the GUI.
 - ArgoCD UI for the new ConfigHub-backed Application — confirms Argo is now pulling from ConfigHub's OCI registry.
 
 ## References

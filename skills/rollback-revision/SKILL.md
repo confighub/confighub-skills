@@ -74,8 +74,8 @@ Optionally tag the new head for future reference:
 
 ```bash
 cub tag create --space <home-space> rollback-$(date +%Y%m%d)-<unit> \
-  --description "Rollback of <unit> to <target>"
-cub unit tag <unit> --space <space> --add Tag:<home-space>/rollback-<...>
+  --annotation "description=Rollback of <unit> to <target>"
+cub unit tag <home-space>/rollback-<...> --space <space> --unit <unit>
 ```
 
 ## Shape B — ChangeSet rollback (standard post-promotion revert)
@@ -92,7 +92,7 @@ ROLLBACK_TAG=rollback-$CHANGESET_SLUG
 
 # 1. Tag the rollback ahead of the restore so every restored head carries the tag.
 cub tag create --space $HOME_SPACE $ROLLBACK_TAG \
-  --description "Rollback $CHANGESET_SLUG"
+  --annotation "description=Rollback $CHANGESET_SLUG"
 
 # 2. Bulk restore every Unit in the scope to Before:ChangeSet.
 cub unit update --patch --space $TO_SPACE \

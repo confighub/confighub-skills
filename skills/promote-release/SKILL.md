@@ -162,7 +162,7 @@ If the destination env rejects the release, the ChangeSet makes rollback one com
 
 ```bash
 cub tag create --space $HOME_SPACE rollback-$CHANGESET_SLUG \
-  --description "Rollback $CHANGESET_SLUG"
+  --annotation "description=Rollback $CHANGESET_SLUG"
 
 cub unit update --patch --space $TO_SPACE \
   --filter $APP_FILTER \
