@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "name": "properties-for-java-app",
+      "prompt": "I have an existing `application.properties` file for a Spring Boot app. I want it as a ConfigMap in ConfigHub, mounted into the container at /etc/app/application.properties. Walk me through it."
+    },
+    {
+      "name": "envfrom-env-injection",
+      "prompt": "Our Node app reads 15 env vars. I have them all in a `.env` file. I want them injected via `envFrom` in the Deployment so I don't list them individually in the container spec. How?"
+    },
+    {
+      "name": "mutable-vs-immutable-choice",
+      "prompt": "I'm confused about immutable vs mutable ConfigMaps in ConfigHub. We have a legacy monitoring tool that greps for ConfigMaps by exact name — is that a reason to pick one over the other? Also, if the ConfigMap content changes, which mode gives us an automatic pod restart?"
+    }
+  ]
+}
