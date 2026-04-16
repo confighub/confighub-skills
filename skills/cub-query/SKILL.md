@@ -48,7 +48,7 @@ cub unit list --space "*" --where "Labels.Environment = 'prod'"
 cub unit list --space "*" --where "Space.Slug LIKE 'myapp-%'"
 ```
 
-Useful `--where` fields: `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LiveRevisionNum`, `TargetID`, `UnappliedChanges`. To filter on a Kubernetes resource kind (Deployment, Service, etc.), use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"` — `ResourceType` is not a `--where` metadata field.
+Useful `--where` fields: `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LiveRevisionNum`, `TargetID`. To filter on a Kubernetes resource kind (Deployment, Service, etc.), use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"` — `ResourceType` is not a `--where` metadata field. `UnappliedChanges` is also not a field.
 
 ### 2. Content queries — `--where-data`
 
@@ -70,10 +70,10 @@ cub unit list --space "*" \
 
 ### 3. Function-based extraction — `cub function do` + getters
 
-When `--where-data` isn't enough, use getter functions to extract structured values:
+`--where` and `--where-data` select units (and other entities). To extract values from configuration data, use getter functions:
 
 ```bash
-# Get the current image for every Deployment.
+# Get the current image for the "main" container of every Deployment.
 cub function do --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \
   --quiet --output-jq '.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
@@ -81,21 +81,11 @@ cub function do --space "*" --resource-type apps/v1/Deployment \
 # Find placeholder values that still need to be filled.
 cub function do --space "*" get-placeholders \
   --quiet --output-jq '.[] | select(.Value != null)'
-
-# Extract a CEL expression across resources.
-cub function do --space "*" --resource-type apps/v1/Deployment \
-  get-cel 'resource.spec.template.spec.containers.map(c, {"name": c.name, "image": c.image})' \
-  --quiet --output-only
 ```
 
-### 4. Policy-style queries — `where-filter` + `vet-cel` for dry-run
+### 4. Linting, Validation, and Policy-style analyses — `vet-` functions
 
 ```bash
-# Dry-run policy: flag Deployments violating "replicas >= 2".
-cub function do --space "*" \
-  where-filter apps/v1/Deployment 'spec.replicas < 2' \
-  --quiet --output-jq '.[] | select(.Passed) | .UnitID'
-
 # Run a validator as a one-off audit (without attaching a gate).
 cub function do --space "*" vet-placeholders \
   --quiet --output-jq '.[] | select(.Passed == false)'
@@ -110,18 +100,28 @@ cub function do --space "*" \
 
 ```bash
 # Recent revisions on a Unit with change descriptions.
-cub revision list <slug> --space <space>
+cub revision list <slug> --space <space> --where "UpdatedAt > '2026-04-01'"
 
 # Who changed what, when — across a Space.
 cub revision list --space <space> --where "UpdatedAt > '2026-04-01'"
+
+# Recent actions on a Unit.
+cub unit-action list <slug> --space <space> --where "UpdatedAt > '2026-04-01'"
+
+# Recent apply actions across a Space.
+cub unit-action list --space <space> --where "Action = 'Apply'"
+
+# Recent apply progress events across a Space.
+cub unit-event list --space <space> --where "Action = 'Apply'"
 ```
 
-The `--change-desc` captured at mutation time (see `cub-mutate`) makes this history self-explaining.
+The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revision history self-explaining.
 
 ## Output shaping
 
 - `--json` / `--yaml` — structured.
-- `--quiet` + `--output-jq '<expr>'` — post-process with jq.
+- `--jq <expression>` / `--yq <expression>` - selected structured properties.
+- `--quiet` + `--output-jq '<expr>'` — post-process function output with jq.
 - `--output-only` / `--output-values-only` — strip the envelope for function results.
 - Pipe to `wc -l`, `sort -u`, etc. for quick counts.
 
