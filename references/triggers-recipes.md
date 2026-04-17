@@ -19,14 +19,14 @@ When anything mutates a Unit in an application Space, every Trigger selected by 
 cub space create platform
 
 # 2. Validating triggers on Mutation events in the platform space.
-cub trigger create --space platform --json vet-schemas        Mutation Kubernetes/YAML vet-schemas
-cub trigger create --space platform --json vet-placeholders   Mutation Kubernetes/YAML vet-placeholders
-cub trigger create --space platform --json vet-format         Mutation Kubernetes/YAML vet-format
-cub trigger create --space platform --json vet-merge-keys     Mutation Kubernetes/YAML vet-merge-keys
-cub trigger create --space platform --json vet-immutable      Mutation Kubernetes/YAML vet-immutable
+cub trigger create --space platform -o json vet-schemas        Mutation Kubernetes/YAML vet-schemas
+cub trigger create --space platform -o json vet-placeholders   Mutation Kubernetes/YAML vet-placeholders
+cub trigger create --space platform -o json vet-format         Mutation Kubernetes/YAML vet-format
+cub trigger create --space platform -o json vet-merge-keys     Mutation Kubernetes/YAML vet-merge-keys
+cub trigger create --space platform -o json vet-immutable      Mutation Kubernetes/YAML vet-immutable
 
 # 3. Filter selecting those triggers.
-cub filter create --space platform --json standard-vets Trigger \
+cub filter create --space platform -o json standard-vets Trigger \
   --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 
 # 4. New application Space uses the filter.
@@ -53,11 +53,11 @@ Use `vet-cel` for org-specific rules. Expression is evaluated once per resource;
 
 ```bash
 # Require replicas >= 2 for Deployments (simple bool form).
-cub trigger create --space platform --json require-ha Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-ha Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2'
 
 # Path-specific failure pointing at spec.replicas — preferred over a bare details message.
-cub trigger create --space platform --json require-ha Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-ha Mutation Kubernetes/YAML \
   vet-cel '
     r.kind != "Deployment" || r.spec.replicas >= 2 ?
       {"passed": true} :
@@ -72,15 +72,15 @@ cub trigger create --space platform --json require-ha Mutation Kubernetes/YAML \
       }'
 
 # Disallow :latest.
-cub trigger create --space platform --json no-latest Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json no-latest Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || !r.spec.template.spec.containers.exists(c, c.image.endsWith(":latest"))'
 
 # Enforce a memory-limit floor using the quantity() library.
-cub trigger create --space platform --json min-memory Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json min-memory Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || r.spec.template.spec.containers.all(c, quantity(c.resources.limits["memory"]).isGreaterThan(quantity("64Mi")))'
 
 # Parameterized rule — minimum replicas supplied per Trigger instantiation.
-cub trigger create --space platform --json require-min-replicas Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-min-replicas Mutation Kubernetes/YAML \
   vet-cel --param=min=2 'r.kind != "Deployment" || r.spec.replicas >= int(params.min)'
 ```
 
@@ -89,7 +89,7 @@ Add `require-ha`, `no-latest`, etc. to your Filter (or broaden it) and every dow
 ## Approval gate (optional)
 
 ```bash
-cub trigger create --space platform --json require-approval Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-approval Mutation Kubernetes/YAML \
   vet-approvedby 1
 ```
 

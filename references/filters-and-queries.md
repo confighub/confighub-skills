@@ -214,14 +214,14 @@ For questions `--where-data` can't answer cleanly, reach for getter functions. N
 # Current image for every Deployment across all spaces.
 cub function do --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \
-  --quiet --output-jq '.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
+  --quiet --show output -o jq='.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
 
 # Every placeholder still present, grouped by Unit.
 cub function do --space "*" get-placeholders \
-  --quiet --output-jq '.[] | select(.Value != null)'
+  --quiet --show output -o jq='.[] | select(.Value != null)'
 
 # CEL extraction across resources.
 cub function do --space "*" --resource-type apps/v1/Deployment \
   get-cel 'resource.spec.template.spec.containers.map(c, {"name": c.name, "image": c.image})' \
-  --quiet --output-only
+  --quiet --show output
 ```

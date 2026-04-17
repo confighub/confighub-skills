@@ -39,11 +39,11 @@ cub space create platform \
 
 # 2. Baseline vet-* Triggers on Mutation.
 for t in vet-schemas vet-placeholders vet-format vet-merge-keys vet-immutable; do
-  cub trigger create --space platform --json "$t" Mutation Kubernetes/YAML "$t"
+  cub trigger create --space platform -o json "$t" Mutation Kubernetes/YAML "$t"
 done
 
 # 3. Filter selecting those Triggers.
-cub filter create --space platform --json standard-vets Trigger \
+cub filter create --space platform -o json standard-vets Trigger \
   --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
@@ -59,7 +59,7 @@ cub space create myapp-prod --trigger-filter platform/standard-vets --where-trig
 cub space update myapp-prod --trigger-filter platform/standard-vets --where-trigger "-"
 ```
 
-**Why `--where-trigger "-"`**: `WhereTrigger` and `TriggerFilterID` combine — both must match for a Trigger to apply to the Space. Every Space is created with a default `WhereTrigger = SpaceID = '<this-space>'` so Triggers defined in the Space itself apply by default. When you attach a cross-Space `--trigger-filter` (e.g., Triggers living in `platform`), that default still applies and nothing matches both predicates, so `# Triggers = 0` in `cub space get` even though `cub trigger list --filter <slug>` resolves the filter correctly. To use the filter alone, clear the default with `--where-trigger "-"` (the sentinel; plain `""` is indistinguishable from "flag not set"). Keep both predicates when you actually want the union's intersection — e.g., Space-local Triggers plus the platform baseline. Verify with `cub space get --json <space>` — `Triggers` should be populated.
+**Why `--where-trigger "-"`**: `WhereTrigger` and `TriggerFilterID` combine — both must match for a Trigger to apply to the Space. Every Space is created with a default `WhereTrigger = SpaceID = '<this-space>'` so Triggers defined in the Space itself apply by default. When you attach a cross-Space `--trigger-filter` (e.g., Triggers living in `platform`), that default still applies and nothing matches both predicates, so `# Triggers = 0` in `cub space get` even though `cub trigger list --filter <slug>` resolves the filter correctly. To use the filter alone, clear the default with `--where-trigger "-"` (the sentinel; plain `""` is indistinguishable from "flag not set"). Keep both predicates when you actually want the union's intersection — e.g., Space-local Triggers plus the platform baseline. Verify with `cub space get -o json <space>` — `Triggers` should be populated.
 
 ## Adding custom policy
 
@@ -67,11 +67,11 @@ cub space update myapp-prod --trigger-filter platform/standard-vets --where-trig
 
 ```bash
 # Simple bool form.
-cub trigger create --space platform --json require-ha Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-ha Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2'
 
 # Path-specific failure — preferred over freeform details when you can name the attribute.
-cub trigger create --space platform --json require-ha Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-ha Mutation Kubernetes/YAML \
   vet-cel '
     r.kind != "Deployment" || r.spec.replicas >= 2 ?
       {"passed": true} :
@@ -86,7 +86,7 @@ cub trigger create --space platform --json require-ha Mutation Kubernetes/YAML \
       }'
 
 # Disallow :latest.
-cub trigger create --space platform --json no-latest Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json no-latest Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || !r.spec.template.spec.containers.exists(c, c.image.endsWith(":latest"))'
 ```
 
@@ -95,7 +95,7 @@ See `references/triggers-recipes.md` for parameterized rules (`--param=key=value
 ## Approval gate
 
 ```bash
-cub trigger create --space platform --json require-approval Mutation Kubernetes/YAML \
+cub trigger create --space platform -o json require-approval Mutation Kubernetes/YAML \
   vet-approvedby 1
 ```
 

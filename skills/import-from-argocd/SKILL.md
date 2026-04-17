@@ -96,7 +96,7 @@ Applying a dry Unit invokes the `ArgoCDRenderer` bridge: the Worker calls Argo t
 
 ```bash
 cub unit apply <dry-unit> --space <import-space> --wait
-cub unit get <wet-unit> --space <import-space> --yaml     # rendered manifests are now the wet Unit's Data
+cub unit get <wet-unit> --space <import-space> -o yaml     # rendered manifests are now the wet Unit's Data
 ```
 
 Do this for every dry Unit (or bulk via `cub unit apply --where`). After this round, every wet Unit contains the rendered YAML.
@@ -157,7 +157,7 @@ Dry Units typically stay in the import Space or move into a `<app>-renderers` Sp
 2. `cub unit list --space <import-space>` — dry / wet / crd Units present for each imported Application.
 3. `cub unit tree --space <import-space>` — shows the MergeUnits link back to the dry Unit.
 4. `kubectl get application <imported-app> -n argocd -o jsonpath='{.spec.syncPolicy.automated}'` — empty / missing (auto-sync disabled).
-5. After first `cub unit apply <dry>`: `cub unit get <wet> --space <import-space> --yaml` — contains rendered Deployment/Service/etc.
+5. After first `cub unit apply <dry>`: `cub unit get <wet> --space <import-space> -o yaml` — contains rendered Deployment/Service/etc.
 6. After first `cub unit apply <wet>`: `kubectl get application -A` — a *new* Application exists that references ConfigHub's OCI registry URL.
 
 ## Evidence

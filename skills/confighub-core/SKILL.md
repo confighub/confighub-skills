@@ -1,6 +1,6 @@
 ---
 name: confighub-core
-description: 'Orientation skill — load when the user is new to ConfigHub, asks "what is a Unit / Space / Target / Worker / Trigger / Filter / Link", needs to understand how entities relate, wants a quick tour before diving into specific operations, or asks "how do I do X in ConfigHub" without enough context to route yet. Also covers Delete Gates and Destroy Gates — phrases like "protect this Space from accidental deletion", "stop anyone from destroying the prod Unit", "add a delete gate", "why can''t I delete this?", "how do I lock down critical infra?". Explains the core vocabulary, the Read vs Write tool boundary, the change-description + --display-mutations conventions, gate semantics, and routes to the right dedicated skill for each kind of task. Do not load when the user''s intent is already concrete enough to route (e.g., "add a trigger that blocks :latest" → triggers-and-applygates; "bump the image" → cub-mutate; "find Deployments using v1.2.3" → cub-query).'
+description: 'Orientation skill — load when the user is new to ConfigHub, asks "what is a Unit / Space / Target / Worker / Trigger / Filter / Link", needs to understand how entities relate, wants a quick tour before diving into specific operations, or asks "how do I do X in ConfigHub" without enough context to route yet. Also covers Delete Gates and Destroy Gates — phrases like "protect this Space from accidental deletion", "stop anyone from destroying the prod Unit", "add a delete gate", "why can''t I delete this?", "how do I lock down critical infra?". Explains the core vocabulary, the Read vs Write tool boundary, the change-description + -o mutations conventions, gate semantics, and routes to the right dedicated skill for each kind of task. Do not load when the user''s intent is already concrete enough to route (e.g., "add a trigger that blocks :latest" → triggers-and-applygates; "bump the image" → cub-mutate; "find Deployments using v1.2.3" → cub-query).'
 phase: cross-cutting
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker logs *) Bash(cub worker status *)
 ---
@@ -43,7 +43,7 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **Data is authoritative.** Edits are to the data, not to templates. Re-rendering is an import-time convenience, not an ongoing workflow.
 - **Mutations go through `cub`.** `kubectl` / `argocd` / `flux` are read-only for diagnosis.
 - **Every Unit-data mutation carries `--change-desc`.** Format: summary line, then the verbatim user prompt, then a condensed summary of any clarifying Q&A. Recorded in every affected Unit's head revision.
-- **Every mutating call should pass `--display-mutations`** to show the diff inline.
+- **Every mutating call should pass `-o mutations`** to show the diff inline.
 - **Space topology** is one Space per app × environment/region, labeled accordingly. Triggers live in a shared `platform` Space; application Spaces inherit via `TriggerFilterID`.
 - **Critical entities carry Delete Gates (and, for Units, Destroy Gates).** See the next section.
 
@@ -156,7 +156,7 @@ N/A — read-only. Verification is "did the user's task get routed to the right 
 
 ## References
 
-- `references/cub-cli.md` — CLI conventions, Read/Write permission sets, agent-mode help, `--change-desc`, `--display-mutations`.
+- `references/cub-cli.md` — CLI conventions, Read/Write permission sets, agent-mode help, `--change-desc`, `-o mutations`.
 - `references/functions-catalog.md` — the function surface.
 - `references/filters-and-queries.md` — query vocabulary.
 - `references/triggers-recipes.md` — platform-Space pattern.

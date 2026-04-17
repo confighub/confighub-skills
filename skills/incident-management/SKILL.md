@@ -44,8 +44,8 @@ Ask (or derive from context) in order. Stop at the first one that routes clearly
    # To scope by app, first get the Unit IDs from the app filter, then use
    # UnitID IN (...) in the where clause:
    cub unit list --space '*' --filter <app>-home/<app>-app \
-     --jq '[.[] | .Unit.UnitID] | join("'"'"','"'"'")' \
-     --no-header
+     -o jq='[.[] | .Unit.UnitID] | join("'"'"','"'"'")' \
+     --no-headers
    # => paste the IDs into:
    cub unit-action list --space '*' \
      --where "Action = 'Apply' AND CreatedAt > '<ISO-timestamp>' AND UnitID IN ('<id1>','<id2>',...)"
@@ -86,7 +86,7 @@ The triage query in question 1 already identified the Units with applies in the 
 # LastChangeDescription from the triage output, or look at the applied revision:
 cub revision list --space <env-space> <unit-slug> \
   --where "RevisionNum = <LastAppliedRevisionNum from triage>" \
-  --jq '.[] | {ChangeSet: .Revision.ChangeSet.Slug, Description: .Revision.Description}'
+  -o jq='.[] | {ChangeSet: .Revision.ChangeSet.Slug, Description: .Revision.Description}'
 
 # Recent ChangeSets in the home Space (useful when the apply query above
 # returned multiple Units in the same ChangeSet).

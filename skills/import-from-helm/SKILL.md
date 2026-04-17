@@ -226,7 +226,7 @@ cub unit diff <release> --space <app>-<staging>
 ## Verify chain
 
 1. `cub unit list --space <space> --where "Labels.helmrelease = '<release>'"` — both base and CRDs Units present.
-2. `cub unit get <release> --space <space>` — `Labels` include `helmrelease=<release>`, `helmchart=<repo>/<chart>`, `helmversion=<pinned>` (exact label keys may vary — verify with `--json`).
+2. `cub unit get <release> --space <space>` — `Labels` include `helmrelease=<release>`, `helmchart=<repo>/<chart>`, `helmversion=<pinned>` (exact label keys may vary — verify with `-o json`).
 3. `cub unit diff <release> <app>-<base-env>/<release> --space <app>-<env>` — shows per-env clone's customizations as a diff against the base-Space release.
 4. After upgrade: `cub revision list <release> --space <space>` — revision N+1 appears with the new chart version.
 
@@ -240,6 +240,6 @@ cub unit diff <release> --space <app>-<staging>
 
 - `https://docs.confighub.com/guide/helm-charts/` — canonical walkthrough.
 - `https://docs.confighub.com/guide/rendered-manifests/` — DRY rendering model across Helm / Kustomize / GitOps.
-- `references/cub-cli.md` — CLI discipline, `--change-desc`, `--display-mutations`.
+- `references/cub-cli.md` — CLI discipline, `--change-desc`, `-o mutations`.
 - `references/yaml-patterns.md` — needs/provides for placeholder resolution.
 - Companion skills: `space-topology` (where the base + per-env Spaces go), `config-as-data` (doctrine), `cub-mutate` (customizing the clone), `cub-apply` (deploy), `triggers-and-applygates` (vet-placeholders gate).

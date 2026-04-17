@@ -183,8 +183,8 @@ Point them at the GUI and the other skills:
 
 1. `cub space get skill-examples` — Space exists.
 2. `cub unit list --space skill-examples` — all 11 Units present.
-3. `cub unit get hello-app --space skill-examples --yaml` — YAML contains `resources.requests`, all three probes, `securityContext`, and `namespace: confighubplaceholder`.
-4. `cub unit get hello-statefulset --space skill-examples --yaml` — StatefulSet has `volumeClaimTemplates` and headless Service has `clusterIP: None`.
+3. `cub unit get hello-app --space skill-examples -o yaml` — YAML contains `resources.requests`, all three probes, `securityContext`, and `namespace: confighubplaceholder`.
+4. `cub unit get hello-statefulset --space skill-examples -o yaml` — StatefulSet has `volumeClaimTemplates` and headless Service has `clusterIP: None`.
 5. `cub revision list hello-app --space skill-examples` — revision history includes the defaults functions with user-prompt-bearing change descriptions.
 
 ## Evidence

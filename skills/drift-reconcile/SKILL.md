@@ -39,7 +39,7 @@ The decision goes through the user, not the skill. The skill's job is to _show_ 
 1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. The affected Unit(s) have a Target bound and a healthy Worker:
    ```bash
-   cub unit get <slug> --space <s> --jq '{TargetID: .Unit.TargetID, BridgeWorker: .BridgeWorker.Slug}'
+   cub unit get <slug> --space <s> -o jq='{TargetID: .Unit.TargetID, BridgeWorker: .BridgeWorker.Slug}'
    cub worker status --space <worker-space> <worker-slug>
    ```
 3. User has write permission on the Space (both paths — ConfigHub-wins and cluster-wins — mutate the Unit).
@@ -80,7 +80,7 @@ cub unit livestate <slug> --space <s>
 For a preview of what a refresh would bring in — without touching the Unit — use `--dry-run`. Refresh queues a unit-action rather than creating a new Unit revision:
 
 ```bash
-opID=$(cub unit refresh --wait --space <s> <slug> --dry-run --jq '.QueuedOperationID')
+opID=$(cub unit refresh --wait --space <s> <slug> --dry-run -o jq='.QueuedOperationID')
 cub unit-action get --space <s> <slug> "$opID" --data    # the refreshed data that would be returned
 ```
 
@@ -165,7 +165,7 @@ cub function do --space <s> --unit <slug> \
 
 User prompt: <verbatim>
 Clarifications: <condensed>" \
-  --display-mutations \
+  -o mutations \
   -- set-label app.kubernetes.io/debug "-"   # example; use the function that matches
 cub unit apply <slug> --space <s> --wait
 ```
@@ -188,7 +188,7 @@ Apply the same loop per-Unit, or for same-shape drift use bulk commands:
 
 ```bash
 # Bulk drift detection check.
-cub unit refresh --space "*" --filter <app>-home/<app>-app --wait --dry-run --display-mutations
+cub unit refresh --space "*" --filter <app>-home/<app>-app --wait --dry-run -o mutations
 
 # Bulk refresh.
 cub unit refresh --space "*" --filter <app>-home/<app>-app --wait
@@ -212,7 +212,7 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 
 ## Verify chain
 
-1. `cub unit refresh --wait --dry-run --display-mutations` shows no additional changes.
+1. `cub unit refresh --wait --dry-run -o mutations` shows no additional changes.
 2. Whatever source-level change step 5 called for has landed (operator trained, admission policy adjusted, field removed from Data).
 
 ## Evidence
@@ -222,7 +222,7 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 
 ## References
 
-- `references/cub-cli.md` — `--change-desc` scope; `--display-mutations` on mutating calls.
+- `references/cub-cli.md` — `--change-desc` scope; `-o mutations` on mutating calls.
 - `references/functions-catalog.md` — functions for selective merge (strip-metadata-\*, set-label, set-annotation, set-cel).
 - Companion skills: `cub-apply` (runtime for ConfigHub-wins), `cub-mutate` (surgical edits during selective merge), `verify-apply` (post-apply verification; this skill is the divergence counterpart when an apply converged but the cluster has since diverged, or when a "drift" report is actually a stuck/failed apply), `rollback-revision` (ConfigHub-history rewind, different problem).
 - https://docs.confighub.com/guide/drift/

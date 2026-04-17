@@ -84,7 +84,7 @@ Cross-check the delivery side — the Unit's `UnitStatus.Status` reflects whethe
 ```bash
 cub unit list --space <app>-<source-env> \
   --filter <app>-home/<app>-app \
-  --jq '[.[] | {Slug: .Unit.Slug, Status: .UnitStatus.Status, SyncStatus: .UnitStatus.SyncStatus, ActionResult: .UnitStatus.ActionResult}
+  -o jq='[.[] | {Slug: .Unit.Slug, Status: .UnitStatus.Status, SyncStatus: .UnitStatus.SyncStatus, ActionResult: .UnitStatus.ActionResult}
          | select(.Status != "Ready" or .SyncStatus != "Synced")]'
 ```
 
@@ -119,9 +119,9 @@ The combination of `--filter` + `--where` recorded here is what gets passed to t
 For each Unit in scope, show the pre-promotion diff:
 
 ```bash
-for u in $(cub unit list --space <app>-<destination-env> --filter platform/needs-upgrade --quiet --jq '.[].Unit.Slug'); do
+for u in $(cub unit list --space <app>-<destination-env> --filter platform/needs-upgrade --quiet -o jq='.[].Unit.Slug'); do
   echo "=== $u ==="
-  cub unit update --patch --upgrade --dry-run --display-mutations \
+  cub unit update --patch --upgrade --dry-run -o mutations \
     --space <app>-<destination-env> --unit $u
 done
 ```
@@ -134,7 +134,7 @@ Confirm the destination Space has its expected Triggers attached and no lingerin
 
 ```bash
 cub space get <app>-<destination-env> \
-  --jq '{AttachedFilter: .TriggerFilter.Slug, ResolvedTriggers: (.Triggers // [] | length), TriggerFilterID: .Space.TriggerFilterID}'
+  -o jq='{AttachedFilter: .TriggerFilter.Slug, ResolvedTriggers: (.Triggers // [] | length), TriggerFilterID: .Space.TriggerFilterID}'
 
 cub unit list --space <app>-<destination-env> --filter <app>-home/<app>-app \
   --where "LEN(ApplyGates) > 0"
@@ -184,14 +184,14 @@ cub changeset create --space $HOME_SPACE $CHANGESET_SLUG \
 
 # 2. Bulk upgrade every in-scope downstream Unit. --patch holds the
 #    ChangeSet open on every affected Unit; --upgrade does the per-Unit
-#    merge from each Unit's resolved upstream head; --display-mutations
+#    merge from each Unit's resolved upstream head; -o mutations
 #    prints the diff inline so the user sees what landed.
 cub unit update --patch \
   --space <SCOPE_SPACE> \
   <SCOPE_SELECTOR> \
   --changeset $CHANGESET_REF \
   --upgrade \
-  --display-mutations \
+  -o mutations \
   --change-desc "Upgrade to upstream head as part of $CHANGESET_SLUG.
 
 User prompt: <verbatim>
@@ -225,7 +225,7 @@ After close, each affected Unit's head revision carries the ChangeSet's end tag.
 
 The mechanics are identical; only the selector differs. Use the env-by-env selector for controlled env-ladder promotions; use the base-fleet selector when a common base change should hit every env simultaneously.
 
-> `cub unit push-upgrade` is deprecated; do not use it. The selector-based `cub unit update --patch --upgrade` form above is the unified replacement and it composes cleanly with `--dry-run`, `--display-mutations`, and `--changeset`.
+> `cub unit push-upgrade` is deprecated; do not use it. The selector-based `cub unit update --patch --upgrade` form above is the unified replacement and it composes cleanly with `--dry-run`, `-o mutations`, and `--changeset`.
 
 ### 3. Approval (if required)
 

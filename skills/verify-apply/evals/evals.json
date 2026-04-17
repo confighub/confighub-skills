@@ -5,7 +5,7 @@
       "id": 1,
       "name": "happy-path-post-apply",
       "prompt": "I just applied the checkout unit in myapp-prod. Did it actually deploy?",
-      "expected_output": "Reads cub unit get --jq .UnitStatus (confirms Status=Completed / Ready, ActionResult=ApplyCompleted) and cub unit get --jq .LatestUnitEvent; if the user explicitly asked for cross-layer confirmation, cross-checks the controller (argocd app get / flux get) and cluster (kubectl get + describe). Reports in plain English, does not mutate, offers --web review links. Does NOT reference LastActionError.",
+      "expected_output": "Reads cub unit get -o jq=.UnitStatus (confirms Status=Completed / Ready, ActionResult=ApplyCompleted) and cub unit get -o jq=.LatestUnitEvent; if the user explicitly asked for cross-layer confirmation, cross-checks the controller (argocd app get / flux get) and cluster (kubectl get + describe). Reports in plain English, does not mutate, offers --web review links. Does NOT reference LastActionError.",
       "files": []
     },
     {

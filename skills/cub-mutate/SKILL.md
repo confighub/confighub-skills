@@ -56,7 +56,7 @@ cub function do <fn>    Is this a small, surgical path edit (1–3 fields)?
                           │
                           genuinely needs a whole-unit rewrite
                           ▼
-             cub unit get --data-only … → edit locally → cub unit update
+             cub unit data … → edit locally → cub unit update
                           │
                           ▼
 Restoring history instead? cub unit update --restore <revision-or-tag>
@@ -120,14 +120,14 @@ cub function do \
   --space <space> \
   --unit <slug> \
   --change-desc "<composed description>" \
-  --display-mutations \
+  -o mutations \
   -- \
   <function-name> [function args]
 ```
 
-`--display-mutations` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
+`-o mutations` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
 
-`--dry-run` will return what the modified data would look like, but without persisting the change. It can be used with `--display-mutations`.
+`--dry-run` will return what the modified data would look like, but without persisting the change. It can be used with `-o mutations`.
 
 For multi-Unit runs, add `--wait` so you see completion.
 
@@ -136,13 +136,13 @@ For multi-Unit runs, add `--wait` so you see completion.
 Only when no function composition does the job:
 
 ```bash
-cub unit get <slug> --space <space> --yaml > /tmp/edit.yaml
+cub unit get <slug> --space <space> -o yaml > /tmp/edit.yaml
 # edit /tmp/edit.yaml preserving literal values
 cub unit update --space <space> <slug> /tmp/edit.yaml \
   --change-desc "<composed description>"
 ```
 
-`cub unit update` also supports `--display-mutations`, `--dry-run`, and `--wait`.
+`cub unit update` also supports `-o mutations`, `--dry-run`, and `--wait`.
 
 ### 7. Restore a prior revision
 
@@ -180,7 +180,7 @@ cub function do --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
   --change-desc "<summary>. User prompt: <verbatim>. Clarifications: <condensed>" \
-  --display-mutations \
+  -o mutations \
   -- set-container-image <container> <image>:<tag>
 
 # 4. Close with the "-" sentinel (empty string does not clear).

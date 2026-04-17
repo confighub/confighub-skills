@@ -129,7 +129,7 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 
 ## Verify chain
 
-1. `cub unit get <unit> --space <space> --yaml` — Data matches the target revision's data.
+1. `cub unit get <unit> --space <space> -o yaml` — Data matches the target revision's data.
 2. `cub revision list <unit> --space <space>` — the new head revision has the rollback `--change-desc` (and Tag, for Shape B).
 3. `cub unit bridgestate --space <space> --filter <...>` — after apply, every Unit is `Ready`, `LiveRevisionNum` = new head.
 4. For Shape B: `cub revision list --space $TO_SPACE --filter $APP_FILTER --tag $HOME_SPACE/$ROLLBACK_TAG` lists one revision per Unit — all tagged.

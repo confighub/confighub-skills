@@ -38,7 +38,7 @@ cub function do --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
   --change-desc "Bump image to v452. User prompt: <verbatim>. Clarifications: <condensed>" \
-  --display-mutations \
+  -o mutations \
   -- set-container-image <container> <image>:v452
 ```
 

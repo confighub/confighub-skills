@@ -47,7 +47,7 @@ If you're tempted to reach for Helm, Kustomize, Jsonnet, cdk8s, or a values file
 First, check if the `skill-examples` Space has a relevant example Unit to use as a starting point:
 
 ```bash
-cub unit get <example-slug> --space skill-examples --yaml 2>/dev/null
+cub unit get <example-slug> --space skill-examples -o yaml 2>/dev/null
 ```
 
 The `skill-examples-bootstrap` skill seeds Units for common resource types (`hello-app`, `hello-statefulset`, `hello-daemonset`, `hello-job`, `hello-cronjob`, `hello-ingress`, `hello-netpol`, `hello-rbac`, `hello-hpa`, `hello-pdb`). If a matching example exists, adapt it. If not, scaffold from Kubernetes or hand-author:

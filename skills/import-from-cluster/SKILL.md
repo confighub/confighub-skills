@@ -115,7 +115,7 @@ The Worker pulls the matching resources, strips transient fields, and sets the U
 ### 4. Review the imported data
 
 ```bash
-cub unit get <app> --space <app>-<env> --yaml
+cub unit get <app> --space <app>-<env> -o yaml
 ```
 
 Scan for:
@@ -158,7 +158,7 @@ From there, `verify-apply` takes over.
 ## Verify chain
 
 1. `cub unit list --space <app>-<env>` — the Unit exists.
-2. `cub unit get <app> --space <app>-<env> --yaml` — Data contains the expected resources, stripped of transient fields.
+2. `cub unit get <app> --space <app>-<env> -o yaml` — Data contains the expected resources, stripped of transient fields.
 3. `cub unit bridgestate <app> --space <app>-<env>` — target binding healthy.
 4. `cub unit livestate <app> --space <app>-<env>` — LiveState matches Data (no drift at import time).
 5. After attaching `platform/standard-vets`: `cub function do vet-schemas --space <app>-<env> --unit <app>` — passes, or produces a readable set of cleanup items for `cub-mutate`.

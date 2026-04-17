@@ -159,7 +159,7 @@ From here, `cub-apply` / `verify-apply` take over.
 ## Verify chain
 
 1. `cub unit list --space <space>` — Units from this import are present.
-2. `cub unit get <app> --space <app>-<env> --yaml | diff - /tmp/kustomize-import/<app>-<env>.yaml` — the stored data matches the rendered output.
+2. `cub unit get <app> --space <app>-<env> -o yaml | diff - /tmp/kustomize-import/<app>-<env>.yaml` — the stored data matches the rendered output.
 3. `cub revision list <app> --space <app>-<env>` — Revision 1 exists with the Kustomize-source `--change-desc`.
 
 ## Evidence
