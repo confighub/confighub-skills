@@ -1,12 +1,13 @@
 # confighub-skills — plan for remaining work
 
-Status as of 2026-04-15, `main` at `c9fcbd8` after PRs [#1](https://github.com/confighubai/confighub-skills/pull/1) + [#3](https://github.com/confighubai/confighub-skills/pull/3) + [#4](https://github.com/confighubai/confighub-skills/pull/4) + [#5](https://github.com/confighubai/confighub-skills/pull/5) merged:
+Status as of 2026-04-16, `main` at `6956d39` after PRs [#1](https://github.com/confighubai/confighub-skills/pull/1) + [#3](https://github.com/confighubai/confighub-skills/pull/3) + [#4](https://github.com/confighubai/confighub-skills/pull/4) + [#5](https://github.com/confighubai/confighub-skills/pull/5) + [#9](https://github.com/confighubai/confighub-skills/pull/9) + [#10](https://github.com/confighubai/confighub-skills/pull/10) + [#11](https://github.com/confighubai/confighub-skills/pull/11) + [#13](https://github.com/confighubai/confighub-skills/pull/13) + [#14](https://github.com/confighubai/confighub-skills/pull/14) + [#15](https://github.com/confighubai/confighub-skills/pull/15) + [#16](https://github.com/confighubai/confighub-skills/pull/16) + [#17](https://github.com/confighubai/confighub-skills/pull/17) + [#18](https://github.com/confighubai/confighub-skills/pull/18) + [#19](https://github.com/confighubai/confighub-skills/pull/19) merged:
 
-- **25 skills shipped** across Waves 1–4 + Wave 5's `space-topology` + `app-config`.
+- **23 skills shipped** across Waves 1–4 + Wave 5's `space-topology` + `app-config`. Count dropped from 25→23 via two post-iteration-4 consolidations: `verify-delivery` + `reconciliation-check` + `release-verify` merged into `verify-apply` (PR #19); `promotion-preflight` merged into `promote-release` (on this branch). `cub unit push-upgrade` is deprecated — `promote-release` now uses a unified selector-based `cub unit update --patch --upgrade` for both env-by-env and base-to-fleet cases.
 - **Plugin manifest** (`.claude-plugin/plugin.json`) in place — installs via `/plugin install https://github.com/confighubai/confighub-skills`.
-- **Iteration 3 evals**: 5 Wave 2 skills run live against a kind cluster; overall benchmark 83/88 = 94% with-skill vs 14/88 = 16% baseline across 12 skills.
-- **4 real skill bugs fixed** during iteration 3 / Wave 4 drafting (worker-bootstrap direct install, `--display-mutations` plural, `triggers-and-applygates` `--where-trigger "-"` gotcha, `skill-examples-bootstrap` `egrep`-status leak).
-- **Reference docs expanded**: `changesets.md`; `cub-cli.md` gains extended-envelope, four Unit views (Data / LiveData / LiveState / BridgeState), `--where` AND-only, `ConfigHub.ResourceType` pseudo-attributes, `--filter` one-per-command.
+- **All four eval iterations complete**: overall benchmark **203/208 = 98%** with-skill vs **26/208 = 13%** baseline across 24 of 26 pre-consolidation skills (`skill-eval-workspace/SUMMARY.md`). Iteration 4 shipped in PR #9 (120/120 with-skill, 12/120 baseline, 0 real bugs found). The only two skills without an eval are `import-from-argocd` and `import-from-flux` (require in-cluster Argo/Flux installations not present in the eval environment).
+- **4 real skill bugs fixed** during iteration 3 / Wave 4 drafting (worker-bootstrap direct install, `--display-mutations` plural, `triggers-and-applygates` `--where-trigger "-"` gotcha, `skill-examples-bootstrap` `egrep`-status leak). Iteration 4 found zero new bugs.
+- **Post-iteration-4 review fixes** (PRs #15–#19): `cub organization list` is the canonical auth preflight (not `cub context get` / `cub info` / `cub version`); `--unit <slug>` replaces `--where "Slug = '<slug>'"` for bulk-only commands (`cub function do`, `cub run`); `LastActionError` field removed (hallucinated — error text lives on `cub unit-event`'s `Message`); `cub unit get --jq .UnitStatus` + `.LatestUnitEvent` documented as the first-look status views.
+- **Reference docs expanded**: `changesets.md`; `cub-cli.md` gains extended-envelope, four Unit views (Data / LiveData / LiveState / BridgeState), `--where` AND-only, `ConfigHub.ResourceType` pseudo-attributes, `--filter` one-per-command, `--unit` vs `--where "Slug = ..."` for bulk-only commands.
 - **Memory captured** for load-bearing session feedback (cub-auth-check, PascalCase labels, rollback means `--restore`, `--jq` on extended envelope, branch-creation convention, etc.).
 
 This doc tracks what's left.
@@ -23,33 +24,24 @@ This doc tracks what's left.
 
 ## Priority queue
 
-### P0 — Evals for Wave 3 / 4 skills + `app-config`
+### P0 — Iteration 4 complete. Only remaining coverage gap: ArgoCD + Flux imports
 
-Twelve skills shipped since iteration 3 have `evals/evals.json` prompts but no actual run:
+Iteration 4 shipped in PR #9 — 12 skills, 120/120 with-skill, 12/120 baseline, 0 real bugs (`skill-eval-workspace/iteration-4/SUMMARY.md`). The consolidations since iteration 4 (`verify-apply` ← 3 skills; `promote-release` ← `promotion-preflight`) do not invalidate those results — iteration-4 graded the individual skills' content, which is preserved inside the merged skills.
 
-- Wave 3: `import-from-helm`, `import-from-kustomize`, `import-from-argocd`, `import-from-flux`, `import-from-cluster`, `import-unit-granularity`.
-- Wave 4: `promotion-preflight`, `promote-release`, `rollback-revision`, `drift-reconcile`, `incident-management`.
-- Wave 5 (partial): `space-topology`.
-- New: `app-config`.
+Outstanding:
 
-Iteration 3 caught 4 real bugs in its 5 target skills; iteration 4 is the same kind of bet for twelve more. Eval infrastructure (`skill-eval-workspace/iteration-N/<eval-name>/{with_skill,without_skill}/{grading.json,timing.json,outputs/}`) is already the convention — follow it.
+- **`import-from-argocd` eval** — needs in-cluster Argo CD and a Worker installed with `-t kubernetes,argocdrenderer,argocdoci`.
+- **`import-from-flux` eval** — needs in-cluster Flux and a Worker installed with `-t kubernetes,fluxrenderer,fluxoci`.
 
-Prerequisites for live execution:
+Both deferred from every prior iteration. Not worth standing up a new eval environment for two skills; pick these up opportunistically when an Argo/Flux cluster is already available, or when either skill changes in a way that warrants fresh grading.
 
-1. Live kind cluster with `eval-worker` Ready (above).
-2. For `import-from-helm`: `helm` on PATH, a chart repo added (e.g., `helm repo add jetstack https://charts.jetstack.io`).
-3. For `import-from-argocd` / `import-from-flux`: Argo CD and/or Flux installed in-cluster; Worker installed with `-t kubernetes,argocdrenderer,argocdoci` or `-t kubernetes,fluxrenderer,fluxoci` respectively. Non-trivial setup; consider deferring these two until the eval environment supports them.
-4. For `app-config`: a server-worker (`cub worker create --is-server-worker --allow-exists server-worker`).
+A post-consolidation smoke eval for `verify-apply` and the new `promote-release` would also be prudent — their merged structure differs enough from the pre-merge evals that a targeted run is useful even if iteration-4's content coverage is already recorded.
 
-Reasoning-only evals (sandbox-blocked mutations) are still valuable — iterations 1–2 graded primarily on reasoning and caught multiple bugs. If live execution isn't available, run reasoning-only and annotate.
+### P1 — Doctrine skills for uncovered doc topics (active queue)
 
-Aggregate into `skill-eval-workspace/iteration-4/SUMMARY.md` and append to `benchmark.json`.
+With P0 complete, this is the active work. Topics from the published docs that aren't yet a skill, ranked by operational value:
 
-### P1 — Doctrine skills for uncovered doc topics
-
-Topics from the published docs that aren't yet a skill, ranked by operational value:
-
-- **`links-and-needs-provides`** — `dependencies.md`. Links + Needs/Provides is referenced by `app-config`, `rendered-manifests`, `space-topology`, and every import skill, but has no doctrine home. Highest value.
+- **`links-and-needs-provides`** — `dependencies.md`. Links + Needs/Provides is referenced by `app-config`, `rendered-manifests`, `space-topology`, and every import skill, but has no doctrine home. Highest value. The Link-direction vs data-flow-direction terminology gotcha (Link points downstream→upstream, data flows upstream→downstream) that surfaced during the `promote-release` merge is load-bearing material for this skill.
 - **`variants`** — `variants.md`. The clone / upstream-downstream mental model that `promote-release` operationalizes. A decide-phase doctrine skill.
 - **`attributes`** — Space-level Attributes used for per-env substitution on promotion (referenced in `skill-examples-bootstrap` change-desc). Currently no home; pairs well with `promote-release` and `variants`.
 - **`views`** — saved-query entity; `cub-query` covers Filters but not Views. Thin skill or a section inside `cub-query`.
@@ -74,7 +66,8 @@ Once every skill has at least one eval iteration, run `skill-creator/scripts/run
 
 ### P5 — Smaller gaps
 
-- **`cub unit push-upgrade`** — folded into `promote-release` as Shape B. No further action unless user demand surfaces.
+- **`cub unit push-upgrade`** — deprecated. `promote-release` now uses a unified `cub unit update --patch --upgrade --where "Unit.UpstreamUnitID = '<base-uuid>' AND Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum" --space "*"` for the base-to-fleet case, which composes with `--dry-run`, `--display-mutations`, and `--changeset`.
+- **`LastActionError`** — hallucinated Unit field, removed during the `verify-apply` merge. Not a real field; error text lives on `cub unit-event`'s `Message`. Flag and remove if it appears in any new draft.
 - **Links authoring** — partially covered in `app-config` / `import-from-helm`. Full home is P1's `links-and-needs-provides` skill.
 - **`cub unit tag`** — covered in `cub-mutate`, `verify-apply`, `rollback-revision`, `promote-release`. Leave as-is.
 
@@ -99,6 +92,10 @@ These are settled and load-bearing. Don't relitigate without strong reason.
 15. **`cub --jq` over piping to `jq`.** `cub get` / `list` return an extended envelope with the entity under `.Unit` / `.Space` / etc. and related entities at top level (`.BridgeWorker`, `.TriggerFilter`, `.Triggers`).
 16. **`--where` / `--where-field` / `--where-data` / `--where-resource` are AND only.** No OR. Disjunctions split into separate commands, `IN (...)`, or separate Units.
 17. **`--filter` takes one argument per command.** Combine with `--where`, or create a third Filter expressing the intersection.
+18. **Auth preflight is `cub organization list`** (or any other authenticated read). Never `cub context get` / `cub info` / `cub version` — the first reads local login state and the others don't require a token at all.
+19. **`--unit <slug|uuid>[,…]` replaces `--where "Slug = '<slug>'"` for bulk-only commands** (`cub function do`, `cub run`). Composes with `--where` for additional filtering.
+20. **Apply status lives on `cub unit-event`, not on a Unit field.** `cub unit get --jq .UnitStatus` + `.LatestUnitEvent` are the first-look envelopes; `cub unit-event list/get` is the authoritative event stream (including `ResourceStatuses` per resource). `LastActionError` is not a real field.
+21. **Promotion direction ≠ Link direction.** Data flows `<source-env>` → `<destination-env>`; a `UpgradeUnit` Link points *from* a downstream Unit *to* its upstream (dependency edge, opposite of data flow). Skills use `<source-env>` / `<destination-env>` for promotion and "upstream / downstream" for Link structure — never "from/to" for both.
 
 ## Known unknowns
 
@@ -117,4 +114,4 @@ cub space list                    # auth check
 claude
 ```
 
-First prompt to Claude: read `README.md`, `SKILL_TEMPLATE.md`, `references/cub-cli.md`, and `skill-eval-workspace/SUMMARY.md`. Then pick a P0 task.
+First prompt to Claude: read `README.md`, `SKILL_TEMPLATE.md`, `references/cub-cli.md`, and `skill-eval-workspace/SUMMARY.md`. P0 is complete; pick a P1 task (doctrine skills: `links-and-needs-provides`, `variants`, `attributes`, `views`).

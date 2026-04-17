@@ -59,8 +59,7 @@ confighub-skills/
     ├── import-from-flux/       cub gitops discover/import against Flux HelmReleases + Kustomizations
     ├── import-from-cluster/    cub unit import for plain live-resource adoption
     ├── import-unit-granularity/ decision helper — one Unit or many?
-    ├── promotion-preflight/    five-axis readiness check before a promotion
-    ├── promote-release/        ChangeSet-wrapped bulk upgrade (env-by-env or push-upgrade)
+    ├── promote-release/        preflight + ChangeSet-wrapped bulk upgrade (env-by-env or base-to-fleet)
     ├── rollback-revision/      head-moving rollback via cub unit update --restore
     ├── drift-reconcile/        ConfigHub ↔ cluster divergence; decide who wins
     └── incident-management/    orchestrator for the ConfigHub side of a production incident
