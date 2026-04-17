@@ -1,6 +1,6 @@
 ---
 name: incident-management
-description: 'Use when the user is in the middle of a production incident and needs an orchestrated plan — phrases like "we have an outage", "prod is crashing", "page me through this", "what do I do first?", "mitigate or roll back?", "production is down since the last release", "something''s broken in staging — help me triage", "we''re on an incident call, walk me through the ConfigHub side", "post-incident cleanup". Triage the situation, decide between stabilize-and-mitigate vs head-moving rollback vs drift reconciliation, route to the right mutation skill with the scope and `--change-desc` composed, and drive the post-incident verification + close-out. Do not load for planned releases (use `promotion-preflight` + `promote-release`), for routine change management, or for single-Unit edits the user is confidently making on their own (use `cub-mutate`).'
+description: 'Use when the user is in the middle of a production incident and needs an orchestrated plan — phrases like "we have an outage", "prod is crashing", "page me through this", "what do I do first?", "mitigate or roll back?", "production is down since the last release", "something''s broken in staging — help me triage", "we''re on an incident call, walk me through the ConfigHub side", "post-incident cleanup". Triage the situation, decide between stabilize-and-mitigate vs head-moving rollback vs drift reconciliation, route to the right mutation skill with the scope and `--change-desc` composed, and drive the post-incident verification + close-out. Do not load for planned releases (use `promote-release`), for routine change management, or for single-Unit edits the user is confidently making on their own (use `cub-mutate`).'
 phase: cross-cutting
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub worker logs *) Bash(cub worker status *) Bash(kubectl get *) Bash(kubectl describe *) Bash(kubectl logs *)
 ---
@@ -22,7 +22,7 @@ An incident is an ongoing loss of service. The first move is to return to a know
 
 ## Do not load for
 
-- Planned releases — `promotion-preflight` + `promote-release`.
+- Planned releases — `promote-release`.
 - Routine single-Unit change — `cub-mutate`.
 - Debugging an apply that's just slow — `verify-apply`.
 - General "how does ConfigHub work" orientation — `confighub-core`.
@@ -215,4 +215,4 @@ If you find yourself about to run `cub unit update` / `cub function do` / `cub u
 - `references/changesets.md` — ChangeSet lifecycle + rollback via `Before:ChangeSet:<slug>`.
 - `references/revisions.md` — restore-target syntax.
 - `references/cub-cli.md` — `--change-desc` discipline.
-- Companion skills: `rollback-revision` (Path A), `cub-mutate` (Path B data change), `cub-apply` (Path B runtime), `drift-reconcile` (Path C), `verify-apply` (close-out), `worker-bootstrap` (Worker-down blocker), `promotion-preflight` (the opposite-direction skill — don't use during an incident).
+- Companion skills: `rollback-revision` (Path A), `cub-mutate` (Path B data change), `cub-apply` (Path B runtime), `drift-reconcile` (Path C), `verify-apply` (close-out), `worker-bootstrap` (Worker-down blocker), `promote-release` (the opposite-direction skill — don't use during an incident).
