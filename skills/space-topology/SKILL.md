@@ -16,7 +16,7 @@ How to lay out Spaces, Targets, and Workers so that deployment boundaries, blast
 Corollary: **environments are Spaces, not label values on Units in one shared Space.** Do not suffix Unit slugs with `-dev` / `-prod` inside a single Space. That collapses the boundaries ConfigHub is built around and breaks three things:
 
 1. **Targets.** A Target is Space-scoped and binds to a Worker that points at a specific cluster. Two environments ≠ two Targets in one Space; they're two Spaces, each with its own Target.
-2. **ApplyGates and approval flow.** Gates attach to Units, but the *policy* you usually want to vary between dev and prod (who approves, what Triggers run, how strict the schema is) is naturally a Space-level concern. Per-environment Spaces + the `platform` Filter pattern express this cleanly; suffix-naming doesn't.
+2. **ApplyGates and approval flow.** Gates attach to Units, but the _policy_ you usually want to vary between dev and prod (who approves, what Triggers run, how strict the schema is) is naturally a Space-level concern. Per-environment Spaces + the `platform` Filter pattern express this cleanly; suffix-naming doesn't.
 3. **Clone-based propagation.** `cub unit create --upstream-unit <base>` and `cub unit create --dest-space <env-space> --space <base-space>` work at Space granularity. Collapsing envs into one Space means re-implementing that plumbing by hand.
 
 ## Canonical layout
@@ -40,8 +40,8 @@ organization
     shared-infra-staging
 ```
 
-- **`platform`** — the home for baseline vet-* Triggers, CEL Triggers, approval Triggers, and the Filters that select them. Every app Space attaches the platform Filter via `--trigger-filter platform/standard-vets` (see `triggers-and-applygates`). `platform` holds no workloads.
-- **`<app>-home`** — the app team's home Space. Holds entities that describe how the team *operates* on its workloads but aren't deployed: ChangeSets (a release grouping that spans dev / staging / prod), Tags (release markers that need a stable home across deployment Spaces), Filters (`<app>-app` Filter selecting every Unit for this app via `Space.Labels.Application = '<app>'`), Views (saved queries for the team's dashboards), and Invocations (named function invocations reused across releases). Holds no workload Units. Slug convention: `<app>-home`.
+- **`platform`** — the home for baseline vet-\* Triggers, CEL Triggers, approval Triggers, and the Filters that select them. Every app Space attaches the platform Filter via `--trigger-filter platform/standard-vets` (see `triggers-and-applygates`). `platform` holds no workloads.
+- **`<app>-home`** — the app team's home Space. Holds entities that describe how the team _operates_ on its workloads but aren't deployed: ChangeSets (a release grouping that spans dev / staging / prod), Tags (release markers that need a stable home across deployment Spaces), Filters (`<app>-app` Filter selecting every Unit for this app via `Space.Labels.Application = '<app>'`), Views (saved queries for the team's dashboards), and Invocations (named function invocations reused across releases). Holds no workload Units. Slug convention: `<app>-home`.
 - **One deployment Space per `(app, env)` or `(app, env, region)`.** Add region / cluster suffixes only when you actually deploy separately per region. Don't pre-split for hypothetical scale.
 - **Shared infrastructure** (cert-manager, ingress-nginx, observability stack) lives in its own per-env Space, same pattern. Shared-infra often has its own home Space too (`shared-infra-home`).
 
@@ -166,3 +166,4 @@ The `upstream-unit` link is what makes `--upgrade` propagate changes while prese
 
 - `references/cub-cli.md` — CLI discipline; `--trigger-filter` / `--where-trigger` interaction.
 - Companion skills: `triggers-and-applygates` (what goes in `platform`), `target-bind` (how Units in an app Space point at a Worker in a workers Space), `import-from-helm` / `import-from-kustomize` / `import-from-argocd` / `import-from-flux` (all follow this layout when creating Units), `config-as-data` (doctrine at the Unit level).
+- https://docs.confighub.com/guide/environments/

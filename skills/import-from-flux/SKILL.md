@@ -109,7 +109,7 @@ From here, every other skill applies to the wet Units:
 - `triggers-and-applygates` — attach `platform/standard-vets` to `<import-space>` to validate every wet Unit on mutation.
 - `cub-mutate` — change images, replicas, env vars through semantic functions with `--change-desc`.
 - `cub-apply` — deploy the wet Unit (the `FluxOCI` bridge creates a new HelmRelease / Kustomization that pulls from ConfigHub's OCI registry).
-- `verify-delivery` / `reconciliation-check` / `release-verify` — confirm the rollout.
+- `verify-apply` — confirm the rollout.
 
 Modifications previously made to a wet Unit are preserved across re-renders (from a later `cub unit apply <dry>`), with the same merge semantics as Unit upgrades.
 
@@ -170,4 +170,4 @@ Dry Units typically stay in the import Space or move into a `<app>-renderers` Sp
 
 - `https://docs.confighub.com/guide/rendered-manifests/` — unit-level model + `cub gitops` flow.
 - `references/cub-cli.md` — CLI discipline.
-- Companion skills: `worker-bootstrap` (prereq), `space-topology` (Space layout), `target-bind` (Worker/Target), `config-as-data` (wet-Unit doctrine), `triggers-and-applygates` (adding policy post-import), `cub-apply` / `verify-delivery` / `reconciliation-check` / `release-verify` (runtime), `import-from-argocd` (ArgoCD equivalent).
+- Companion skills: `worker-bootstrap` (prereq), `space-topology` (Space layout), `target-bind` (Worker/Target), `config-as-data` (wet-Unit doctrine), `triggers-and-applygates` (adding policy post-import), `cub-apply` / `verify-apply` (runtime), `import-from-argocd` (ArgoCD equivalent).

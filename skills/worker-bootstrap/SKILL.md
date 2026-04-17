@@ -11,7 +11,7 @@ Gets a bridge worker running in a cluster so ConfigHub can execute target operat
 
 ## Why this matters
 
-A Worker is the runtime that actually *does* things — apply a Unit, refresh live state, import existing resources. Without a healthy worker for the right provider type, Targets can't function. Getting the worker set up correctly is a prerequisite to everything in `target-bind` / `cub-apply` / `verify-delivery`.
+A Worker is the runtime that actually *does* things — apply a Unit, refresh live state, import existing resources. Without a healthy worker for the right provider type, Targets can't function. Getting the worker set up correctly is a prerequisite to everything in `target-bind` / `cub-apply` / `verify-apply`.
 
 ## When to use
 

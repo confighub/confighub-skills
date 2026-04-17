@@ -24,7 +24,7 @@ An incident is an ongoing loss of service. The first move is to return to a know
 
 - Planned releases — `promotion-preflight` + `promote-release`.
 - Routine single-Unit change — `cub-mutate`.
-- Debugging an apply that's just slow — `verify-delivery`.
+- Debugging an apply that's just slow — `verify-apply`.
 - General "how does ConfigHub work" orientation — `confighub-core`.
 
 ## Triage — the first five questions
@@ -171,13 +171,11 @@ Once symptoms are gone and the user confirms stable:
      --space <env-space> --filter <app>-home/<app>-app
    ```
 
-2. **Run `reconciliation-check`** on the affected scope. ConfigHub, controller, and cluster must agree. If they don't, you're not actually done — investigate.
+2. **Run `verify-apply`** on the affected scope. It classifies the apply outcome (`Progressing` / `Completed` / `Failed` / `Aborted`), produces a three-way ConfigHub ↔ controller ↔ cluster agreement table on request, and — once everything converges — closes the incident out with a clickable Revision history + review links.
 
-3. **Run `release-verify`** on the resolved state so there's a clickable record with the Revision history and review links.
+3. **If Path B with a ChangeSet was used, consider whether the ChangeSet should be rolled back.** A mitigation is often temporary — the root-cause fix comes later. Keep the ChangeSet open as a marker, or close it and rely on Tag:incident-\* for retrieval.
 
-4. **If Path B with a ChangeSet was used, consider whether the ChangeSet should be rolled back.** A mitigation is often temporary — the root-cause fix comes later. Keep the ChangeSet open as a marker, or close it and rely on Tag:incident-\* for retrieval.
-
-5. **If Path C absorbed manual cluster fixes into ConfigHub**, confirm the absorbed data has passed the Space's `platform/standard-vets` Triggers. Incident-time edits often produce vet failures; fix them in a follow-up change once you're out of the hot window.
+4. **If Path C absorbed manual cluster fixes into ConfigHub**, confirm the absorbed data has passed the Space's `platform/standard-vets` Triggers. Incident-time edits often produce vet failures; fix them in a follow-up change once you're out of the hot window.
 
 ## Tool boundary
 
@@ -187,7 +185,7 @@ Read-only and decision-only. **This skill does not mutate.** Every mutation duri
 - Forward fix → `cub-mutate`.
 - Apply / deploy → `cub-apply`.
 - Drift reconciliation → `drift-reconcile`.
-- Verification → `verify-delivery`, `reconciliation-check`, `release-verify`.
+- Verification → `verify-apply`.
 
 If you find yourself about to run `cub unit update` / `cub function do` / `cub unit apply` from here, stop and hand off.
 
@@ -202,7 +200,7 @@ If you find yourself about to run `cub unit update` / `cub function do` / `cub u
 ## Verify chain (of the orchestration, not the mutations)
 
 1. After every hand-off, confirm the targeted skill returned success before the next step.
-2. After green: `verify-delivery` / `reconciliation-check` / `release-verify` chain passes for the affected scope.
+2. After green: `verify-apply` confirms the affected scope is Completed, three-way converged (where applicable), and closed out.
 3. `cub revision list --space <env-space> --filter <app>-home/<app>-app --tag <app>-home/incident-<...>` surfaces every incident-related revision under one query.
 
 ## Evidence
@@ -217,4 +215,4 @@ If you find yourself about to run `cub unit update` / `cub function do` / `cub u
 - `references/changesets.md` — ChangeSet lifecycle + rollback via `Before:ChangeSet:<slug>`.
 - `references/revisions.md` — restore-target syntax.
 - `references/cub-cli.md` — `--change-desc` discipline.
-- Companion skills: `rollback-revision` (Path A), `cub-mutate` (Path B data change), `cub-apply` (Path B runtime), `drift-reconcile` (Path C), `verify-delivery` / `reconciliation-check` / `release-verify` (close-out), `worker-bootstrap` (Worker-down blocker), `promotion-preflight` (the opposite-direction skill — don't use during an incident).
+- Companion skills: `rollback-revision` (Path A), `cub-mutate` (Path B data change), `cub-apply` (Path B runtime), `drift-reconcile` (Path C), `verify-apply` (close-out), `worker-bootstrap` (Worker-down blocker), `promotion-preflight` (the opposite-direction skill — don't use during an incident).

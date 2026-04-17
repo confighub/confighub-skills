@@ -143,7 +143,7 @@ If the upstream base or overlay in git changes in a way you need to pull in, re-
 
 ### 5. Hand off to apply
 
-From here, `cub-apply` / `verify-delivery` / `reconciliation-check` / `release-verify` take over.
+From here, `cub-apply` / `verify-apply` take over.
 
 ## Tool boundary
 

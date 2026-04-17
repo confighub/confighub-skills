@@ -52,9 +52,7 @@ confighub-skills/
     ├── worker-bootstrap/       install bridge workers in clusters
     ├── target-bind/            create Targets, attach Units to destinations
     ├── cub-apply/              apply Units to their Targets (incl. ChangeSet bulk release)
-    ├── verify-delivery/        cub → controller → cluster link verification
-    ├── reconciliation-check/   three-way ConfigHub/controller/cluster agreement
-    ├── release-verify/         final read-only completion with Revision history + review links
+    ├── verify-apply/           post-apply verification, troubleshooting, and release close-out
     ├── import-from-helm/       cub helm install/upgrade onboarding for existing charts
     ├── import-from-kustomize/  kustomize build → cub unit create
     ├── import-from-argocd/     cub gitops discover/import against ArgoCD Applications

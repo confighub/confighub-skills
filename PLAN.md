@@ -76,7 +76,7 @@ Once every skill has at least one eval iteration, run `skill-creator/scripts/run
 
 - **`cub unit push-upgrade`** — folded into `promote-release` as Shape B. No further action unless user demand surfaces.
 - **Links authoring** — partially covered in `app-config` / `import-from-helm`. Full home is P1's `links-and-needs-provides` skill.
-- **`cub unit tag`** — covered in `cub-mutate`, `release-verify`, `rollback-revision`, `promote-release`. Leave as-is.
+- **`cub unit tag`** — covered in `cub-mutate`, `verify-apply`, `rollback-revision`, `promote-release`. Leave as-is.
 
 ## Decisions to preserve
 

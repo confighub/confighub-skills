@@ -55,10 +55,10 @@ Canonical doc: `https://docs.confighub.com/guide/protecting/`.
 
 Two kinds:
 
-- **Delete Gates** — attach to *any* entity (Unit, Space, Target, Worker, Trigger, Filter, ChangeSet, etc.). Block `cub <entity> delete` until every gate is removed.
+- **Delete Gates** — attach to _any_ entity (Unit, Space, Target, Worker, Trigger, Filter, ChangeSet, etc.). Block `cub <entity> delete` until every gate is removed.
 - **Destroy Gates** — **Units only**. Block `cub unit destroy`, which removes the live cluster resources owned by the Unit. Orthogonal to Delete Gates: you can have one without the other.
 
-Each gate is named. The name must match label-key rules (alphanumeric + `-`, `_`, `.`) and is where the *why* lives — use descriptive names, not `critical` everywhere. Multiple gates can stack on the same entity; all must be removed before the delete / destroy is allowed.
+Each gate is named. The name must match label-key rules (alphanumeric + `-`, `_`, `.`) and is where the _why_ lives — use descriptive names, not `critical` everywhere. Multiple gates can stack on the same entity; all must be removed before the delete / destroy is allowed.
 
 ### Adding gates
 
@@ -100,7 +100,7 @@ The gate name carries the purpose. Prefer specific over generic:
 - Ownership: `team-payments-owns`, `platform-managed`, `shared-infra-core`.
 - Reason: `prod-critical`, `regulated-data`, `in-use-by-argocd`, `required-policy`.
 
-Avoid `critical` as a catch-all — when three entities all carry `critical`, nobody remembers which is which. A future teammate reading the gate name should understand *why* it's there without asking.
+Avoid `critical` as a catch-all — when three entities all carry `critical`, nobody remembers which is which. A future teammate reading the gate name should understand _why_ it's there without asking.
 
 ### When to recommend a gate
 
@@ -116,19 +116,17 @@ For new prod-bound Units or Spaces, suggest the gate in the same turn you create
 
 ## Routing — pick the right skill for the task
 
-| User intent | Skill |
-|---|---|
-| Authoring new Kubernetes YAML for a Unit, questions about templates/values files/Helm/Kustomize for new work | `config-as-data` |
-| Setting up validation/policy that actually blocks bad config | `triggers-and-applygates` |
-| Changing data in an existing Unit (image, replicas, env var, defaults, etc.) | `cub-mutate` |
-| Finding, listing, auditing, or inspecting config across Units/Spaces | `cub-query` |
-| Bootstrapping a playground Space to tinker with | `skill-examples-bootstrap` |
-| Installing a bridge worker in a cluster | `worker-bootstrap` |
-| Creating a Target or binding a Unit to one | `target-bind` |
-| Applying a Unit to its target | `cub-apply` |
-| Verifying a change landed (controller + cluster) | `verify-delivery` |
-| Confirming ConfigHub, controller, and cluster all agree | `reconciliation-check` |
-| Completing a release: read-only Revision history + GUI review links | `release-verify` |
+| User intent                                                                                                  | Skill                      |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| Authoring new Kubernetes YAML for a Unit, questions about templates/values files/Helm/Kustomize for new work | `config-as-data`           |
+| Setting up validation/policy that actually blocks bad config                                                 | `triggers-and-applygates`  |
+| Changing data in an existing Unit (image, replicas, env var, defaults, etc.)                                 | `cub-mutate`               |
+| Finding, listing, auditing, or inspecting config across Units/Spaces                                         | `cub-query`                |
+| Bootstrapping a playground Space to tinker with                                                              | `skill-examples-bootstrap` |
+| Installing a bridge worker in a cluster                                                                      | `worker-bootstrap`         |
+| Creating a Target or binding a Unit to one                                                                   | `target-bind`              |
+| Applying a Unit to its target                                                                                | `cub-apply`                |
+| Post-apply verification, troubleshooting, three-way agreement, release close-out                            | `verify-apply`             |
 
 ## The loop (for the orientation use case)
 
@@ -163,3 +161,4 @@ N/A — read-only. Verification is "did the user's task get routed to the right 
 - `references/filters-and-queries.md` — query vocabulary.
 - `references/triggers-recipes.md` — platform-Space pattern.
 - `references/yaml-patterns.md` — literal-value authoring.
+- https://docs.confighub.com/guide/protecting/

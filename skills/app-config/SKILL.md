@@ -307,4 +307,4 @@ spec:
 - `references/cub-cli.md` — `--change-desc` / `--display-mutations` / the four Unit views / `--where` AND-only.
 - `references/yaml-patterns.md` — `confighubplaceholder` pattern and Needs/Provides receivers.
 - `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema`.
-- Companion skills: `config-as-data` (raw-ConfigMap authoring when app-config isn't a fit), `cub-mutate` (the bulk / ChangeSet-wrapped path when editing many AppConfig Units together), `target-bind` (Target + Worker basics), `cub-apply` (the apply verb), `verify-delivery` / `reconciliation-check` (post-apply checks).
+- Companion skills: `config-as-data` (raw-ConfigMap authoring when app-config isn't a fit), `cub-mutate` (the bulk / ChangeSet-wrapped path when editing many AppConfig Units together), `target-bind` (Target + Worker basics), `cub-apply` (the apply verb), `verify-apply` (post-apply checks).
