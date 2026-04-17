@@ -76,11 +76,11 @@ cub unit list --space "*" \
 # Get the current image for the "main" container of every Deployment.
 cub function do --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \
-  --quiet --output-jq '.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
+  --quiet --show output -o jq='.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
 
 # Find placeholder values that still need to be filled.
 cub function do --space "*" get-placeholders \
-  --quiet --output-jq '.[] | select(.Value != null)'
+  --quiet --show output -o jq='.[] | select(.Value != null)'
 ```
 
 ### 4. Linting, Validation, and Policy-style analyses — `vet-` functions
@@ -88,12 +88,12 @@ cub function do --space "*" get-placeholders \
 ```bash
 # Run a validator as a one-off audit (without attaching a gate).
 cub function do --space "*" vet-placeholders \
-  --quiet --output-jq '.[] | select(.Passed == false)'
+  --quiet --show output -o jq='.[] | select(.Passed == false)'
 
 # Custom CEL audit with a readable message per failing resource.
 cub function do --space "*" \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2 ? {"passed": true} : {"passed": false, "details": [r.metadata.name + " has < 2 replicas"]}' \
-  --quiet --output-jq '.[] | select(.Passed == false) | {unit: .UnitSlug, details: .Details}'
+  --quiet --show output -o jq='.[] | select(.Passed == false) | {unit: .UnitSlug, details: .Details}'
 ```
 
 ### 5. History + audit
@@ -119,10 +119,11 @@ The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revis
 
 ## Output shaping
 
-- `--json` / `--yaml` — structured.
-- `--jq <expression>` / `--yq <expression>` - selected structured properties.
-- `--quiet` + `--output-jq '<expr>'` — post-process function output with jq.
-- `--output-only` / `--output-values-only` — strip the envelope for function results.
+- `-o json` / `-o yaml` — structured.
+- `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties.
+- `-o name` — slugs only (space-resident entities print as `<space-slug>/<slug>`).
+- `--show output -o jq=<expr>` — post-process function output with jq.
+- `--show output` / `--show values` — strip the envelope for function results.
 - Pipe to `wc -l`, `sort -u`, etc. for quick counts.
 
 ## Tool boundary

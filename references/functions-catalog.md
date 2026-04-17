@@ -163,7 +163,7 @@ Examples:
 ```bash
 # Read — yq, non-mutating.
 cub function do --space "$space" --where "Slug = '$unit'" \
-  --output-only -- yq '.spec.template.spec.containers[0].image'
+  --show output -- yq '.spec.template.spec.containers[0].image'
 
 # Write — yq-i, mutating. Always pass --change-desc.
 cub function do --space "$space" --where "Slug = '$unit'" \
@@ -172,7 +172,7 @@ cub function do --space "$space" --where "Slug = '$unit'" \
 
 # Subset of documents.
 cub function do --space "$space" --where "Slug = '$unit'" \
-  --output-only -- yq 'select(.kind == "Deployment") | .spec.replicas'
+  --show output -- yq 'select(.kind == "Deployment") | .spec.replicas'
 
 cub function do --space "$space" --where "Slug = '$unit'" \
   --change-desc "… " \

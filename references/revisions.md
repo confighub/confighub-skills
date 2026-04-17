@@ -43,7 +43,7 @@ The `Description` field is what makes revision history self-explaining later —
 
 | Field | Meaning |
 |---|---|
-| `MutationSources` | For each attribute path that changed in this revision, records which function produced the change, the mutation type (`Add` / `Update`), and the new value. This is what you see in `cub unit get --yaml` under `MutationSources` and what powers `compute-mutations` / `patch-mutations`. |
+| `MutationSources` | For each attribute path that changed in this revision, records which function produced the change, the mutation type (`Add` / `Update`), and the new value. This is what you see in `cub unit get -o yaml` under `MutationSources` and what powers `compute-mutations` / `patch-mutations`. |
 
 `MutationSources` is what lets you answer "which function set this field?" — each entry is keyed by resource identity and path, and names the function + an index into the revision's function-invocation sequence. When you ran `set-container-resources-defaults` on `hello-app` in the skill-examples bootstrap, the resulting revision's `MutationSources` recorded that `resources.requests` was set by that function with a specific value.
 
@@ -92,7 +92,7 @@ NUM  UNIT  CHANGESET  TIME  USER  SOURCE  DESCRIPTION  APPLY-GATES  TAGS
 - `APPLY-GATES` = `None` if the map is empty, else the list of blocking gate keys
 - `TAGS` = `None` if empty, else tag labels
 
-For the full structure, use `cub revision get <unit> --space <s> --revision <n> --yaml` or `--json`.
+For the full structure, use `cub revision get <unit> --space <s> --revision <n> -o yaml` or `-o json`.
 
 ## Common audit queries
 
@@ -110,14 +110,14 @@ cub revision list --space <s> --where "UserID = '<uuid>'"
 cub revision list --space <s> --where "ChangeSetID = '<uuid>'"
 
 # Unit's revision history as structured data.
-cub revision list <unit> --space <s> --json
+cub revision list <unit> --space <s> -o json
 
 # Full detail for one revision, including MutationSources and Data.
-cub revision get <unit> --space <s> --revision <n> --yaml
+cub revision get <unit> --space <s> --revision <n> -o yaml
 ```
 
 ## Related
 
-- `references/cub-cli.md` — `--change-desc` composition rule and `--display-mutations` for inline diffs at mutation time.
+- `references/cub-cli.md` — `--change-desc` composition rule and `-o mutations` for inline diffs at mutation time.
 - `references/filters-and-queries.md` — filter vocabulary including revision-state fields (`HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`) on the Unit side.
 - Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `cub-apply` (sets `LiveAt` on the applied revision), `verify-apply` (surfaces the revision history at close-out).

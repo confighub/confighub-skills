@@ -109,7 +109,7 @@ Clarifications: <condensed — e.g. 'source: ./app.env at <git ref>'>"
 ```bash
 cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Env \
   --change-desc "Point DATABASE_HOST at prod. User prompt: <verbatim>. Clarifications: <condensed>" \
-  --display-mutations \
+  -o mutations \
   -- set-string-path SimpleApp DATABASE_HOST postgres.prod.internal
 
 cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
@@ -290,7 +290,7 @@ spec:
 ## Verify chain
 
 1. `cub unit livestate --space <space> <config-slug>` — shows the rendered `ConfigMap` resource.
-2. `cub unit list --space <space> --jq '.[] | select(.Unit.Slug == "<configmap-slug>") | .Unit | {HeadRevisionNum, LiveRevisionNum, LastAppliedRevisionNum}'` — sink Unit caught up.
+2. `cub unit list --space <space> -o jq='.[] | select(.Unit.Slug == "<configmap-slug>") | .Unit | {HeadRevisionNum, LiveRevisionNum, LastAppliedRevisionNum}'` — sink Unit caught up.
 3. `kubectl get configmap -n <ns>` — immutable mode: hashed name ending in `-<hash>`; mutable mode: stable name = Unit slug.
 4. Mutable mode only: `kubectl get pod -n <ns> -l <selector> -o jsonpath='{.items[0].spec.template.metadata.annotations.confighub\.com/Hash}{"\n"}'` — matches the ConfigMap's `confighub.com/Hash` annotation; pod restarts on change.
 5. For `envFrom`: `kubectl exec -n <ns> <pod> -- env | sort` shows the injected keys.
@@ -304,7 +304,7 @@ spec:
 ## References
 
 - `https://docs.confighub.com/guide/app-config/` — canonical walkthrough.
-- `references/cub-cli.md` — `--change-desc` / `--display-mutations` / the four Unit views / `--where` AND-only.
+- `references/cub-cli.md` — `--change-desc` / `-o mutations` / the four Unit views / `--where` AND-only.
 - `references/yaml-patterns.md` — `confighubplaceholder` pattern and Needs/Provides receivers.
 - `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema`.
 - Companion skills: `config-as-data` (raw-ConfigMap authoring when app-config isn't a fit), `cub-mutate` (the bulk / ChangeSet-wrapped path when editing many AppConfig Units together), `target-bind` (Target + Worker basics), `cub-apply` (the apply verb), `verify-apply` (post-apply checks).

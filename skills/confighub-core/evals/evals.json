@@ -5,7 +5,7 @@
       "id": 1,
       "name": "new-user-tour",
       "prompt": "I'm new to ConfigHub. Can you give me a quick tour of how it works and what I should know to start using it for Kubernetes?",
-      "expected_output": "Explains the config-as-data model in a paragraph or two using plain language, names the primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate) with one-liners, surfaces the key invariants (--change-desc on Unit mutations, --display-mutations for inline diffs, mutations go through cub, Space topology is per-app-per-env), and routes to a concrete next step — usually skill-examples-bootstrap so the user has something to tinker with. Does not try to do a task.",
+      "expected_output": "Explains the config-as-data model in a paragraph or two using plain language, names the primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate) with one-liners, surfaces the key invariants (--change-desc on Unit mutations, -o mutations for inline diffs, mutations go through cub, Space topology is per-app-per-env), and routes to a concrete next step — usually skill-examples-bootstrap so the user has something to tinker with. Does not try to do a task.",
       "files": []
     },
     {

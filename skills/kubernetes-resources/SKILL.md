@@ -36,7 +36,7 @@ Author common Kubernetes resource types as ConfigHub Units — literal YAML, bes
 Before showing hardcoded YAML, check whether the `skill-examples` Space has a relevant example Unit:
 
 ```bash
-cub unit get <example-slug> --space skill-examples --yaml 2>/dev/null
+cub unit get <example-slug> --space skill-examples -o yaml 2>/dev/null
 ```
 
 | Resource type                  | Example slug        | Contents                                                 |
@@ -73,7 +73,7 @@ Ask the user:
 ### 2. Pull or adapt an example
 
 ```bash
-cub unit get <example-slug> --space skill-examples --yaml 2>/dev/null
+cub unit get <example-slug> --space skill-examples -o yaml 2>/dev/null
 ```
 
 If the example exists, use it as a starting template. Adapt names, images, ports, and other fields to the user's requirements. If the example doesn't exist, author the YAML from scratch following `references/yaml-patterns.md`.
@@ -192,7 +192,7 @@ Based on what was created, suggest the logical next skill:
 
 ## Verify chain
 
-1. `cub unit get <slug> --space <space> --yaml` — inspect the stored YAML.
+1. `cub unit get <slug> --space <space> -o yaml` — inspect the stored YAML.
 2. `cub function do --space <space> --unit <slug> -- vet-schemas` — valid against target K8s version.
 3. `cub function do --space <space> --unit <slug> -- vet-placeholders` — no stray placeholders.
 
@@ -205,5 +205,5 @@ Based on what was created, suggest the logical next skill:
 
 - `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all resource types.
 - `references/functions-catalog.md` — defaults functions, setters, validators.
-- `references/cub-cli.md` — CLI discipline, `--change-desc`, `--display-mutations`.
+- `references/cub-cli.md` — CLI discipline, `--change-desc`, `-o mutations`.
 - Companion skills: `config-as-data` (doctrine), `skill-examples-bootstrap` (seeds the `skill-examples` Space with live examples), `target-bind` (deploy), `cub-apply` (apply), `app-config` (ConfigMap from app config files).

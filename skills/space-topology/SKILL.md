@@ -154,7 +154,7 @@ The `upstream-unit` link is what makes `--upgrade` propagate changes while prese
 ## Verify chain
 
 1. `cub space list` — new Spaces show up with the expected slugs and labels.
-2. `cub space get <space> --json` — Labels match the agreed-on keys (`Application`, `Environment`, `Region`, `Cluster`, `Tier` as applicable; PascalCase, non-abbreviated).
+2. `cub space get <space> -o json` — Labels match the agreed-on keys (`Application`, `Environment`, `Region`, `Cluster`, `Tier` as applicable; PascalCase, non-abbreviated).
 3. `cub unit list --space "*" --where "Space.Labels.Environment = '<env>'"` — cross-Space query over the label returns the expected set.
 
 ## Evidence
