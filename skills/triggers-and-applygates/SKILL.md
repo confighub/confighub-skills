@@ -149,3 +149,4 @@ Clarifications: <condensed — e.g., "user confirmed the namespace value should 
 - `references/triggers-recipes.md`
 - `references/functions-catalog.md` — which `vet-*` does what.
 - `references/cub-cli.md`
+- https://docs.confighub.com/guide/validation-and-policies/

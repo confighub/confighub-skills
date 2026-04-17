@@ -1,6 +1,6 @@
 ---
 name: drift-reconcile
-description: 'Use when ConfigHub''s Unit Data and the cluster''s live state for that Unit have diverged — phrases like "reconcile drift", "the cluster changed out of band", "someone kubectl edit''d this", "ConfigHub and the cluster disagree", "accept the live changes", "overwrite the cluster with ConfigHub", "refresh from live", "who owns this drift?", "we have drift on app-a in prod". Runs `cub unit refresh` to pull current live state, `cub unit diff` against Data, walks the decide-who-wins decision (ConfigHub wins → re-apply; cluster wins → absorb; merge → selective reconcile), and executes the chosen path. Do not load for revision history rewind (use `rollback-revision`), for three-way agreement checks after a known apply (use `reconciliation-check`), for the first-time apply of a newly-bound Unit (use `cub-apply`), or for importing wholesale live resources into a brand-new Unit (use `import-from-cluster`).'
+description: 'Use when ConfigHub''s Unit Data and the cluster''s live state for that Unit have diverged — phrases like "reconcile drift", "the cluster changed out of band", "someone kubectl edit''d this", "ConfigHub and the cluster disagree", "accept the live changes", "overwrite the cluster with ConfigHub", "refresh from live", "who owns this drift?", "we have drift on app-a in prod". Runs `cub unit refresh` to pull current live state, `cub unit diff` against Data, walks the decide-who-wins decision (ConfigHub wins → re-apply; cluster wins → absorb; merge → selective reconcile), and executes the chosen path. Do not load for revision history rewind (use `rollback-revision`), for post-apply verification / three-way agreement checks (use `verify-apply`), for the first-time apply of a newly-bound Unit (use `cub-apply`), or for importing wholesale live resources into a brand-new Unit (use `import-from-cluster`).'
 phase: verify
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit refresh *) Bash(cub unit update *) Bash(cub unit-action get *) Bash(cub function do *) Bash(kubectl get *) Bash(kubectl describe *)
 ---
@@ -29,7 +29,7 @@ The decision goes through the user, not the skill. The skill's job is to _show_ 
 ## Do not load for
 
 - Revision-history rollback (user wants to revert a change made _in ConfigHub_, not reconcile against the cluster) — use `rollback-revision`.
-- Three-way agreement check when everything is supposed to be in sync (ConfigHub ↔ controller ↔ cluster) — use `reconciliation-check`. That skill assumes convergence; this one handles divergence.
+- Three-way agreement check when everything is supposed to be in sync (ConfigHub ↔ controller ↔ cluster) — use `verify-apply`. That skill assumes the apply has completed; this one handles divergence.
 - `cub unit list` shows a Unit with `LiveRevisionNum != LastAppliedRevisionNum`. That indicates an incomplete or stuck apply or destroy.
 - First-time apply of a Unit that was just bound to a Target — use the `cub-apply` skill.
 - Bringing new, unmanaged resources into ConfigHub for the first time — use `import-from-cluster` (which _creates_ a Unit from live state; drift-reconcile operates on existing Units).
@@ -206,7 +206,7 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 
 ## Stop conditions
 
-- The "drift" is the ConfigHub Unit being one revision behind a very recent apply that hasn't fully converged — wait for `verify-delivery` to clear first, then re-check.
+- The "drift" is the ConfigHub Unit being one revision behind a very recent apply that hasn't fully converged — wait for `verify-apply` to clear first, then re-check.
 - The Unit has an open ChangeSet — close it first; drift-reconcile against an open ChangeSet would layer more mutations into the release.
 - User wants to keep both the ConfigHub state and the cluster state as "sources of truth" indefinitely. Push back: that's permanent drift and defeats ConfigHub's premise. Either accept the drift into Data, or remove the diverging field from Data so a controller owns it unambiguously.
 
@@ -224,4 +224,5 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 
 - `references/cub-cli.md` — `--change-desc` scope; `--display-mutations` on mutating calls.
 - `references/functions-catalog.md` — functions for selective merge (strip-metadata-\*, set-label, set-annotation, set-cel).
-- Companion skills: `cub-apply` (runtime for ConfigHub-wins), `cub-mutate` (surgical edits during selective merge), `reconciliation-check` (the in-agreement check; this is its divergence counterpart), `rollback-revision` (ConfigHub-history rewind, different problem), `verify-delivery` (when the "drift" is actually a delivery failure).
+- Companion skills: `cub-apply` (runtime for ConfigHub-wins), `cub-mutate` (surgical edits during selective merge), `verify-apply` (post-apply verification; this skill is the divergence counterpart when an apply converged but the cluster has since diverged, or when a "drift" report is actually a stuck/failed apply), `rollback-revision` (ConfigHub-history rewind, different problem).
+- https://docs.confighub.com/guide/drift/

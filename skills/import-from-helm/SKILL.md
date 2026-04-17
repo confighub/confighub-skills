@@ -165,7 +165,7 @@ kubectl wait --for=condition=established --timeout=60s \
 cub unit apply <release> --space <app>-<env> --wait
 ```
 
-From here, `cub-apply` / `verify-delivery` / `reconciliation-check` / `release-verify` take over.
+From here, `cub-apply` / `verify-apply` take over.
 
 ## Upgrade loop
 

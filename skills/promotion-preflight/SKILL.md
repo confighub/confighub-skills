@@ -20,7 +20,7 @@ Read-only decision skill. Confirms that promoting a release from one env-Space t
 - Running the promotion — hand off to `promote-release`.
 - Rollback or merge/rebase around a past ChangeSet — use `rollback-revision` + `references/changesets.md`.
 - Drift between ConfigHub and cluster in the *same* env — use `drift-reconcile`.
-- Verifying a promotion *after* it applied — use `verify-delivery` / `reconciliation-check`.
+- Verifying a promotion *after* it applied — use `verify-apply`.
 
 ## Preflight gates (for this skill to do its work)
 
@@ -168,4 +168,4 @@ Preflight is itself a verification — its output is the audit trail. Save the c
 - `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `not-approved` recipes.
 - `references/changesets.md` — ChangeSet slug convention and lifecycle.
 - `references/cub-cli.md` — `--where` vs `--filter` composition rules.
-- Companion skills: `space-topology` (home Space + env Spaces), `promote-release` (the execution skill this hands off to), `triggers-and-applygates` (fixing gate blockers in the source), `cub-apply` (fixing unapplied state in the source), `verify-delivery` / `reconciliation-check` (post-promotion checks).
+- Companion skills: `space-topology` (home Space + env Spaces), `promote-release` (the execution skill this hands off to), `triggers-and-applygates` (fixing gate blockers in the source), `cub-apply` (fixing unapplied state in the source), `verify-apply` (post-promotion checks).

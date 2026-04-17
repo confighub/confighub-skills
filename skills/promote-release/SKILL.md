@@ -154,7 +154,7 @@ cub unit apply --space $TO_SPACE \
   --wait --timeout 10m0s
 ```
 
-From here, `cub-apply` / `verify-delivery` / `reconciliation-check` / `release-verify` own the runtime.
+From here, `cub-apply` / `verify-apply` own the runtime.
 
 ## Rollback
 
@@ -205,4 +205,4 @@ Each Unit's head reverts to its pre-ChangeSet state and the subsequent apply pus
 - `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-upstream` recipes.
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close.
 - `references/revisions.md` — revision references (`ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`).
-- Companion skills: `promotion-preflight` (prerequisite), `space-topology` (home / env Space layout), `cub-mutate` (conflict resolution within an open ChangeSet), `cub-apply` (runtime), `rollback-revision` (post-promotion rollback path), `verify-delivery` / `reconciliation-check` / `release-verify` (post-rollout).
+- Companion skills: `promotion-preflight` (prerequisite), `space-topology` (home / env Space layout), `cub-mutate` (conflict resolution within an open ChangeSet), `cub-apply` (runtime), `rollback-revision` (post-promotion rollback path), `verify-apply` (post-rollout).

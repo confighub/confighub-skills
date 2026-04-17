@@ -158,4 +158,4 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 - `references/revisions.md` — restore-target syntax (`Tag:`, `ChangeSet:`, relative / absolute numbers, UUIDs).
 - `references/filters-and-queries.md` — scoping the rollback via Filter.
 - `references/cub-cli.md` — `--change-desc` scope, `-` sentinel for `--changeset` close.
-- Companion skills: `cub-apply` (runtime for the post-restore apply), `cub-mutate` (forward fix when it's clearer than restore), `promote-release` (the forward counterpart — this rolls back what that promoted), `drift-reconcile` (divergence between ConfigHub and cluster, different problem), `verify-delivery` / `reconciliation-check` (post-rollback checks).
+- Companion skills: `cub-apply` (runtime for the post-restore apply), `cub-mutate` (forward fix when it's clearer than restore), `promote-release` (the forward counterpart — this rolls back what that promoted), `drift-reconcile` (divergence between ConfigHub and cluster, different problem), `verify-apply` (post-rollback checks).

@@ -230,3 +230,5 @@ The `cub-apply` skill goes into the use of apply in more detail.
 - `references/changesets.md` — full ChangeSet lifecycle, rollback, merge / rebase.
 - `references/filters-and-queries.md` — named Filters (use these with ChangeSets).
 - `references/yaml-patterns.md` — for hand-edit fallback.
+- https://docs.confighub.com/guide/change-apply/
+- https://docs.confighub.com/guide/functions/

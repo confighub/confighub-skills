@@ -1,0 +1,47 @@
+{
+  "skill_name": "verify-apply",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy-path-post-apply",
+      "prompt": "I just applied the checkout unit in myapp-prod. Did it actually deploy?",
+      "expected_output": "Reads cub unit get --jq .UnitStatus (confirms Status=Completed / Ready, ActionResult=ApplyCompleted) and cub unit get --jq .LatestUnitEvent; if the user explicitly asked for cross-layer confirmation, cross-checks the controller (argocd app get / flux get) and cluster (kubectl get + describe). Reports in plain English, does not mutate, offers --web review links. Does NOT reference LastActionError.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "stuck-apply-imagepullbackoff",
+      "prompt": "I applied hello-app 10 minutes ago and it's still not done. Is it stuck?",
+      "expected_output": "Reads UnitStatus (Status=Progressing) and cub unit-event list to see the event stream is sitting at Result=ApplySynced / 'waiting for ready state'. Drills into the cluster with kubectl describe and kubectl get pods to identify the pod stuck in ImagePullBackOff / CrashLoopBackOff. Names the broken link ('resources applied, but pod X is in ImagePullBackOff: image Y not found'). Does not run kubectl rollout restart, argocd app sync, or bare cub unit refresh. Suggests cub-mutate / cub-apply as remediation paths but does not take them.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "apply-failed-bad-schema",
+      "prompt": "My apply failed. What went wrong?",
+      "expected_output": "Finds UnitStatus.Status=Failed / ActionResult=ApplyFailed, runs cub unit-event get <slug> <num> to read the Message field (e.g. 'field not declared in schema'), surfaces ResourceStatuses to identify which resource failed. Points out that vet-schemas would have caught this pre-apply and suggests wiring it as a Trigger via triggers-and-applygates. Does not mutate. Does NOT reference LastActionError.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "three-way-agreement-check",
+      "prompt": "After the deploy I did to myapp-staging, I want to confirm ConfigHub, Argo, and the cluster all agree on the checkout unit.",
+      "expected_output": "Reads Unit status first (Completed), then builds the three-column table (revision, image, health, owner) using cub unit get + cub function do get-container-image for the ConfigHub column, argocd app get for the controller column, kubectl get + annotations for the cluster column. Reports agreement or names the specific divergence. Offers --web review links. Hands off to close-out (step 5) as the next step. Does not mutate.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "close-out-converged-release",
+      "prompt": "The myapp-prod deploy I just did is passing every check. Close it out and show me the revision history to share.",
+      "expected_output": "Confirms close-out preflight (UnitStatus.Status=Completed/Ready, LiveRevisionNum=LastAppliedRevisionNum=HeadRevisionNum, no ApplyGates, or refuses if not), runs cub revision list surfacing the --change-desc, prints cub unit diff for the net change, opens cub unit get --web + cub revision list --web + cub space get --web, explicitly ends the session as read-only. Does not mutate beyond an optional user-requested tag.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "bulk-post-apply-triage",
+      "prompt": "We just applied all the staging units and most of them look okay, but I want to know if any didn't finish.",
+      "expected_output": "Uses cub unit list --space myapp-staging --filter platform/apply-not-completed to surface Units where LastAppliedRevisionNum != LiveRevisionNum (or where UnitStatus.Status != Ready/Completed). For each, pulls the latest event's Message and briefly characterises the failure (schema / image / probe / rbac). Produces a compact summary rather than dumping everything. Does not mutate.",
+      "files": []
+    }
+  ]
+}

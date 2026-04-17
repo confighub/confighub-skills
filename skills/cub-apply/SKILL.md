@@ -1,6 +1,6 @@
 ---
 name: cub-apply
-description: 'Use when the user wants to apply (deploy) a ConfigHub Unit or group of Units to their Target — phrases like "apply this", "deploy this to staging", "push the change to the cluster", "roll out the fix", "apply everything that''s unapplied", "apply the ChangeSet", "dry-run what would change". Runs `cub unit apply` with the right scoping (single / list / --where / --filter / --revision ChangeSet:<slug>), respects ApplyGates (never bypasses), waits for completion, and hands off to verify-delivery. Do not load for rollback (use rollback-revision — `cub unit apply --revision <N>` does NOT move head and is not a rollback), for authoring changes (use cub-mutate), for binding a destination (use target-bind), or for pure verification (use verify-delivery / reconciliation-check).'
+description: 'Use when the user wants to apply (deploy) a ConfigHub Unit or group of Units to their Target — phrases like "apply this", "deploy this to staging", "push the change to the cluster", "roll out the fix", "apply everything that''s unapplied", "apply the ChangeSet", "dry-run what would change". Runs `cub unit apply` with the right scoping (single / list / --where / --filter / --revision ChangeSet:<slug>), respects ApplyGates (never bypasses), waits for completion, and hands off to verify-apply. Do not load for rollback (use rollback-revision — `cub unit apply --revision <N>` does NOT move head and is not a rollback), for authoring changes (use cub-mutate), for binding a destination (use target-bind), or for any post-apply verification / troubleshooting / close-out (use verify-apply).'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit apply *) Bash(cub unit cancel *) Bash(cub unit tag *) Bash(cub worker logs *) Bash(cub worker status *)
 ---
@@ -23,28 +23,28 @@ The runtime verb. Takes a Unit's head (or a specific revision) and pushes it thr
 - Changing the Unit's data first (use `cub-mutate` — that produces a new revision, then you apply it).
 - Rolling back a change (use `rollback-revision` — moves head via `cub unit update --restore`, then comes here for the apply).
 - Creating the Target (use `target-bind`).
-- Verifying the apply landed (use `verify-delivery` / `reconciliation-check`).
+- Verifying the apply landed, troubleshooting a stuck / failed apply, or closing out a release (use `verify-apply`).
 
 ## Preflight gates
 
 1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
 2. The Unit(s) have a `TargetID` (use the `has-target`-equivalent check: `cub unit list --space <s> --where "Slug = '<u>' AND TargetID IS NOT NULL"`). If missing, route to `target-bind`.
 3. The Worker backing the Target is healthy: `cub worker status --space <worker-space> <worker-slug>`. If down, route to `worker-bootstrap`.
-4. No ApplyGates attached, unless the plan is explicitly to *resolve* gates before apply: `cub unit list --space <s> --where "Slug = '<u>' AND LEN(ApplyGates) > 0"`. If gates are present, stop and route to `triggers-and-applygates`.
+4. No ApplyGates attached, unless the plan is explicitly to _resolve_ gates before apply: `cub unit list --space <s> --where "Slug = '<u>' AND LEN(ApplyGates) > 0"`. If gates are present, stop and route to `triggers-and-applygates`.
 5. If the user framed the request as "rollback" — stop and route to `rollback-revision`. Head must move first; `cub unit apply --revision <N>` on its own is not a rollback.
 
 ## The loop
 
 ### 1. Scope the apply
 
-| Intent | Form |
-|---|---|
-| One named Unit | `cub unit apply <slug> --space <s>` |
-| Several named Units | `cub unit apply --space <s> --unit slug1,slug2,slug3` |
-| Everything matching metadata | `cub unit apply --space <s> --where "Labels.Tier = 'backend'"` |
-| Everything with pending changes | `cub unit apply --space <s> --where "HeadRevisionNum > LiveRevisionNum"` (or `--filter platform/unapplied-changes`) |
-| Everything matching a saved Filter | `cub unit apply --space <s> --filter platform/unapplied-changes` |
-| Cross-Space | `cub unit apply --space "*" --where "Space.Labels.Environment = 'staging'"` |
+| Intent                             | Form                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| One named Unit                     | `cub unit apply <slug> --space <s>`                                                                                 |
+| Several named Units                | `cub unit apply --space <s> --unit slug1,slug2,slug3`                                                               |
+| Everything matching metadata       | `cub unit apply --space <s> --where "Labels.Tier = 'backend'"`                                                      |
+| Everything with pending changes    | `cub unit apply --space <s> --where "HeadRevisionNum > LiveRevisionNum"` (or `--filter platform/unapplied-changes`) |
+| Everything matching a saved Filter | `cub unit apply --space <s> --filter platform/unapplied-changes`                                                    |
+| Cross-Space                        | `cub unit apply --space "*" --where "Space.Labels.Environment = 'staging'"`                                         |
 
 For bulk scope, always confirm blast radius with the user before running — especially `--space "*"`.
 
@@ -71,6 +71,8 @@ cub unit apply --space <s> --filter platform/unapplied-changes \
   --wait --timeout 5m0s
 ```
 
+If `cub unit apply` times out and reports that it did not complete, that does not necessarily mean that it will not complete, but it may be worth investigating what has not completed and why.
+
 ### Applying a ChangeSet (bulk release)
 
 When the mutations were grouped into a ChangeSet (via `cub-mutate` → `references/changesets.md`), apply the whole set with `--revision ChangeSet:<home-space>/<slug>` against the same Filter that opened it:
@@ -96,7 +98,7 @@ cub unit apply <slug> --space <s> --revision Tag:release-v1.0          # tagged 
 cub unit apply <slug> --space <s> --revision ChangeSet:hotfix-42       # changeset
 ```
 
-**Do not use `--revision` to roll back.** It applies the older revision to the cluster *without* moving the Unit's head — the "bad" revision stays head, and the next `cub-mutate` run, promotion, or merge will re-introduce it, silently. Rollback = move head, then apply. Run `cub unit update --restore <target>` via the `rollback-revision` skill, which will hand off to this skill with head already restored. The legitimate uses of `--revision` here are applying the end-tag of a ChangeSet (bulk release, above) or applying a specific tag for a forward deploy that doesn't match head (e.g., pinning a release in a lane where head has already moved).
+**Do not use `--revision` to roll back.** It applies the older revision to the cluster _without_ moving the Unit's head — the "bad" revision stays head, and the next `cub-mutate` run, promotion, or merge will re-introduce it, silently. Rollback = move head, then apply. Run `cub unit update --restore <target>` via the `rollback-revision` skill, which will hand off to this skill with head already restored. The legitimate uses of `--revision` here are applying the end-tag of a ChangeSet (bulk release, above) or applying a specific tag for a forward deploy that doesn't match head (e.g., pinning a release in a lane where head has already moved).
 
 If the user asks to "roll back" by naming an older revision, stop and route to `rollback-revision`.
 
@@ -118,9 +120,9 @@ cub unit tag release-v1.2.3 --space <s> --unit <slug>
 
 Tagged revisions become first-class `--revision` targets (`Tag:release-v1.2.3`) for future apply; rollback uses them via `cub unit update --restore Tag:...` in `rollback-revision`, not via `--revision` here.
 
-### 7. Hand off to verify
+### 7. Hand off to verify-apply
 
-Apply returned. That does **not** mean it landed — controllers and clusters can still disagree, or resources can still be settling. Route to `verify-delivery` immediately.
+Apply returned. That does **not** mean it landed — the apply may still be `Progressing` (waiting for resources to become ready), or `Failed` with the error in the latest `cub unit-event`, or `Completed` but diverged from the controller or cluster. Always route to `verify-apply` immediately, even on a clean `--wait` return. That skill classifies the outcome (`Progressing` / `Completed` / `Failed` / `Aborted`), drills into the event stream or the cluster if something's off, and closes out the release on success.
 
 ## Tool boundary
 
@@ -130,7 +132,7 @@ Apply returned. That does **not** mean it landed — controllers and clusters ca
 
 ## Change description
 
-`cub unit apply` is a runtime operation, not a configuration-data mutation. It does **not** accept `--change-desc`. The Unit's revision history already reflects *what* changed (via earlier `cub-mutate` calls); apply just records *when* the runtime acted. If the user wants to record rationale for an apply, do it in the preceding mutation's `--change-desc`.
+`cub unit apply` is a runtime operation, not a configuration-data mutation. It does **not** accept `--change-desc`. The Unit's revision history already reflects _what_ changed (via earlier `cub-mutate` calls); apply just records _when_ the runtime acted. If the user wants to record rationale for an apply, do it in the preceding mutation's `--change-desc`.
 
 ## Stop conditions
 
@@ -142,11 +144,7 @@ Apply returned. That does **not** mean it landed — controllers and clusters ca
 
 ## Verify chain
 
-Right after apply:
-
-1. `cub unit get <slug> --space <s>` — `LiveRevisionNum` advanced to match the applied revision; `LastAppliedRevisionNum` matches; `LastActionError` is empty.
-2. `cub unit bridgestate <slug> --space <s>` — status reflects success.
-3. Hand off to `verify-delivery` for controller + cluster agreement.
+Right after apply, hand off to `verify-apply` — it owns the full post-apply arc (classify outcome, drill into events or the cluster on failure, three-way agreement, release close-out). Don't open-code the checks here.
 
 ## Evidence
 
@@ -158,4 +156,5 @@ Right after apply:
 - `references/cub-cli.md` — `--change-desc` scope (not on apply), `--display-mutations` (not applicable on apply).
 - `references/filters-and-queries.md` — operational filter recipes (`unapplied-changes`, `apply-not-completed`, `has-apply-gates`, `needs-upgrade`).
 - `references/changesets.md` — ChangeSet lifecycle (apply with `--revision ChangeSet:<slug>`; rollback with `--restore Before:ChangeSet:<slug>` done via `rollback-revision`).
-- Companion skills: `triggers-and-applygates` (gate diagnosis), `verify-delivery` (post-apply verification), `rollback-revision` (head-moving rollback — always goes there first, then hands back here to apply).
+- Companion skills: `triggers-and-applygates` (gate diagnosis), `verify-apply` (post-apply verification, troubleshooting, close-out), `rollback-revision` (head-moving rollback — always goes there first, then hands back here to apply).
+- https://docs.confighub.com/guide/unit-sets/

@@ -140,7 +140,7 @@ Applying the Unit is now a no-op (the data matches live state). The first *meani
 cub unit apply <app> --space <app>-<env> --wait
 ```
 
-From there, `verify-delivery` / `reconciliation-check` / `release-verify` take over.
+From there, `verify-apply` takes over.
 
 ## Tool boundary
 

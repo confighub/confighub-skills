@@ -13,7 +13,7 @@ Authoring discipline for Kubernetes configuration stored in ConfigHub.
 
 A ConfigHub Unit contains **fully materialized YAML with literal values for every field**. Code (functions) operates on data. Data is the source of record. This is not a style preference — it's what makes ConfigHub's query, validation, mutation-graph, and revision-history features work. Re-rendered or templated Units break all of those.
 
-If you're tempted to reach for Helm, Kustomize, Jsonnet, cdk8s, or a values file to *author* new configuration for ConfigHub, stop and re-read this skill.
+If you're tempted to reach for Helm, Kustomize, Jsonnet, cdk8s, or a values file to _author_ new configuration for ConfigHub, stop and re-read this skill.
 
 ## When to use
 
@@ -147,4 +147,4 @@ Clarifications: <condensed: "user confirmed target env is prod" / "user chose bu
 - `references/functions-catalog.md`
 - `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all common resource types.
 - Companion skills: `kubernetes-resources` (authoring specific resource types), `space-topology` (Space layout, upstream/downstream conventions), `triggers-and-applygates` (automatic validation on writes, running Triggers explicitly), `skill-examples-bootstrap` (seeds live examples in `skill-examples` Space).
-- Upstream doctrine: the "Configuration as Data" page at https://docs.confighub.com/
+- https://docs.confighub.com/background/config-as-data/
