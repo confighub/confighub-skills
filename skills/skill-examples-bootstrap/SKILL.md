@@ -76,19 +76,19 @@ cub space create skill-examples
 
 Example YAML files are stored in `skills/skill-examples-bootstrap/examples/`. Each file maps to one Unit:
 
-| File | Unit slug | Contents |
-|---|---|---|
-| `hello-ns.yaml` | `hello-ns` | Namespace |
-| `hello-app.yaml` | `hello-app` | Deployment + Service bundle |
-| `hello-statefulset.yaml` | `hello-statefulset` | StatefulSet + headless Service |
-| `hello-daemonset.yaml` | `hello-daemonset` | DaemonSet |
-| `hello-job.yaml` | `hello-job` | Job |
-| `hello-cronjob.yaml` | `hello-cronjob` | CronJob |
-| `hello-ingress.yaml` | `hello-ingress` | Ingress with TLS |
-| `hello-netpol.yaml` | `hello-netpol` | default-deny + allow NetworkPolicy pair |
-| `hello-rbac.yaml` | `hello-rbac` | ServiceAccount + Role + RoleBinding |
-| `hello-hpa.yaml` | `hello-hpa` | HorizontalPodAutoscaler |
-| `hello-pdb.yaml` | `hello-pdb` | PodDisruptionBudget |
+| File                     | Unit slug           | Contents                                |
+| ------------------------ | ------------------- | --------------------------------------- |
+| `hello-ns.yaml`          | `hello-ns`          | Namespace                               |
+| `hello-app.yaml`         | `hello-app`         | Deployment + Service bundle             |
+| `hello-statefulset.yaml` | `hello-statefulset` | StatefulSet + headless Service          |
+| `hello-daemonset.yaml`   | `hello-daemonset`   | DaemonSet                               |
+| `hello-job.yaml`         | `hello-job`         | Job                                     |
+| `hello-cronjob.yaml`     | `hello-cronjob`     | CronJob                                 |
+| `hello-ingress.yaml`     | `hello-ingress`     | Ingress with TLS                        |
+| `hello-netpol.yaml`      | `hello-netpol`      | default-deny + allow NetworkPolicy pair |
+| `hello-rbac.yaml`        | `hello-rbac`        | ServiceAccount + Role + RoleBinding     |
+| `hello-hpa.yaml`         | `hello-hpa`         | HorizontalPodAutoscaler                 |
+| `hello-pdb.yaml`         | `hello-pdb`         | PodDisruptionBudget                     |
 
 Upload each:
 
@@ -97,6 +97,7 @@ for slug in hello-ns hello-app hello-statefulset hello-daemonset hello-job \
             hello-cronjob hello-ingress hello-netpol hello-rbac hello-hpa hello-pdb; do
   cub unit create --space skill-examples "$slug" \
     "skills/skill-examples-bootstrap/examples/${slug}.yaml" \
+    --merge-external-source "confighub-skills/skills/skill-examples-bootstrap/examples/${slug}.yaml" \
     --change-desc "Seed ${slug} for the skill-examples playground.
 
 User prompt: <verbatim>
