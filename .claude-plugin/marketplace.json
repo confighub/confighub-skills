@@ -1,0 +1,14 @@
+{
+  "name": "confighub",
+  "owner": {
+    "name": "ConfigHub Inc.",
+    "email": "hello@confighub.com",
+    "url": "https://github.com/confighub"
+  },
+  "plugins": [
+    {
+      "name": "confighub-skills",
+      "source": "./"
+    }
+  ]
+}
