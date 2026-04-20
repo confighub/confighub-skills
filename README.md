@@ -13,7 +13,8 @@ Skills here assume:
 As a Claude Code plugin (recommended):
 
 ```
-/plugin install https://github.com/confighub/confighub-skills
+claude plugin marketplace add https://github.com/confighub/confighub-skills
+claude plugin install https://github.com/confighub/confighub-skills
 ```
 
 The plugin manifest is at `.claude-plugin/plugin.json`; Claude Code auto-discovers the `skills/` directory and the `references/` relative paths.
