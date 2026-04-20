@@ -2,13 +2,18 @@
   "name": "confighub",
   "owner": {
     "name": "ConfigHub Inc.",
-    "email": "hello@confighub.com",
-    "url": "https://github.com/confighub"
+    "email": "hello@confighub.com"
+  },
+  "metadata": {
+    "description": "Claude Code skills for operating Kubernetes workloads with ConfigHub as the source of truth, and ArgoCD or Flux for delivery."
   },
   "plugins": [
     {
       "name": "confighub-skills",
-      "source": "./"
+      "source": {
+        "source": "github",
+        "repo": "confighub/confighub-skills"
+      }
     }
   ]
 }
