@@ -11,8 +11,8 @@
     {
       "name": "confighub-skills",
       "source": {
-        "source": "github",
-        "repo": "confighub/confighub-skills"
+        "source": "url",
+        "url": "https://github.com/confighub/confighub-skills.git"
       }
     }
   ]
