@@ -13,12 +13,12 @@ Skills here assume:
 As a Claude Code plugin (recommended):
 
 ```
-/plugin install https://github.com/confighubai/confighub-skills
+/plugin install https://github.com/confighub/confighub-skills
 ```
 
 The plugin manifest is at `.claude-plugin/plugin.json`; Claude Code auto-discovers the `skills/` directory and the `references/` relative paths.
 
-Prerequisites for the skills to actually *do* anything:
+Prerequisites for the skills to actually _do_ anything:
 
 - `cub` CLI on PATH, with a valid session (`cub organization list` succeeds — `cub context get` only reads local login state and can still show a user when the token is expired).
 - `kubectl` on PATH for skills that touch clusters.
