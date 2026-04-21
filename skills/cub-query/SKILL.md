@@ -61,43 +61,46 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 For "what's our frontend running in us-east?" / "what image is our worker on?" / "show me the YAML of this workload":
 
 ```bash
-# ConfigHub's declared YAML for this Unit — the content that would be applied.
+# ConfigHub's latest YAML for a Unit — the content that would be applied. This is the config data at HeadRevisionNum.
 cub unit data <slug> --space <space>
 
-# What the cluster actually has, cleaned the same way `cub unit refresh` cleans
+# ConfigHub's data at the applied revision. Use .Unit.LiveRevisionNum for the most recently confirmed live revision,
+# if any, and .Unit.PreviousLiveRevisionNum for the previous live revision, if any.
+revision=$(cub unit get --space <space> <slug> -o jq=".Unit.LastAppliedRevisionNum")
+cub revision data --space <space> <unit-slug> $revision
+
+# What the cluster had at the time of the last apply, refresh, or import, cleaned the same way `cub unit refresh` cleans
 # (status stripped, controller-managed fields elided). Apples-to-apples with Data.
 cub unit livedata <slug> --space <space>
 
-# Full cluster state with .status, managedFields, everything — debugging only.
+# Full cluster state at the time of the last action with .status, managedFields, everything — debugging mainly,
+# for Kubernetes workloads. Prefer kubectl for live workload troubleshooting.
 cub unit livestate <slug> --space <space>
-
-# ConfigHub's view of Data vs LiveData for drift.
-cub unit diff <slug> --space <space>
 ```
 
 For **extracting one field** from one Unit (cleaner than grepping YAML), scope a getter with `--unit`:
 
 ```bash
 # Image of container "worker" in one Unit.
-cub function do --space <space> --unit <slug> get-container-image worker \
-  --quiet --show output -o jq='.[0].Value'
+cub function get --space <space> --unit <slug> get-container-image worker \
+  --show values
 
 # Just the tag/digest portion.
-cub function do --space <space> --unit <slug> get-container-image-reference worker \
-  --quiet --show output -o jq='.[0].Value'
+cub function get --space <space> --unit <slug> get-container-image-reference worker \
+  --show values
 
 # Replica count.
-cub function do --space <space> --unit <slug> get-replicas \
-  --quiet --show output -o jq='.[0].Value'
+cub function get --space <space> --unit <slug> get-replicas \
+  --show values
 
 # One env var.
-cub function do --space <space> --unit <slug> get-env-var worker LOG_LEVEL \
-  --quiet --show output -o jq='.[0].Value'
+cub function get --space <space> --unit <slug> get-env-var worker LOG_LEVEL \
+  --show values
 
 # Any path (generic).
-cub function do --space <space> --unit <slug> \
+cub function get --space <space> --unit <slug> \
   get-string-path "spec.template.spec.containers.0.image" \
-  --quiet --show output -o jq='.[0].Value'
+  --show values
 ```
 
 If the user named the workload in application/environment terms and you don't yet know the Space or Unit slug, resolve the mapping before querying: `cub space list` to find the Space matching the environment/region (slug pattern or `Space.Labels.Region=...`), then `cub unit list --space <space>` to find the Unit matching the workload name. Do **not** guess a naming convention from another environment's Space — slugs vary. If the layout is unfamiliar, load `space-topology` for the conventions; the canonical name is always whatever `cub unit list` prints.
@@ -143,26 +146,26 @@ cub unit list --space "*" \
 
 ```bash
 # Get the current image for the "main" container of every Deployment.
-cub function do --space "*" --resource-type apps/v1/Deployment \
+cub function get --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \
-  --quiet --show output -o jq='.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
+  --show values
 
 # Find placeholder values that still need to be filled.
-cub function do --space "*" get-placeholders \
-  --quiet --show output -o jq='.[] | select(.Value != null)'
+cub function get --space "*" get-placeholders \
+  --show values
 ```
 
 ### 4. Linting, Validation, and Policy-style analyses — `vet-` functions
 
 ```bash
 # Run a validator as a one-off audit (without attaching a gate).
-cub function do --space "*" vet-placeholders \
-  --quiet --show output -o jq='.[] | select(.Passed == false)'
+cub function vet --space "*" vet-placeholders \
+  --show output -o jq='.[] | select(.Passed == false)'
 
 # Custom CEL audit with a readable message per failing resource.
-cub function do --space "*" \
+cub function vet --space "*" \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2 ? {"passed": true} : {"passed": false, "details": [r.metadata.name + " has < 2 replicas"]}' \
-  --quiet --show output -o jq='.[] | select(.Passed == false) | {unit: .UnitSlug, details: .Details}'
+  --show output -o jq='.[] | select(.Passed == false) | {details: .Details}'
 ```
 
 ### 5. History + audit
@@ -197,7 +200,7 @@ The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revis
 
 ## Tool boundary
 
-- Allowed: `cub unit list`, `cub revision list`, `cub space list`, `cub function do` with getter/validator functions, `cub trigger list`, `cub filter list`, etc.
+- Allowed: `cub unit list`, `cub revision list`, `cub space list`, `cub function get/vet` with getter/validator functions, `cub trigger list`, `cub filter list`, etc.
 - Not allowed: mutating functions from a query skill. If the answer to a query suggests a fix, hand off to `cub-mutate`.
 
 ## Stop conditions
