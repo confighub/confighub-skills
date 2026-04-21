@@ -21,6 +21,27 @@
       "prompt": "What got changed in the myapp-prod space in the last 48 hours, and why? I'm trying to understand an alert.",
       "expected_output": "Runs `cub revision list --space myapp-prod` filtered by UpdatedAt, surfaces the revisions with their --change-desc values (which include the user prompt and clarifications recorded at mutation time), and summarizes the changes in plain English. Offers the GUI revision-list link.",
       "files": []
+    },
+    {
+      "id": 4,
+      "name": "single-unit-image-lookup",
+      "prompt": "What image tag is our nonprod worker running?",
+      "expected_output": "Locates the Space and Unit via `cub space list` and `cub unit list --space <space>` (does not guess a naming convention from other environments), then extracts the image with either `cub unit data <unit> --space <space>` or a scoped getter `cub function do --space <space> --unit <unit> get-container-image <container>` with -o jq to pull the Value. Reports image:tag in plain English. Does not use `cub unit get ... -o data` (prefer `cub unit data`). Does not mutate. Does not fall back to kubectl.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "single-workload-replica-count-in-region",
+      "prompt": "How many replicas does our frontend have in us-east?",
+      "expected_output": "Resolves the workload/region phrasing by listing Spaces (matching on slug pattern like `*-use2-*` or on a Space Label such as `Region=us-east-2`) and listing Units in the candidate Space(s) to find a `frontend` Unit. Does not invent a slug. Then runs `cub function do --space <space> --unit <unit> get-replicas --quiet --show output -o jq=...` or `cub unit data <unit> --space <space>` and reports spec.replicas. Single-workload scope, no --space \"*\" sweep unless the user asked for fleet-wide. Does not mutate. If Space layout is ambiguous, references space-topology conventions rather than guessing.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "single-unit-up-to-date-check",
+      "prompt": "Is our nonprod worker up to date with the latest confighub release?",
+      "expected_output": "Two-part query: (1) extracts the currently-running image tag from the Unit using `cub unit data` or a scoped `get-container-image` / `get-container-image-reference` function call; (2) looks up the latest release (e.g., `gh release list --repo confighubai/confighub`). Compares the two and reports whether they match, including the gap if any. Does not mutate.",
+      "files": []
     }
   ]
 }

@@ -1,6 +1,6 @@
 ---
 name: cub-query
-description: 'Use whenever the user wants to find, count, inspect, or audit Kubernetes configuration across ConfigHub — "where is release X deployed?", "which units run more than 5 replicas?", "show me every Deployment using the old registry", "find units missing resource limits", "list all spaces with label env=prod", "what''s the current image for checkout in each environment?", "audit what we have". ConfigHub treats configuration as data, so you can query across Units and Spaces the way you''d query a database. Load this any time the user''s intent is "find / list / show / which / where / how many / audit" over ConfigHub state. Do not load for: mutating data (use cub-mutate), authoring new config (use config-as-data), or live cluster queries that don''t involve ConfigHub (use kubectl).'
+description: 'Use when the user wants to find, count, inspect, read, or audit Kubernetes workloads and application configuration stored in ConfigHub — both fleet-wide sweeps and single-workload lookups. Natural phrasing is workload- or application-centric: "where is checkout v0.4.2 deployed?", "which Deployments run more than 5 replicas?", "find workloads missing resource requests or limits", "what image tag is our nonprod worker running?", "how many replicas does our frontend have in us-east?", "is our api up to date with the latest release?", "show me the YAML / env vars / annotations of our frontend". ConfigHub-native phrasing is equally in scope: "which Units ...", "what''s in Space X", "Units with Label env=prod". Workload-in-environment phrasing like "frontend in us-east" maps to a Unit slug plus a Space slug or Space Label — see space-topology for the conventions. Load any time intent is find / list / show / which / where / how many / audit / inspect / read / what tag / is X up to date over ConfigHub-managed workloads — one workload or the whole fleet. Do not load for: mutating data (cub-mutate), authoring (config-as-data), designing the Space/Label taxonomy itself (space-topology), or live cluster state not in ConfigHub (kubectl).'
 phase: verify
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *)
 ---
@@ -13,19 +13,40 @@ The database-like query surface of ConfigHub. Most users don't discover this fro
 
 Configuration is stored as data. Every field of every resource in every Unit in every Space is queryable — by metadata (`--where`), by content (`--where-data`), by resource type, and via functions that return structured values. This replaces "clone the repo, grep, try to figure out which env does what."
 
+The same toolkit covers two scopes:
+
+- **Fleet sweeps** — "which workloads across the fleet match <condition>?" — think `SELECT ... FROM units WHERE ...` over the database.
+- **Single-workload reads** — "what's our frontend running in us-east?" / "what image is our worker on?" — think `SELECT * FROM units WHERE id = ?` or `cat workload.yaml`.
+
+Single-workload lookups belong here too: `cub unit data`, `cub unit livedata`, and getter functions scoped with `--unit` are the right tools, not kubectl and not a hand-edit.
+
+### Translating workload-speak into a ConfigHub query
+
+Users most often phrase questions in workload/application/environment terms: "our frontend in us-east", "checkout in prod", "the nonprod worker". Those map onto ConfigHub primitives:
+
+- **Workload name** → a Unit slug (often the app or service name, sometimes with a suffix) and/or the Kubernetes `metadata.name` inside the Unit's Data.
+- **Environment / region / cluster** → a Space. Teams following the one-Space-per-deployment-boundary convention encode region either in the Space slug (e.g., `prod-use2-…`) or as a Space Label (`Region=us-east-2`).
+- **Fleet** → `--space "*"`, optionally narrowed with `--where "Space.Labels.Environment = 'prod'"`.
+
+Concrete conventions (slug shapes, which Label keys are in use, whether environment is a slug prefix or a Label) belong to the team — load the `space-topology` skill if the mapping is unclear or needs to be established. Before asking the user to restate in ConfigHub terms, try `cub space list` and `cub unit list --space <candidate>` to discover the actual names.
+
 ## When to use
 
-- "Where is <image/release/version> deployed?"
-- "Which units have <field> <condition>?" (e.g., replicas > 5, missing resource limits, using a specific registry)
-- "List every Deployment / Service / ConfigMap in <scope>."
-- "What's the current value of <field> across environments?"
-- "Audit: find config violating <rule> across all spaces."
-- "Show the revision history / recent changes for <unit or space>."
+- "Where is <image/release/version> deployed?" — across the fleet.
+- "Which Deployments / workloads have <field> <condition>?" — e.g., replicas > 5, missing resource requests or limits, using a specific registry.
+- "List every Deployment / Service / Ingress / ConfigMap in <environment / region>."
+- "What's the current value of <field> across environments?" — e.g., image tag of `checkout` in dev/staging/prod.
+- "Audit the fleet for config violating <rule>."
+- "Show the revision history / recent changes for <workload> in <environment>."
+- "What's <workload> running in <environment>?" — show its YAML, one field (image, replicas, env var, annotation), or its LiveData from the cluster.
+- "Is <workload> up to date with <release / upstream / sibling environment>?" — read the current value, compare to the reference.
+- (Same questions phrased in ConfigHub-native terms — "which Units …", "what's in Space X", "Units with Label env=prod" — are equally in scope.)
 
 ## Do not load for
 
 - Mutations (`cub-mutate`).
 - Authoring (`config-as-data`).
+- Designing the Space / Label / slug taxonomy rather than querying against it (`space-topology`).
 - Live-cluster state not in ConfigHub (`kubectl get`).
 
 ## Preflight gates
@@ -34,6 +55,54 @@ Configuration is stored as data. Every field of every resource in every Unit in 
 2. For cross-space queries (`--space "*"`), user has read permission on the spaces of interest.
 
 ## The query toolkit
+
+### 0. Single-workload inspection — `cub unit data` / `livedata` / `livestate` + scoped getters
+
+For "what's our frontend running in us-east?" / "what image is our worker on?" / "show me the YAML of this workload":
+
+```bash
+# ConfigHub's declared YAML for this Unit — the content that would be applied.
+cub unit data <slug> --space <space>
+
+# What the cluster actually has, cleaned the same way `cub unit refresh` cleans
+# (status stripped, controller-managed fields elided). Apples-to-apples with Data.
+cub unit livedata <slug> --space <space>
+
+# Full cluster state with .status, managedFields, everything — debugging only.
+cub unit livestate <slug> --space <space>
+
+# ConfigHub's view of Data vs LiveData for drift.
+cub unit diff <slug> --space <space>
+```
+
+For **extracting one field** from one Unit (cleaner than grepping YAML), scope a getter with `--unit`:
+
+```bash
+# Image of container "worker" in one Unit.
+cub function do --space <space> --unit <slug> get-container-image worker \
+  --quiet --show output -o jq='.[0].Value'
+
+# Just the tag/digest portion.
+cub function do --space <space> --unit <slug> get-container-image-reference worker \
+  --quiet --show output -o jq='.[0].Value'
+
+# Replica count.
+cub function do --space <space> --unit <slug> get-replicas \
+  --quiet --show output -o jq='.[0].Value'
+
+# One env var.
+cub function do --space <space> --unit <slug> get-env-var worker LOG_LEVEL \
+  --quiet --show output -o jq='.[0].Value'
+
+# Any path (generic).
+cub function do --space <space> --unit <slug> \
+  get-string-path "spec.template.spec.containers.0.image" \
+  --quiet --show output -o jq='.[0].Value'
+```
+
+If the user named the workload in application/environment terms and you don't yet know the Space or Unit slug, resolve the mapping before querying: `cub space list` to find the Space matching the environment/region (slug pattern or `Space.Labels.Region=...`), then `cub unit list --space <space>` to find the Unit matching the workload name. Do **not** guess a naming convention from another environment's Space — slugs vary. If the layout is unfamiliar, load `space-topology` for the conventions; the canonical name is always whatever `cub unit list` prints.
+
+See `references/cub-cli.md` (Data / LiveData / LiveState / BridgeState rows) for the semantics of each read surface, and `references/functions-catalog.md` for the full getter catalog.
 
 ### 1. Metadata queries — `cub unit list`
 
@@ -70,7 +139,7 @@ cub unit list --space "*" \
 
 ### 3. Function-based extraction — `cub function do` + getters
 
-`--where` and `--where-data` select units (and other entities). To extract values from configuration data, use getter functions:
+`--where` and `--where-data` select units (and other entities). To extract values from configuration data, use getter functions. For the **single-Unit** case, scope with `--unit` (see §0). The examples here sweep across Units:
 
 ```bash
 # Get the current image for the "main" container of every Deployment.
@@ -153,5 +222,5 @@ Queries are read-only; the "verify" is cross-checking:
 ## References
 
 - `references/filters-and-queries.md` — full filter vocabulary, named Filter entities, operational recipes (apply-not-completed, unapplied-changes, not-approved, has-apply-gates, needs-upgrade, has-upstream).
-- `references/cub-cli.md` — where/where-data/output flags.
-- `references/functions-catalog.md` — getter functions by purpose.
+- `references/cub-cli.md` — `cub unit data` / `livedata` / `livestate` / `bridgestate` semantics (see the "Data / LiveData / LiveState / BridgeState" table) and the where/where-data/output flags.
+- `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-placeholders`, etc.).
