@@ -162,13 +162,15 @@ cub function get --space "*" get-placeholders \
 ```bash
 # Run a validator as a one-off audit (without attaching a gate).
 cub function vet --space "*" vet-placeholders \
-  --show output -o jq='.[] | select(.Passed == false)'
+  --show output -o jq='.Output[] | select(.Passed == false)'
 
-# Custom CEL audit with a readable message per failing resource.
+# Custom CEL audit with a readable message per failing resource, correlated to its Space and Unit.
 cub function vet --space "*" \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2 ? {"passed": true} : {"passed": false, "details": [r.metadata.name + " has < 2 replicas"]}' \
-  --show output -o jq='.[] | select(.Passed == false) | {details: .Details}'
+  --show output -o jq='. as $e | .Output[] | select(.Passed == false) | {space: $e.SpaceSlug, unit: $e.UnitSlug, details: .Details}'
 ```
+
+Each Unit's output is wrapped in an envelope with `SpaceID` / `UnitID` / `SpaceSlug` / `UnitSlug` / `OutputType` / `Output`. Use `.Output[]` to iterate the underlying list, and `. as $e` to bind the envelope so identity fields stay in scope inside the list. See `references/cub-cli.md` for the full schema.
 
 ### 5. History + audit
 
@@ -196,8 +198,8 @@ The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revis
 - `-o json` / `-o yaml` — structured.
 - `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties. When filtering metadata like .Slug note that list and get commands return an envelope structure that contains the requested entity and related entities, so a Unit Slug would be extracted with `-o jq=.Unit.Slug`.
 - `-o name` — slugs only (space-resident entities print as `<space-slug>/<slug>`).
-- `--show output -o jq=<expr>` — post-process function output with jq.
-- `--show output` / `--show values` — strip the envelope for function results.
+- `--show output -o jq=<expr>` — post-process function output with jq. Each Unit's output is wrapped in a per-Unit envelope (`SpaceSlug` / `UnitSlug` / `OutputType` / `Output`), so use `.Output[]` to iterate results and `.SpaceSlug` / `.UnitSlug` for identity. See `references/cub-cli.md`.
+- `--show values` — strip the envelope and emit raw scalar values from AttributeValueList outputs (one per line).
 - Pipe to `wc -l`, `sort -u`, etc. for quick counts.
 
 ## Tool boundary
