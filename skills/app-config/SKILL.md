@@ -2,7 +2,7 @@
 name: app-config
 description: 'Use when the user wants to manage application configuration files (properties, env, toml, ini, yaml, json, text) and deploy them as Kubernetes ConfigMaps — phrases like "I have a .env / .properties / application.yaml file, how do I use it with ConfigHub?", "generate a ConfigMap like kustomize configMapGenerator", "like kubectl create configmap but versioned", "inject env vars via envFrom", "ConfigMap with content hash for rolling restart", "mutable vs immutable ConfigMap", "validate my application config with a schema", "propagate config changes to the workload without kubectl edit". Authors an AppConfig Unit in the right toolchain, sets up the ConfigMapRenderer Target, links the rendered ConfigMap to the workload via Needs/Provides, and picks immutable (hashed name, history) or mutable (stable name + hash annotation) mode. Do not load for authoring a Kubernetes `ConfigMap` resource directly in a `Kubernetes/YAML` Unit (use `config-as-data` + `cub-mutate`), for Secrets (separate SecretStore story — see `references/yaml-patterns.md`), or for migrating Helm values files (use `import-from-helm` — charts already render their own ConfigMaps).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub unit set-target *) Bash(cub unit apply *) Bash(cub function do *) Bash(cub worker create *) Bash(cub target create *) Bash(cub target update *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl get *) Bash(kubectl describe *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub unit set-target *) Bash(cub unit apply *) Bash(cub function *) Bash(cub worker create *) Bash(cub target create *) Bash(cub target update *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl get *) Bash(kubectl describe *)
 ---
 
 # app-config
@@ -100,23 +100,23 @@ User prompt: <verbatim>
 Clarifications: <condensed — e.g. 'source: ./app.env at <git ref>'>"
 ```
 
-`ToolchainType` is locked in here. If the file needs edits afterward, prefer `cub function do` over re-creating the Unit (you'd lose the revision history).
+`ToolchainType` is locked in here. If the file needs edits afterward, prefer `cub function set` over re-creating the Unit (you'd lose the revision history).
 
 ### 3. Mutate values (optional)
 
 `set-*-path` functions take the `configSchema` as the first positional argument, then the dotted path, then the value:
 
 ```bash
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Env \
+cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Env \
   --change-desc "Point DATABASE_HOST at prod. User prompt: <verbatim>. Clarifications: <condensed>" \
   -o mutations \
   -- set-string-path SimpleApp DATABASE_HOST postgres.prod.internal
 
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
+cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
   --change-desc "Turn off dev-only flag. User prompt: <verbatim>. Clarifications: <condensed>" \
   -- set-bool-path SimpleApp database.ssl.enabled false
 
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
+cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
   --change-desc "Bump DB port. User prompt: <verbatim>. Clarifications: <condensed>" \
   -- set-int-path SimpleApp database.port 5433
 ```
@@ -124,7 +124,7 @@ cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Prope
 For schema validation (requires a schema registered with ConfigHub):
 
 ```bash
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/INI -- vet-jsonschema
+cub function vet --space <space> --unit <config-slug> --toolchain AppConfig/INI -- vet-jsonschema
 ```
 
 `vet-jsonschema` works for all AppConfig ToolchainTypes, not just AppConfig/JSON and AppConfig/YAML.
@@ -276,7 +276,7 @@ spec:
 
 ## Tool boundary
 
-- Allowed: `cub unit create/update/set-target/apply`, `cub function do` (AppConfig-aware `set-*-path` / `vet-jsonschema`), `cub worker create --is-server-worker`, `cub target create/update` for ConfigMapRenderer, `cub link create/update` for Needs/Provides wiring, read-only `cub unit livestate/livedata/diff/get/list`, read-only `kubectl get/describe` on the resulting ConfigMap for verification.
+- Allowed: `cub unit create/update/set-target/apply`, `cub function set` / `cub function vet` (AppConfig-aware `set-*-path` / `vet-jsonschema`), `cub worker create --is-server-worker`, `cub target create/update` for ConfigMapRenderer, `cub link create/update` for Needs/Provides wiring, read-only `cub unit livestate/livedata/diff/get/list`, read-only `kubectl get/describe` on the resulting ConfigMap for verification.
 - Not allowed: `kubectl create/edit configmap` (bypasses ConfigHub), writing raw `ConfigMap` YAML into an `AppConfig/*` Unit (wrong toolchain), mixing multiple configuration schemas into one Unit (`configSchema` is one per Unit), rendering `Secret`s through this path (use a SecretStore).
 
 ## Stop conditions

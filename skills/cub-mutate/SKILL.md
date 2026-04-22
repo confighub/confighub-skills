@@ -1,8 +1,8 @@
 ---
 name: cub-mutate
-description: 'Use whenever the user wants to change data inside a ConfigHub Unit — update an image, adjust replicas, set environment variables, add labels/annotations, change a resource field, apply defaults, or make a bulk edit across many units. This skill enforces the "prefer a function over a hand-edit" rule, composes a proper change description that captures the user''s prompt and clarifications, and chooses between `cub function do` (single function, targeted or bulk) and `cub unit update` (whole-unit replacement or restore). Load proactively any time the user says "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or any natural request that will end in a write to ConfigHub. Do not load for: creating a brand-new Unit (use config-as-data), reading/inspecting config (use cub-query), or setting up validation (use triggers-and-applygates).'
+description: 'Use whenever the user wants to change data inside a ConfigHub Unit — update an image, adjust replicas, set environment variables, add labels/annotations, change a resource field, apply defaults, or make a bulk edit across many units. This skill enforces the "prefer a function over a hand-edit" rule, composes a proper change description that captures the user''s prompt and clarifications, and chooses between `cub function set` (single function, targeted or bulk) and `cub unit update` (whole-unit replacement or restore). Load proactively any time the user says "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or any natural request that will end in a write to ConfigHub. Do not load for: creating a brand-new Unit (use config-as-data), reading/inspecting config (use cub-query), or setting up validation (use triggers-and-applygates).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub link create *) Bash(cub link update *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub link create *) Bash(cub link update *)
 ---
 
 # cub-mutate
@@ -42,17 +42,17 @@ Does a purpose-built function do this (set-container-image, set-replicas, defaul
    yes       no
     │         │
     ▼         ▼
-cub function do <fn>    Is this a small, surgical path edit (1–3 fields)?
+cub function set <fn>    Is this a small, surgical path edit (1–3 fields)?
                                │
                           ┌────┴────┐
                          yes       no
                           │         │
                           ▼         ▼
-             cub function do set-bool-path / set-int-path / set-string-path / set-cel
+             cub function set set-bool-path / set-int-path / set-string-path / set-cel
                           │
                           no again
                           ▼
-             cub function do -- yq-i '<yq-i expression>'   (catch-all; still via a function)
+             cub function set -- yq-i '<yq-i expression>'   (catch-all; still via a function)
                           │
                           genuinely needs a whole-unit rewrite
                           ▼
@@ -62,7 +62,7 @@ cub function do <fn>    Is this a small, surgical path edit (1–3 fields)?
 Restoring history instead? cub unit update --restore <revision-or-tag>
 ```
 
-`yq-i` is the escape-hatch mutator: full yq expression power, still invoked via `cub function do`, still records a proper revision with your `--change-desc`. Its non-mutating counterpart `yq` is in `cub-query`'s territory (reading a value out). Don't confuse the two — the `-i` suffix is the only difference and it's the difference between read and write.
+`yq-i` is the escape-hatch mutator: full yq expression power, still invoked via `cub function set`, still records a proper revision with your `--change-desc`. Its non-mutating counterpart `yq` is in `cub-query`'s territory (reading a value out). Don't confuse the two — the `-i` suffix is the only difference and it's the difference between read and write.
 
 ## The loop
 
@@ -95,7 +95,7 @@ Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-u
 
 ### 3. Scope the target
 
-- Single unit: `--space <space> --unit <slug>` (bulk-only commands like `cub function do` / `cub run` accept `--unit` as a shortcut for `--where "Slug = '<slug>'"`; also takes a comma list or UUID).
+- Single unit: `--space <space> --unit <slug>` (bulk-only commands like `cub function set` / `cub run` accept `--unit` as a shortcut for `--where "Slug = '<slug>'"`; also takes a comma list or UUID).
 - Many units by metadata: `--space <space> --where "Labels.Environment = 'prod'"`.
 - Cross-space: `--space "*" --where …`.
 - By content: `--where-data "spec.replicas > 5"`.
@@ -111,12 +111,12 @@ User prompt: <verbatim user prompt, trimmed if very long>
 Clarifications: <condensed — one line per resolved ambiguity, or "none">
 ```
 
-For bulk `cub run` / `cub function do` across many Units: phrase the summary so it reads sensibly at the per-unit granularity (the same description is recorded in every affected Unit's head revision).
+For bulk `cub run` / `cub function set` across many Units: phrase the summary so it reads sensibly at the per-unit granularity (the same description is recorded in every affected Unit's head revision).
 
 ### 5. Run
 
 ```bash
-cub function do \
+cub function set \
   --space <space> \
   --unit <slug> \
   --change-desc "<composed description>" \
@@ -176,7 +176,7 @@ cub unit update --patch --space <target-space> \
   --change-desc "Starting <slug> rollout"
 
 # 3. Mutate: every function do / unit update / run must pass --changeset.
-cub function do --space <target-space> \
+cub function set --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
   --change-desc "<summary>. User prompt: <verbatim>. Clarifications: <condensed>" \

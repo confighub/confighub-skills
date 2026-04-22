@@ -33,17 +33,17 @@ Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRev
 
 ### Operators
 
-| Type | Operators |
-|---|---|
-| Comparison | `=`, `!=`, `<`, `>`, `<=`, `>=` |
-| Pattern | `LIKE`, `NOT LIKE` (wildcards: `%`, `_`) |
-| Case-insensitive pattern | `ILIKE` |
-| Regex | `~`, `~*` (case-insensitive), `!~`, `!~*` |
-| Membership | `IN (...)`, `NOT IN (...)` |
-| Null check | `IS NULL`, `IS NOT NULL` |
-| Array contains | `?` |
-| Array length | `LEN(attr)` |
-| Truth test | `IS TRUE`, `IS FALSE`, `IS NOT TRUE`, `IS NOT FALSE` |
+| Type                     | Operators                                            |
+| ------------------------ | ---------------------------------------------------- |
+| Comparison               | `=`, `!=`, `<`, `>`, `<=`, `>=`                      |
+| Pattern                  | `LIKE`, `NOT LIKE` (wildcards: `%`, `_`)             |
+| Case-insensitive pattern | `ILIKE`                                              |
+| Regex                    | `~`, `~*` (case-insensitive), `!~`, `!~*`            |
+| Membership               | `IN (...)`, `NOT IN (...)`                           |
+| Null check               | `IS NULL`, `IS NOT NULL`                             |
+| Array contains           | `?`                                                  |
+| Array length             | `LEN(attr)`                                          |
+| Truth test               | `IS TRUE`, `IS FALSE`, `IS NOT TRUE`, `IS NOT FALSE` |
 
 ### Examples
 
@@ -90,14 +90,14 @@ Available with `cub unit list` (and a few related verbs — check `--help`). Fil
 
 Dot-separated paths into the YAML/JSON structure:
 
-| Feature | Syntax | Example |
-|---|---|---|
-| Basic path | `key.subkey` | `spec.replicas` |
-| Array index | `key.N` | `spec.containers.0.image` |
-| Wildcard | `key.*` | `spec.containers.*.image` |
-| Associative match | `key.?field=value` | `spec.containers.?name=nginx.image` |
-| Split path | `path.*.\|subpath` | `spec.containers.*.\|securityContext.runAsNonRoot` |
-| Escaped dot | `~1` | `metadata.annotations.example~1com/key` |
+| Feature                 | Syntax               | Example                                                       |
+| ----------------------- | -------------------- | ------------------------------------------------------------- |
+| Basic path              | `key.subkey`         | `spec.replicas`                                               |
+| Array index             | `key.N`              | `spec.containers.0.image`                                     |
+| Wildcard                | `key.*`              | `spec.containers.*.image`                                     |
+| Associative match       | `key.?field=value`   | `spec.containers.?name=nginx.image`                           |
+| Split path              | `path.*.\|subpath`   | `spec.containers.*.\|securityContext.runAsNonRoot`            |
+| Escaped dot             | `~1`                 | `metadata.annotations.example~1com/key`                       |
 | Reference decomposition | `#reference`, `#uri` | `spec.template.spec.containers.*.image#reference = ':v1.2.3'` |
 
 ### Operators
@@ -212,16 +212,16 @@ For questions `--where-data` can't answer cleanly, reach for getter functions. N
 
 ```bash
 # Current image for every Deployment across all spaces.
-cub function do --space "*" --resource-type apps/v1/Deployment \
+cub function get --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \
-  --quiet --show output -o jq='.[] | {unit: .UnitSlug, space: .SpaceSlug, image: .Value}'
+  --quiet --show output -o jq='. as $e | .Output[] | {unit: $e.UnitSlug, space: $e.SpaceSlug, image: .Value}'
 
 # Every placeholder still present, grouped by Unit.
-cub function do --space "*" get-placeholders \
-  --quiet --show output -o jq='.[] | select(.Value != null)'
+cub function get --space "*" get-placeholders \
+  --quiet --show output -o jq='.Output[] | select(.Value != null)'
 
 # CEL extraction across resources.
-cub function do --space "*" --resource-type apps/v1/Deployment \
+cub function get --space "*" --resource-type apps/v1/Deployment \
   get-cel 'resource.spec.template.spec.containers.map(c, {"name": c.name, "image": c.image})' \
   --quiet --show output
 ```
