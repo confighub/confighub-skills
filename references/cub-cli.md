@@ -205,6 +205,37 @@ cub unit list --space <s> -o jq='.[].Unit | {Slug, HeadRevisionNum, LiveRevision
 
 Do **not** write `cub ... -o json | jq '...'` — use `-o jq=<expr>` to avoid the extra pipe and quoting. Do **not** assume bare fields are at top level (`-o jq='.Slug'` on a `cub unit get` response returns `null`; the correct form is `-o jq='.Unit.Slug'`).
 
+### `--show output -o <json|yaml|jq|yq>` wraps each Unit's function output in an envelope
+
+Function output, when formatted structured, is wrapped per Unit so results can be correlated back to their source:
+
+```
+{
+  "SpaceID":    "<uuid>",
+  "UnitID":     "<uuid>",
+  "SpaceSlug":  "<slug>",
+  "UnitSlug":   "<slug>",
+  "OutputType": "ValidationResult" | "ValidationResultList" | "AttributeValueList" | "ResourceInfoList" | "ResourceList" | "YAML",
+  "Output":     <decoded payload>
+}
+```
+
+Reach for `.Output[]` to iterate the underlying list, and `.SpaceSlug` / `.UnitSlug` for identity:
+
+```bash
+# Validation results with unit identity. `. as $e` binds the envelope so it's visible inside .Output[].
+cub function vet --space "*" vet-cel '<expr>' --show output \
+  -o jq='. as $e | .Output[] | select(.Passed == false) | {space: $e.SpaceSlug, unit: $e.UnitSlug, details: .Details}'
+
+# Replica count per Deployment.
+cub function get --space "*" --resource-type apps/v1/Deployment get-replicas --show output \
+  -o jq='{space: .SpaceSlug, unit: .UnitSlug, replicas: .Output[0].Value}'
+```
+
+The envelope is emitted **per Unit** — each Unit prints its own JSON object, not wrapped in an outer array. `jq`'s `.` starts at one envelope at a time. If you need to collect across units, pipe through `jq -s`.
+
+`--show values` (scalar extraction) and `--show data` (modified ConfigData) do **not** wrap — they pass the raw payload through. Envelope only applies to `--show output` combined with `-o json|yaml|jq|yq`.
+
 ## Function commands — `vet` / `get` / `set` preferred over `do`
 
 `cub function` has four ways to invoke functions on Units. Pick the verb that matches the kind of function you're running:
