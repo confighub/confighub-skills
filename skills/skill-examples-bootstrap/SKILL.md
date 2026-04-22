@@ -2,7 +2,7 @@
 name: skill-examples-bootstrap
 description: 'Use when the user wants a working ConfigHub playground to exercise the other skills against — phrases like "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", "walk me through with a real example", "I''m new to ConfigHub, show me something I can poke at", or "reset the examples". Creates (or refreshes) a `skill-examples` Space with seed Units covering common Kubernetes resource types — Deployment, StatefulSet, DaemonSet, Job, CronJob, Ingress, NetworkPolicy, RBAC, HPA, PDB — and applies the canonical defaults-function chain so the end state demonstrates config-as-data with provenance intact. Other skills (like `kubernetes-resources`) pull from these live examples in preference to hardcoded YAML. Idempotent: re-running is safe. Do not load for creating real application Spaces (use config-as-data + space setup directly) or for bootstrapping triggers/policy (use triggers-and-applygates).'
 phase: cross-cutting
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *)
 ---
 
 # skill-examples-bootstrap
@@ -115,7 +115,7 @@ On workload Units (`hello-app`, `hello-statefulset`, `hello-daemonset`, `hello-j
 for slug in hello-app hello-statefulset hello-daemonset hello-job hello-cronjob; do
   for fn in set-container-resources-defaults set-container-probe-defaults \
             set-pod-container-security-context-defaults ensure-namespaces; do
-    cub function do --space skill-examples --unit "$slug" \
+    cub function set --space skill-examples --unit "$slug" \
       --change-desc "Apply $fn to $slug.
 
 User prompt: <verbatim>
@@ -128,7 +128,7 @@ done
 On `hello-ns`:
 
 ```bash
-cub function do --space skill-examples --unit hello-ns \
+cub function set --space skill-examples --unit hello-ns \
   --change-desc "Apply pod-security labels to hello namespace.
 
 User prompt: <verbatim>
@@ -140,7 +140,7 @@ On non-workload Units that have namespaced resources (`hello-ingress`, `hello-ne
 
 ```bash
 for slug in hello-ingress hello-netpol hello-rbac hello-hpa hello-pdb; do
-  cub function do --space skill-examples --unit "$slug" \
+  cub function set --space skill-examples --unit "$slug" \
     --change-desc "Apply ensure-namespaces to $slug.
 
 User prompt: <verbatim>
@@ -152,7 +152,7 @@ done
 On `hello-rbac`, also disable auto-mounted service account tokens:
 
 ```bash
-cub function do --space skill-examples --unit hello-rbac \
+cub function set --space skill-examples --unit hello-rbac \
   --change-desc "Disable automountServiceAccountToken on hello-rbac ServiceAccount.
 
 User prompt: <verbatim>

@@ -216,7 +216,7 @@ The `cub-apply` skill goes into the use of apply in more detail.
 
 1. `cub unit get <slug> --space <space>` — confirm the field now reflects the intended value.
 2. `cub revision list <slug> --space <space>` — new revision present, `--change-desc` matches what you composed.
-3. `cub function do --space <space> --unit <slug> vet-schemas`, `vet-placeholders`, `vet-format`, `vet-merge-keys` (or rely on Triggers) — validation passes.
+3. `cub function vet --space <space> --unit <slug> vet-schemas`, `vet-placeholders`, `vet-format`, `vet-merge-keys` (or rely on Triggers) — validation passes.
 
 ## Evidence
 

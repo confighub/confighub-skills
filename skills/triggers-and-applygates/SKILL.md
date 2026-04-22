@@ -2,7 +2,7 @@
 name: triggers-and-applygates
 description: 'Use when the user wants validation to be enforced (not just advisory) on ConfigHub Units, is setting up a new Space and wants policy to apply automatically, asks about ApplyGates, says "block bad config from being deployed", "wire up schema validation", "enforce a policy", "require approval", or needs to diagnose why a Unit is blocked from applying. This skill installs the platform-Space + Filter + TriggerFilterID pattern — centralized Triggers that run on every Mutation and attach ApplyGates when validation fails. Do not load for: running validators one-off without installing them (use cub-mutate with vet-* functions instead), or for authoring the YAML itself.'
 phase: decide
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *)
 ---
 
 # triggers-and-applygates
@@ -14,11 +14,11 @@ Make validation enforced, not advisory. Without Triggers, `vet-*` functions are 
 - Setting up a new Space (or retrofitting existing Spaces) and the user wants policy to be enforced.
 - User asks "how do I make sure bad config can't be deployed?", "wire up schema validation", "add a policy", "require approval before apply".
 - User is diagnosing a Unit that won't apply and the reason might be an ApplyGate.
-- Migrating validation from ad-hoc `cub function do vet-*` calls to automatic enforcement.
+- Migrating validation from ad-hoc `cub function vet vet-*` calls to automatic enforcement.
 
 ## Do not load for
 
-- One-off validation runs (use `cub-mutate` or a direct `cub function do vet-schemas …`).
+- One-off validation runs (use `cub-mutate` or a direct `cub function vet vet-schemas …`).
 - Authoring YAML (use `config-as-data`).
 - Fixing the config itself — this skill diagnoses and sets up gates; fixing is `cub-mutate`.
 
@@ -104,18 +104,18 @@ cub trigger create --space platform -o json require-approval Mutation Kubernetes
 1. `cub unit get <slug> --space <space>` — shows attached ApplyGates and which Trigger produced them.
 2. `cub revision list <slug> --space <space>` — find the revision that failed validation; the `--change-desc` should indicate what the user was trying to do.
 3. `cub trigger get --space platform <trigger-slug>` — see what the Trigger is checking.
-4. Fix the data via `cub function do` or `cub unit update` — the Mutation Triggers re-run automatically and release the gate if it passes.
+4. Fix the data via `cub function set` or `cub unit update` — the Mutation Triggers re-run automatically and release the gate if it passes.
 
 **Never** bypass a gate by dropping the Trigger, deleting the Filter, or editing gate state directly. If a rule is genuinely wrong, fix the Trigger in `platform` (with `--change-desc` recording why) so the whole fleet benefits.
 
 ## Tool boundary
 
-- Allowed: `cub space / trigger / filter / unit / revision` — Unit-data mutations (`cub unit update`, `cub function do`, `cub run`) must pass `--change-desc`.
+- Allowed: `cub space / trigger / filter / unit / revision` — Unit-data mutations (`cub unit update`, `cub function set`, `cub run`) must pass `--change-desc`.
 - Not allowed: bypassing gates, disabling Triggers to unblock a single Unit, editing ApplyGates by hand.
 
 ## Change description
 
-`--change-desc` is a Unit-data-mutation flag only. It applies to `cub unit update`, `cub function do`, `cub run`, and `cub unit update --patch`. **It does not apply** to `cub space create/update`, `cub trigger create/update/delete`, `cub filter create/update/delete`, `cub target create/update`, or `cub worker create/update` — those entities aren't versioned configuration data and will reject the flag with `unknown flag: --change-desc`. The audit trail for Space/Trigger/Filter/Target/Worker operations is the entity's own history, not a per-call description.
+`--change-desc` is a Unit-data-mutation flag only. It applies to `cub unit update`, `cub function set`, `cub run`, and `cub unit update --patch`. **It does not apply** to `cub space create/update`, `cub trigger create/update/delete`, `cub filter create/update/delete`, `cub target create/update`, or `cub worker create/update` — those entities aren't versioned configuration data and will reject the flag with `unknown flag: --change-desc`. The audit trail for Space/Trigger/Filter/Target/Worker operations is the entity's own history, not a per-call description.
 
 When this skill's flow does cause a Unit-data mutation (e.g., `cub unit update` while resolving a blocked apply), compose the description as:
 

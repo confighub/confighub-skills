@@ -2,7 +2,7 @@
 name: drift-reconcile
 description: 'Use when ConfigHub''s Unit Data and the cluster''s live state for that Unit have diverged — phrases like "reconcile drift", "the cluster changed out of band", "someone kubectl edit''d this", "ConfigHub and the cluster disagree", "accept the live changes", "overwrite the cluster with ConfigHub", "refresh from live", "who owns this drift?", "we have drift on app-a in prod". Runs `cub unit refresh` to pull current live state, `cub unit diff` against Data, walks the decide-who-wins decision (ConfigHub wins → re-apply; cluster wins → absorb; merge → selective reconcile), and executes the chosen path. Do not load for revision history rewind (use `rollback-revision`), for post-apply verification / three-way agreement checks (use `verify-apply`), for the first-time apply of a newly-bound Unit (use `cub-apply`), or for importing wholesale live resources into a brand-new Unit (use `import-from-cluster`).'
 phase: verify
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit refresh *) Bash(cub unit update *) Bash(cub unit-action get *) Bash(cub function do *) Bash(kubectl get *) Bash(kubectl describe *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit refresh *) Bash(cub unit update *) Bash(cub unit-action get *) Bash(cub function get *) Bash(cub function vet *) Bash(kubectl get *) Bash(kubectl describe *)
 ---
 
 # drift-reconcile
@@ -160,7 +160,7 @@ Refresh into a new head, then use `cub-mutate` to reject the parts you don't wan
 cub unit refresh <slug> --space <s>
 # New head contains everything — the accepted sidecar annotations AND the stopgap kubectl edit.
 # Reject the kubectl edit with a function (example: strip a specific label back to the prior value).
-cub function do --space <s> --unit <slug> \
+cub function set --space <s> --unit <slug> \
   --change-desc "Keep sidecar annotations; reject debug label left by manual kubectl edit.
 
 User prompt: <verbatim>
@@ -201,7 +201,7 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 
 ## Tool boundary
 
-- Allowed: `cub unit refresh / diff / livestate / livedata / update / tag`, `cub unit-action get`, `cub function do`, read-only `kubectl get/describe` for diagnosis.
+- Allowed: `cub unit refresh / diff / livestate / livedata / update / tag`, `cub unit-action get`, `cub function set`, read-only `kubectl get/describe` for diagnosis.
 - Not allowed: `kubectl edit / apply / patch / delete` to "fix" drift — that creates more drift. If a cluster-side fix is genuinely needed (e.g., a broken resource that won't accept a re-apply), do it through `cub-mutate` + `cub-apply`.
 
 ## Stop conditions

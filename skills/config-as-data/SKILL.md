@@ -2,7 +2,7 @@
 name: config-as-data
 description: 'Use whenever the user is authoring or modifying Kubernetes configuration stored in ConfigHub, or is about to reach for Helm, Kustomize, Jsonnet, cdk8s, or a values file. This skill enforces the "configuration as data" doctrine — Units contain fully-materialized, literal YAML, mutated in place via cub functions or direct edits, never re-rendered from templates. Load this proactively any time the user says things like "add a chart", "values file", "overlay", "template this", "parameterize", "set up Helm for this", "make this reusable across envs", or starts generating K8s YAML that will be stored in ConfigHub. Do not load for: pure import-from-helm / import-from-kustomize flows (those have their own skills that handle one-shot render + store), or authoring config outside ConfigHub.'
 phase: cross-cutting
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *)
 ---
 
 # config-as-data
@@ -77,13 +77,13 @@ Clarifications: <condensed or 'none'>"
 Prefer the defaults functions over hand-editing — they're hermetic, idempotent, and record a clean revision:
 
 ```bash
-cub function do --space <space> --unit <unit-slug> \
+cub function set --space <space> --unit <unit-slug> \
   set-container-resources-defaults --change-desc "..."
 
-cub function do --space <space> --unit <unit-slug> \
+cub function set --space <space> --unit <unit-slug> \
   set-container-probe-defaults --change-desc "..."
 
-cub function do --space <space> --unit <unit-slug> \
+cub function set --space <space> --unit <unit-slug> \
   set-pod-container-security-context-defaults --change-desc "..."
 ```
 
@@ -108,7 +108,7 @@ For deeper guidance on Space layout (app-home Spaces, per-env Spaces, platform S
 
 ## Change description
 
-Every `cub unit create`, `cub unit update`, `cub function do`, `cub run` call must pass `--change-desc`:
+Every `cub unit create`, `cub unit update`, `cub function set`, `cub run` call must pass `--change-desc`:
 
 ```
 <summary line>
@@ -125,14 +125,14 @@ Clarifications: <condensed: "user confirmed target env is prod" / "user chose bu
 ## Verify chain
 
 1. `cub unit get <slug> --space <space>` — inspect the stored YAML; confirm it is literal.
-2. If the Space has validation Triggers wired up (see `triggers-and-applygates` for the setup), every `cub unit create` / `cub unit update` / `cub function do` / `cub run` already runs them against the new revision — no extra step needed. If not, run the vet functions directly:
-   - `cub function do --space <space> --unit <slug> vet-placeholders` — no remaining placeholders (unless intentional for later fill).
-   - `cub function do --space <space> --unit <slug> vet-schemas` — valid against the target K8s version.
-   - `cub function do --space <space> --unit <slug> vet-format` — clean YAML.
+2. If the Space has validation Triggers wired up (see `triggers-and-applygates` for the setup), every `cub unit create` / `cub unit update` / `cub functionset` / `cub run` already runs them against the new revision — no extra step needed. If not, run the vet functions directly:
+   - `cub function vet --space <space> --unit <slug> vet-placeholders` — no remaining placeholders (unless intentional for later fill).
+   - `cub function vet --space <space> --unit <slug> vet-schemas` — valid against the target K8s version.
+   - `cub function vet --space <space> --unit <slug> vet-format` — clean YAML.
 3. To re-run a specific Trigger against a Unit — useful for validators whose arguments are awkward to retype on the CLI, like `vet-cel` and `vet-starlark`, where the configured Trigger already carries the CEL/Starlark expression:
 
    ```bash
-   cub function do --space <space> --unit <slug> --trigger <trigger-space>/<trigger-slug>
+   cub function vet --space <space> --unit <slug> --trigger <trigger-space>/<trigger-slug>
    ```
 
    The Trigger supplies the function name and its arguments, so the result matches what automatic validation would produce on a write. Less valuable for validators that take no arguments (`vet-schemas`, `vet-placeholders`, `vet-format`) — just call those directly.

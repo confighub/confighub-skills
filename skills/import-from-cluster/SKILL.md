@@ -7,7 +7,7 @@ allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --
 
 # import-from-cluster
 
-Onboarding ramp for teams whose workloads are running in Kubernetes but are *not* managed by Helm, ArgoCD, or Flux — typically `kubectl apply`-driven setups, or configurations inherited from a previous operator. Pulls the current live state of selected resources into ConfigHub Units so that configuration-as-data management can start from what's actually running.
+Onboarding ramp for teams whose workloads are running in Kubernetes but are _not_ managed by Helm, ArgoCD, or Flux — typically `kubectl apply`-driven setups, or configurations inherited from a previous operator. Pulls the current live state of selected resources into ConfigHub Units so that configuration-as-data management can start from what's actually running.
 
 ## Positioning: this is an onboarding tool
 
@@ -98,7 +98,7 @@ Inspect the dry-run output. Confirm:
 
 - The right resources are listed (no `kube-system` leakage, no unexpected CRs, no Service-of-loadBalancer-in-spec kinds of pulls).
 - No resource you expect to own is missing.
-- Matches aren't pulling admission-controller-added annotations you don't want (e.g., `kubectl.kubernetes.io/last-applied-configuration`). These can be cleaned up post-import via `cub-mutate` / a `cub function do strip-annotations`-style function.
+- Matches aren't pulling admission-controller-added annotations you don't want (e.g., `kubectl.kubernetes.io/last-applied-configuration`). These can be cleaned up post-import via `cub-mutate` / a `cub function set delete-path`-style function.
 
 Tighten the filter and re-dry-run until the set is right.
 
@@ -120,7 +120,7 @@ cub unit get <app> --space <app>-<env> -o yaml
 
 Scan for:
 
-- **Defaults the cluster added** that the user may or may not want to own (e.g., `imagePullPolicy: Always`, `schedulerName: default-scheduler`, resources with defaulted limits). Decide per field: keep as-is, or strip via `cub function do`.
+- **Defaults the cluster added** that the user may or may not want to own (e.g., `imagePullPolicy: Always`, `schedulerName: default-scheduler`, resources with defaulted limits). Decide per field: keep as-is, or strip via `cub function set`.
 - **Controller-managed fields** that shouldn't be in Data (status-ish metadata, generated names, etc.). Clean with `strip-metadata` functions (see `references/functions-catalog.md`).
 - **Secrets.** If Secrets came in, their `data` values are base64-encoded but unencrypted. Do not commit these — manage via an external SecretStore (see `references/yaml-patterns.md`).
 
@@ -134,7 +134,7 @@ From here, ongoing management follows `config-as-data`:
 
 ### 6. Hand off to apply
 
-Applying the Unit is now a no-op (the data matches live state). The first *meaningful* apply comes when the user makes their first ConfigHub-driven change:
+Applying the Unit is now a no-op (the data matches live state). The first _meaningful_ apply comes when the user makes their first ConfigHub-driven change:
 
 ```bash
 cub unit apply <app> --space <app>-<env> --wait
@@ -161,7 +161,7 @@ From there, `verify-apply` takes over.
 2. `cub unit get <app> --space <app>-<env> -o yaml` — Data contains the expected resources, stripped of transient fields.
 3. `cub unit bridgestate <app> --space <app>-<env>` — target binding healthy.
 4. `cub unit livestate <app> --space <app>-<env>` — LiveState matches Data (no drift at import time).
-5. After attaching `platform/standard-vets`: `cub function do vet-schemas --space <app>-<env> --unit <app>` — passes, or produces a readable set of cleanup items for `cub-mutate`.
+5. After attaching `platform/standard-vets`: `cub function vet vet-schemas --space <app>-<env> --unit <app>` — passes, or produces a readable set of cleanup items for `cub-mutate`.
 
 ## Evidence
 

@@ -2,7 +2,7 @@
 name: kubernetes-resources
 description: 'Use when the user wants to create or modify a specific Kubernetes resource type in ConfigHub — phrases like "create a StatefulSet", "add an Ingress", "set up NetworkPolicy", "I need a CronJob", "add RBAC for my app", "set up autoscaling", "create a DaemonSet", "expose my service externally", "add a PDB", "create a Job for data migration", "I need a headless Service", "set up persistent storage". Walks the user through authoring the resource as literal YAML in a ConfigHub Unit, applying best-practice defaults via functions, and wiring it into the Space. Pulls live examples from the `skill-examples` Space when available (seeded by `skill-examples-bootstrap`); falls back to `references/yaml-patterns.md`. Do not load for: AppConfig-based ConfigMaps (use `app-config`), Helm chart imports (use `import-from-helm`), raw config-as-data doctrine questions without a specific resource type (use `config-as-data`).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub unit diff *) Bash(cub function do *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub unit diff *) Bash(cub function *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *)
 ---
 
 # kubernetes-resources
@@ -105,15 +105,15 @@ Clarifications: <condensed>"
 For workload Units (Deployment, StatefulSet, DaemonSet, Job, CronJob):
 
 ```bash
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- set-container-resources-defaults --change-desc "..."
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- set-container-probe-defaults --change-desc "..."
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- set-pod-container-security-context-defaults --change-desc "..."
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- set-automount-service-account-token-false --change-desc "..."
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- ensure-namespaces --change-desc "..."
 ```
 
@@ -122,7 +122,7 @@ cub function do --space <space> --unit <slug> \
 **Writable paths for read-only root filesystems.** `set-pod-container-security-context-defaults` sets `readOnlyRootFilesystem: true`. If the container needs to write anywhere (e.g. `/tmp`, `/var/cache/<app>`, a log dir, a scratch dir), mount a volume at that path. For each write path:
 
 ```bash
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- set-container-volume-mount-path <container-name> <volume-name> <volume-path> \
      --volume-source=emptyDir \
      --change-desc "..."
@@ -135,14 +135,14 @@ If the function doesn't fit the shape the user needs (e.g. a `projected` volume,
 For Namespace Units:
 
 ```bash
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- set-pod-security-defaults --change-desc "..."
 ```
 
 For non-workload namespaced resources (Ingress, NetworkPolicy, RBAC, HPA, PDB):
 
 ```bash
-cub function do --space <space> --unit <slug> \
+cub function set --space <space> --unit <slug> \
   -- ensure-namespaces --change-desc "..."
 ```
 
@@ -151,9 +151,9 @@ Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containe
 ### 6. Validate
 
 ```bash
-cub function do --space <space> --unit <slug> -- vet-schemas
-cub function do --space <space> --unit <slug> -- vet-placeholders
-cub function do --space <space> --unit <slug> -- vet-format
+cub function vet --space <space> --unit <slug> -- vet-schemas
+cub function vet --space <space> --unit <slug> -- vet-placeholders
+cub function vet --space <space> --unit <slug> -- vet-format
 ```
 
 ### 7. Guide next steps
@@ -193,8 +193,8 @@ Based on what was created, suggest the logical next skill:
 ## Verify chain
 
 1. `cub unit get <slug> --space <space> -o yaml` — inspect the stored YAML.
-2. `cub function do --space <space> --unit <slug> -- vet-schemas` — valid against target K8s version.
-3. `cub function do --space <space> --unit <slug> -- vet-placeholders` — no stray placeholders.
+2. `cub function vet --space <space> --unit <slug> -- vet-schemas` — valid against target K8s version.
+3. `cub function vet --space <space> --unit <slug> -- vet-placeholders` — no stray placeholders.
 
 ## Evidence
 
