@@ -22,8 +22,8 @@ Long term, as the team gets comfortable with configuration-as-data, they may gra
 
 Published guide:
 
-- DRY-format rendering model + `cub gitops` flow: `https://docs.confighub.com/guide/rendered-manifests/`
-- ArgoCD worked example: `https://docs.confighub.com/get-started/examples/gitops-import/` (and `https://github.com/confighub/examples/blob/main/gitops-import/README.md`).
+- DRY-format rendering model + `cub gitops` flow: `https://docs.confighub.com/markdown/guide/rendered-manifests.md`
+- ArgoCD worked example: `https://docs.confighub.com/markdown/get-started/examples/gitops-import.md` (and `https://github.com/confighub/examples/blob/main/gitops-import/README.md`).
 
 ## When to use
 
@@ -168,7 +168,7 @@ Dry Units typically stay in the import Space or move into a `<app>-renderers` Sp
 
 ## References
 
-- `https://docs.confighub.com/guide/rendered-manifests/` — unit-level model + `cub gitops` flow.
-- `https://docs.confighub.com/get-started/examples/gitops-import/` — end-to-end ArgoCD walkthrough.
+- `https://docs.confighub.com/markdown/guide/rendered-manifests.md` — unit-level model + `cub gitops` flow.
+- `https://docs.confighub.com/markdown/get-started/examples/gitops-import.md` — end-to-end ArgoCD walkthrough.
 - `references/cub-cli.md` — CLI discipline.
 - Companion skills: `worker-bootstrap` (prereq), `space-topology` (Space layout), `target-bind` (Worker/Target), `config-as-data` (wet-Unit doctrine), `triggers-and-applygates` (adding policy post-import), `cub-apply` / `verify-apply` (runtime), `import-from-flux` (Flux equivalent).

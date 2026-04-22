@@ -144,7 +144,7 @@ Target is created and Units are attached. Next step is almost always `cub-apply`
 
 ## References
 
-- Target entity: `https://docs.confighub.com/background/entities/target/`
-- Worker guide: `https://docs.confighub.com/guide/workers/`
+- Target entity: `https://docs.confighub.com/markdown/background/entities/target.md`
+- Worker guide: `https://docs.confighub.com/markdown/guide/workers.md`
 - `references/cub-cli.md` — CLI conventions.
 - `references/filters-and-queries.md` — the `TargetID IS NOT NULL` field pattern for verifying bulk bindings.

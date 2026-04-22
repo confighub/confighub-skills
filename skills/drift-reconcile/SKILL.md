@@ -225,4 +225,4 @@ Always `--dry-run` first on bulk refresh — you're creating new head revisions 
 - `references/cub-cli.md` — `--change-desc` scope; `-o mutations` on mutating calls.
 - `references/functions-catalog.md` — functions for selective merge (strip-metadata-\*, set-label, set-annotation, set-cel).
 - Companion skills: `cub-apply` (runtime for ConfigHub-wins), `cub-mutate` (surgical edits during selective merge), `verify-apply` (post-apply verification; this skill is the divergence counterpart when an apply converged but the cluster has since diverged, or when a "drift" report is actually a stuck/failed apply), `rollback-revision` (ConfigHub-history rewind, different problem).
-- https://docs.confighub.com/guide/drift/
+- https://docs.confighub.com/markdown/guide/drift.md

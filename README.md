@@ -4,7 +4,7 @@ A set of Claude Code / agentskills.io skills for operating Kubernetes workloads 
 
 Skills here assume:
 
-- You store Kubernetes configuration as data in ConfigHub Units — fully materialized YAML, literal values, no templates or values-file split. See the "Configuration as Data" doctrine on https://docs.confighub.com/.
+- You store Kubernetes configuration as data in ConfigHub Units — fully materialized YAML, literal values, no templates or values-file split. See the "Configuration as Data" doctrine at https://docs.confighub.com/markdown/background/config-as-data.md.
 - Mutations go through `cub` (unit update, function do, run). `kubectl` / `argocd` / `flux` are used for read-only diagnosis only.
 - You deploy via ArgoCD or Flux Targets bound to Spaces.
 

@@ -2,7 +2,7 @@
 
 A ChangeSet groups related mutations across multiple Units so they can be approved, applied, restored, and merged *as a set*. Use one any time a single logical change spans more than one Unit: a release, a fleet-wide defaults upgrade, a cross-Space promotion, a coordinated secret rotation. The ChangeSet acts as a lock: while a Unit is in a ChangeSet, another ChangeSet can't open against it until the first is closed.
 
-Canonical doc: `https://docs.confighub.com/guide/change-apply/`.
+Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 
 ## Lifecycle
 

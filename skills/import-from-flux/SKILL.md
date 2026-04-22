@@ -22,7 +22,7 @@ Long term, as the team gets comfortable with configuration-as-data, they may gra
 
 Published guide:
 
-- DRY-format rendering model + `cub gitops` flow: `https://docs.confighub.com/guide/rendered-manifests/`
+- DRY-format rendering model + `cub gitops` flow: `https://docs.confighub.com/markdown/guide/rendered-manifests.md`
 
 ## When to use
 
@@ -168,6 +168,6 @@ Dry Units typically stay in the import Space or move into a `<app>-renderers` Sp
 
 ## References
 
-- `https://docs.confighub.com/guide/rendered-manifests/` — unit-level model + `cub gitops` flow.
+- `https://docs.confighub.com/markdown/guide/rendered-manifests.md` — unit-level model + `cub gitops` flow.
 - `references/cub-cli.md` — CLI discipline.
 - Companion skills: `worker-bootstrap` (prereq), `space-topology` (Space layout), `target-bind` (Worker/Target), `config-as-data` (wet-Unit doctrine), `triggers-and-applygates` (adding policy post-import), `cub-apply` / `verify-apply` (runtime), `import-from-argocd` (ArgoCD equivalent).

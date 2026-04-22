@@ -25,7 +25,7 @@ If the user's Kustomize is actually a **Flux `Kustomization` CRD** (i.e., manage
 
 Published guide:
 
-- DRY-format rendering model (covers Kustomize): `https://docs.confighub.com/guide/rendered-manifests/`
+- DRY-format rendering model (covers Kustomize): `https://docs.confighub.com/markdown/guide/rendered-manifests.md`
 
 ## When to use
 
@@ -169,7 +169,7 @@ From here, `cub-apply` / `verify-apply` take over.
 
 ## References
 
-- `https://docs.confighub.com/guide/rendered-manifests/` — DRY rendering model.
+- `https://docs.confighub.com/markdown/guide/rendered-manifests.md` — DRY rendering model.
 - `references/cub-cli.md` — CLI discipline.
 - `references/functions-catalog.md` — which functions replace which kinds of overlay patches.
 - Companion skills: `config-as-data` (doctrine), `cub-mutate` (customizing post-render), `cub-apply` (deploy), `import-unit-granularity` (decision helper when the overlay tree is large).
