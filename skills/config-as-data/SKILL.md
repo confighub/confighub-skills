@@ -147,4 +147,4 @@ Clarifications: <condensed: "user confirmed target env is prod" / "user chose bu
 - `references/functions-catalog.md`
 - `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all common resource types.
 - Companion skills: `kubernetes-resources` (authoring specific resource types), `space-topology` (Space layout, upstream/downstream conventions), `triggers-and-applygates` (automatic validation on writes, running Triggers explicitly), `skill-examples-bootstrap` (seeds live examples in `skill-examples` Space).
-- https://docs.confighub.com/background/config-as-data/
+- https://docs.confighub.com/markdown/background/config-as-data.md

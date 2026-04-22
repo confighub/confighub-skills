@@ -149,7 +149,7 @@ Worker is running and advertising functions. Next steps depend on user intent:
 
 ## References
 
-- ConfigHub worker guide: `https://docs.confighub.com/guide/workers/`
-- Worker entity: `https://docs.confighub.com/background/entities/worker/`
+- ConfigHub worker guide: `https://docs.confighub.com/markdown/guide/workers.md`
+- Worker entity: `https://docs.confighub.com/markdown/background/entities/worker.md`
 - `references/cub-cli.md` — CLI conventions, `--change-desc`, `-o mutations`.
 - `references/yaml-patterns.md` — handling of Secret resources in Units.

@@ -9,7 +9,7 @@ allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --
 
 Turn a user's application configuration file — `.env`, `.properties`, `.yaml`, `.json`, `.toml`, `.ini`, or plain text — into a versioned ConfigHub Unit, then render and deploy it as a Kubernetes ConfigMap via the built-in `ConfigMapRenderer` bridge.
 
-Canonical doc: `https://docs.confighub.com/guide/app-config/`.
+Canonical doc: `https://docs.confighub.com/markdown/guide/app-config.md`.
 
 ## Why this matters
 
@@ -303,7 +303,7 @@ spec:
 
 ## References
 
-- `https://docs.confighub.com/guide/app-config/` — canonical walkthrough.
+- `https://docs.confighub.com/markdown/guide/app-config.md` — canonical walkthrough.
 - `references/cub-cli.md` — `--change-desc` / `-o mutations` / the four Unit views / `--where` AND-only.
 - `references/yaml-patterns.md` — `confighubplaceholder` pattern and Needs/Provides receivers.
 - `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema`.

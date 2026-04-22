@@ -23,8 +23,8 @@ Call this out in your response so the user understands the trajectory, not just 
 
 Published guides:
 
-- `cub helm` walkthrough: `https://docs.confighub.com/guide/helm-charts/`
-- DRY-format rendering model (Helm + Kustomize + GitOps): `https://docs.confighub.com/guide/rendered-manifests/`
+- `cub helm` walkthrough: `https://docs.confighub.com/markdown/guide/helm-charts.md`
+- DRY-format rendering model (Helm + Kustomize + GitOps): `https://docs.confighub.com/markdown/guide/rendered-manifests.md`
 
 ## When to use
 
@@ -238,8 +238,8 @@ cub unit diff <release> --space <app>-<staging>
 
 ## References
 
-- `https://docs.confighub.com/guide/helm-charts/` — canonical walkthrough.
-- `https://docs.confighub.com/guide/rendered-manifests/` — DRY rendering model across Helm / Kustomize / GitOps.
+- `https://docs.confighub.com/markdown/guide/helm-charts.md` — canonical walkthrough.
+- `https://docs.confighub.com/markdown/guide/rendered-manifests.md` — DRY rendering model across Helm / Kustomize / GitOps.
 - `references/cub-cli.md` — CLI discipline, `--change-desc`, `-o mutations`.
 - `references/yaml-patterns.md` — needs/provides for placeholder resolution.
 - Companion skills: `space-topology` (where the base + per-env Spaces go), `config-as-data` (doctrine), `cub-mutate` (customizing the clone), `cub-apply` (deploy), `triggers-and-applygates` (vet-placeholders gate).

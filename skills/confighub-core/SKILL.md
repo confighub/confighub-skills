@@ -51,7 +51,7 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 
 ConfigHub makes bulk and cross-Space operations easy, which is also how you accidentally delete a prod Space or destroy live cluster resources. Gates are the opt-in protection.
 
-Canonical doc: `https://docs.confighub.com/guide/protecting/`.
+Canonical doc: `https://docs.confighub.com/markdown/guide/protecting.md`.
 
 Two kinds:
 
@@ -126,7 +126,7 @@ For new prod-bound Units or Spaces, suggest the gate in the same turn you create
 | Installing a bridge worker in a cluster                                                                      | `worker-bootstrap`         |
 | Creating a Target or binding a Unit to one                                                                   | `target-bind`              |
 | Applying a Unit to its target                                                                                | `cub-apply`                |
-| Post-apply verification, troubleshooting, three-way agreement, release close-out                            | `verify-apply`             |
+| Post-apply verification, troubleshooting, three-way agreement, release close-out                             | `verify-apply`             |
 
 ## The loop (for the orientation use case)
 
@@ -150,7 +150,7 @@ N/A — read-only. Verification is "did the user's task get routed to the right 
 
 ## Evidence
 
-- ConfigHub docs: `https://docs.confighub.com/`
+- ConfigHub docs: `https://docs.confighub.com/markdown/index.md`
 - Public SDK: `https://github.com/confighub/sdk`
 - `cub unit get --web`, `cub space get --web`, `cub revision list --web` — open entity pages in the GUI when the user wants to see something concrete.
 
@@ -161,4 +161,4 @@ N/A — read-only. Verification is "did the user's task get routed to the right 
 - `references/filters-and-queries.md` — query vocabulary.
 - `references/triggers-recipes.md` — platform-Space pattern.
 - `references/yaml-patterns.md` — literal-value authoring.
-- https://docs.confighub.com/guide/protecting/
+- https://docs.confighub.com/markdown/guide/protecting.md

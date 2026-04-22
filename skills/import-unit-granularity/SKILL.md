@@ -152,6 +152,6 @@ There's nothing to apply here; the skill's output is a split proposal. The user 
 ## References
 
 - `references/cub-cli.md` — `--where-resource` / `--where-data` scoping mechanics (including `ConfigHub.ResourceType`, `ConfigHub.ResourceName`, `import.include_system`, `import.include_cluster`, `import.include_custom`).
-- `https://docs.confighub.com/guide/rendered-manifests/` — the `cub gitops import` splitting flow this skill mirrors.
-- `https://docs.confighub.com/guide/helm-charts/` — `cub helm install` release + crds default.
+- `https://docs.confighub.com/markdown/guide/rendered-manifests.md` — the `cub gitops import` splitting flow this skill mirrors.
+- `https://docs.confighub.com/markdown/guide/helm-charts.md` — `cub helm install` release + crds default.
 - Companion skills: `space-topology` (where the Units go), `import-from-helm`, `import-from-kustomize`, `import-from-argocd`, `import-from-flux`, `import-from-cluster`, `config-as-data` (post-import doctrine).

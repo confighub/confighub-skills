@@ -157,4 +157,4 @@ Right after apply, hand off to `verify-apply` — it owns the full post-apply ar
 - `references/filters-and-queries.md` — operational filter recipes (`unapplied-changes`, `apply-not-completed`, `has-apply-gates`, `needs-upgrade`).
 - `references/changesets.md` — ChangeSet lifecycle (apply with `--revision ChangeSet:<slug>`; rollback with `--restore Before:ChangeSet:<slug>` done via `rollback-revision`).
 - Companion skills: `triggers-and-applygates` (gate diagnosis), `verify-apply` (post-apply verification, troubleshooting, close-out), `rollback-revision` (head-moving rollback — always goes there first, then hands back here to apply).
-- https://docs.confighub.com/guide/unit-sets/
+- https://docs.confighub.com/markdown/guide/unit-sets.md

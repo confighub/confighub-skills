@@ -307,5 +307,5 @@ Each Unit's head reverts to its pre-ChangeSet state and the subsequent apply pus
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close.
 - `references/revisions.md` — revision references (`ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`).
 - Companion skills: `space-topology` (home / env Space layout), `cub-mutate` (conflict resolution within an open ChangeSet), `cub-apply` (runtime), `rollback-revision` (post-promotion rollback path), `verify-apply` (post-rollout).
-- https://docs.confighub.com/guide/variants/
-- https://docs.confighub.com/guide/dependencies/
+- https://docs.confighub.com/markdown/guide/variants.md
+- https://docs.confighub.com/markdown/guide/dependencies.md

@@ -166,4 +166,4 @@ The `upstream-unit` link is what makes `--upgrade` propagate changes while prese
 
 - `references/cub-cli.md` — CLI discipline; `--trigger-filter` / `--where-trigger` interaction.
 - Companion skills: `triggers-and-applygates` (what goes in `platform`), `target-bind` (how Units in an app Space point at a Worker in a workers Space), `import-from-helm` / `import-from-kustomize` / `import-from-argocd` / `import-from-flux` (all follow this layout when creating Units), `config-as-data` (doctrine at the Unit level).
-- https://docs.confighub.com/guide/environments/
+- https://docs.confighub.com/markdown/guide/environments.md
