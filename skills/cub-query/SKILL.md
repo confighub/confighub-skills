@@ -11,7 +11,7 @@ The database-like query surface of ConfigHub. Most users don't discover this fro
 
 ## Why this matters
 
-Configuration is stored as data. Every field of every resource in every Unit in every Space is queryable — by metadata (`--where`), by content (`--where-data`), by resource type, and via functions that return structured values. This replaces "clone the repo, grep, try to figure out which env does what."
+Configuration is stored as data. Every field of every resource in every Unit in every Space is queryable — by metadata (`--where`), by content (`--where-data`), by resource type, and via functions that return structured values. This replaces "clone the repo, grep, try to figure out which env does what." Also, it is generally unnecessary to list all configuration Units or other entities, use --json or --yaml to output the whole entities, and then use jq and yq locally to filter entities and extract specific values.
 
 The same toolkit covers two scopes:
 
@@ -62,6 +62,8 @@ For "what's our frontend running in us-east?" / "what image is our worker on?" /
 
 ```bash
 # ConfigHub's latest YAML for a Unit — the content that would be applied. This is the config data at HeadRevisionNum.
+# cub unit get -o data is invalid. cub unit get -o jq='.Unit.Data' will return the configuration data base64 encoded and
+# is not recommended. The best command to use is cub unit data:
 cub unit data <slug> --space <space>
 
 # ConfigHub's data at the applied revision. Use .Unit.LiveRevisionNum for the most recently confirmed live revision,
