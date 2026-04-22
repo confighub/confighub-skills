@@ -131,7 +131,7 @@ Verify:
 cub unit list --space <space> --where "Labels.helmrelease = '<release>'"
 ```
 
-`cub helm` does NOT accept `--change-desc` — the chart provenance (release name, repo/chart, version) is recorded as Unit labels. If the user needs a human-readable note, follow up with a no-op `cub function do set-annotation` on the created Units with `--change-desc` describing the install's motivation.
+`cub helm` does NOT accept `--change-desc` — the chart provenance (release name, repo/chart, version) is recorded as Unit labels. If the user needs a human-readable note, follow up with a no-op `cub function set set-annotation` on the created Units with `--change-desc` describing the install's motivation.
 
 ### 3. Per-env Spaces — pattern-dependent
 

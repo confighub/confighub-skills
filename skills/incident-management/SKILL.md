@@ -187,7 +187,7 @@ Read-only and decision-only. **This skill does not mutate.** Every mutation duri
 - Drift reconciliation → `drift-reconcile`.
 - Verification → `verify-apply`.
 
-If you find yourself about to run `cub unit update` / `cub function do` / `cub unit apply` from here, stop and hand off.
+If you find yourself about to run `cub unit update` / `cub function do` / `cub function set` / `cub unit apply` from here, stop and hand off.
 
 ## Stop conditions
 

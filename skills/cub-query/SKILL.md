@@ -2,7 +2,7 @@
 name: cub-query
 description: 'Use when the user wants to find, count, inspect, read, or audit Kubernetes workloads and application configuration stored in ConfigHub — both fleet-wide sweeps and single-workload lookups. Natural phrasing is workload- or application-centric: "where is checkout v0.4.2 deployed?", "which Deployments run more than 5 replicas?", "find workloads missing resource requests or limits", "what image tag is our nonprod worker running?", "how many replicas does our frontend have in us-east?", "is our api up to date with the latest release?", "show me the YAML / env vars / annotations of our frontend". ConfigHub-native phrasing is equally in scope: "which Units ...", "what''s in Space X", "Units with Label env=prod". Workload-in-environment phrasing like "frontend in us-east" maps to a Unit slug plus a Space slug or Space Label — see space-topology for the conventions. Load any time intent is find / list / show / which / where / how many / audit / inspect / read / what tag / is X up to date over ConfigHub-managed workloads — one workload or the whole fleet. Do not load for: mutating data (cub-mutate), authoring (config-as-data), designing the Space/Label taxonomy itself (space-topology), or live cluster state not in ConfigHub (kubectl).'
 phase: verify
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function get *) Bash(cub function vet *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *)
 ---
 
 # cub-query
@@ -142,7 +142,7 @@ cub unit list --space "*" \
   --where-data "spec.template.spec.containers.*.image#uri ~ 'ghcr.io/acme/'"
 ```
 
-### 3. Function-based extraction — `cub function do` + getters
+### 3. Function-based extraction — `cub function get` + getters
 
 `--where` and `--where-data` select units (and other entities). To extract values from configuration data, use getter functions. For the **single-Unit** case, scope with `--unit` (see §0). The examples here sweep across Units:
 
@@ -194,7 +194,7 @@ The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revis
 ## Output shaping
 
 - `-o json` / `-o yaml` — structured.
-- `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties.
+- `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties. When filtering metadata like .Slug note that list and get commands return an envelope structure that contains the requested entity and related entities, so a Unit Slug would be extracted with `-o jq=.Unit.Slug`.
 - `-o name` — slugs only (space-resident entities print as `<space-slug>/<slug>`).
 - `--show output -o jq=<expr>` — post-process function output with jq.
 - `--show output` / `--show values` — strip the envelope for function results.

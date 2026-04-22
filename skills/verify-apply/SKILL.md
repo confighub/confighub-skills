@@ -46,13 +46,13 @@ Post-apply verification, troubleshooting, and close-out — one skill for the wh
 
 ConfigHub exposes apply status in three overlapping views. Pick the smallest one that answers the question.
 
-| Source | Command | What it shows |
-| --- | --- | --- |
-| Unit rollup | `cub unit get <slug> --space <s> -o jq=.UnitStatus` | Compact status envelope: `Action`, `ActionResult`, `ActionStartedAt`, `ActionTerminatedAt`, `Drift`, `Status`, `SyncStatus`. First place to look. |
-| Latest event | `cub unit get <slug> --space <s> -o jq=.LatestUnitEvent` | Last progress record from the Worker — `Action`, `Result`, `Status`, `Message`, `UnitEventNum`. Gives you the unit-event number to drill into. |
-| Full event log | `cub unit-event list <slug> --space <s>` | Every progress + terminal event for the unit. Walk back when debugging "how did we get here?". |
-| Per-event detail | `cub unit-event get <slug> <num> --space <s>` | Includes `Message` (the actual error when things broke) and a `ResourceStatuses` table with `SyncStatus` + `Readiness` per resource in the Unit. Use this to pinpoint which resource failed. |
-| Action rollup | `cub unit-action list <slug> --space <s>` / `cub unit-action get <slug> <num>` | One final status per action: `Completed`, `Failed`, `Aborted`. Less detailed than `unit-event`, but the right grain for "what happened to the last N applies?" across many Units. |
+| Source           | Command                                                                        | What it shows                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit rollup      | `cub unit get <slug> --space <s> -o jq=.UnitStatus`                            | Compact status envelope: `Action`, `ActionResult`, `ActionStartedAt`, `ActionTerminatedAt`, `Drift`, `Status`, `SyncStatus`. First place to look.                                            |
+| Latest event     | `cub unit get <slug> --space <s> -o jq=.LatestUnitEvent`                       | Last progress record from the Worker — `Action`, `Result`, `Status`, `Message`, `UnitEventNum`. Gives you the unit-event number to drill into.                                               |
+| Full event log   | `cub unit-event list <slug> --space <s>`                                       | Every progress + terminal event for the unit. Walk back when debugging "how did we get here?".                                                                                               |
+| Per-event detail | `cub unit-event get <slug> <num> --space <s>`                                  | Includes `Message` (the actual error when things broke) and a `ResourceStatuses` table with `SyncStatus` + `Readiness` per resource in the Unit. Use this to pinpoint which resource failed. |
+| Action rollup    | `cub unit-action list <slug> --space <s>` / `cub unit-action get <slug> <num>` | One final status per action: `Completed`, `Failed`, `Aborted`. Less detailed than `unit-event`, but the right grain for "what happened to the last N applies?" across many Units.            |
 
 `Status` values worth recognising in event / action output:
 
@@ -77,7 +77,7 @@ cub unit get <slug> --space <s> -o jq='{status: .UnitStatus, event: .LatestUnitE
 Branch on `UnitStatus.Status`:
 
 - **`Completed` / `Ready`** → the apply reached a terminal success. Go to step 4 (three-way agreement) if the user asked for confirmation, or step 5 (close-out) if they just want the release documented.
-- **`Progressing`** → the apply is still in flight *or* stuck. Go to step 2.
+- **`Progressing`** → the apply is still in flight _or_ stuck. Go to step 2.
 - **`Failed`** → read the error. Go to step 3.
 - **`Aborted`** → the user (or a superseding apply) cancelled. Surface that and ask what they want next.
 
@@ -147,12 +147,12 @@ The `Message` field carries the error. Common shapes:
 
 When the user explicitly asks "is everything in sync across ConfigHub, the controller, and the cluster?", build a three-column table:
 
-| Column | ConfigHub | Controller | Cluster |
-| --- | --- | --- | --- |
-| Revision | `cub unit get -o jq='.Unit \| {head: .HeadRevisionNum, live: .LiveRevisionNum, applied: .LastAppliedRevisionNum}'` | `argocd app get` → Sync revision / `flux get` → Applied revision | `metadata.annotations.confighub.com/RevisionNum` |
-| Image (example content field) | `cub function do --space <s> --unit <slug> get-container-image <container>` | `argocd app get` → live manifest | `kubectl get <kind> -o jsonpath='{.spec.template.spec.containers[*].image}'` |
-| Health | `UnitStatus.Status == "Ready"`, `SyncStatus == "InSync"` | Argo `Health: Healthy` / Flux `Ready: True` | `.status.conditions[?(@.type=="Available")].status == "True"` (or equivalent per kind) |
-| Owner | `Space.Slug` / `Unit.Slug` | Argo `Project` / Flux `Source` | `metadata.annotations.confighub.com/*` and `metadata.ownerReferences` |
+| Column                        | ConfigHub                                                                                                          | Controller                                                       | Cluster                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Revision                      | `cub unit get -o jq='.Unit \| {head: .HeadRevisionNum, live: .LiveRevisionNum, applied: .LastAppliedRevisionNum}'` | `argocd app get` → Sync revision / `flux get` → Applied revision | `metadata.annotations.confighub.com/RevisionNum`                                       |
+| Image (example content field) | `cub function get --space <s> --unit <slug> get-container-image <container>`                                       | `argocd app get` → live manifest                                 | `kubectl get <kind> -o jsonpath='{.spec.template.spec.containers[*].image}'`           |
+| Health                        | `UnitStatus.Status == "Ready"`, `SyncStatus == "InSync"`                                                           | Argo `Health: Healthy` / Flux `Ready: True`                      | `.status.conditions[?(@.type=="Available")].status == "True"` (or equivalent per kind) |
+| Owner                         | `Space.Slug` / `Unit.Slug`                                                                                         | Argo `Project` / Flux `Source`                                   | `metadata.annotations.confighub.com/*` and `metadata.ownerReferences`                  |
 
 Surface the table as-is; don't collapse divergences. Name what disagrees:
 
@@ -192,7 +192,7 @@ Only when the scope is fully Completed and (if three-way was asked for) converge
 
 ## Tool boundary
 
-Read-only end to end. No mutations — including `kubectl apply/edit/delete/rollout restart`, `argocd app sync --force`, `flux reconcile`, and `cub unit refresh` *without* `--dry-run` (a bare `cub unit refresh` rewrites Unit state from live and is a mutation). `cub unit refresh --dry-run` is fine for looking at current cluster content.
+Read-only end to end. No mutations — including `kubectl apply/edit/delete/rollout restart`, `argocd app sync --force`, `flux reconcile`, and `cub unit refresh` _without_ `--dry-run` (a bare `cub unit refresh` rewrites Unit state from live and is a mutation). `cub unit refresh --dry-run` is fine for looking at current cluster content.
 
 If the fix is data: hand back to `cub-mutate`. If the fix is another apply: hand back to `cub-apply`. If the fix is rollback: hand back to `rollback-revision`. If it's drift: hand back to `drift-reconcile`.
 

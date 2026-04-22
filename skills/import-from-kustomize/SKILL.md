@@ -2,7 +2,7 @@
 name: import-from-kustomize
 description: 'Use when the user wants to bring a Kustomize overlay or base into ConfigHub as Units — phrases like "I have a kustomization.yaml, how do I use it with ConfigHub?", "import my Kustomize overlays", "migrate from Kustomize to ConfigHub", "render this overlay into ConfigHub", "kustomize build into Units", or "I have a base + overlays directory structure". Runs `kustomize build` locally, splits the result into one or more ConfigHub Units via `cub unit create`, and hands off ongoing customization to `cub-mutate`. Do not load for Flux `Kustomization` CRDs (use `import-from-flux` — that''s the renderer-bridge pipeline), for Helm charts (use `import-from-helm`), for adopting live cluster resources (use `import-from-cluster`), or for authoring raw YAML from scratch (use `config-as-data`).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function do *) Bash(kustomize build *) Bash(kubectl kustomize *) Bash(mkdir -p /tmp/*) Bash(ls *) Bash(cat *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *) Bash(kustomize build *) Bash(kubectl kustomize *) Bash(mkdir -p /tmp/*) Bash(ls *) Bash(cat *)
 ---
 
 # import-from-kustomize
@@ -62,11 +62,11 @@ Do not render everything into one Space with `-dev` / `-prod` Unit suffixes — 
 
 Within each env-Space, pick a Unit-per-what:
 
-| Pattern | What you render | When to use |
-|---|---|---|
-| One Unit per overlay (recommended onboarding default) | `kustomize build overlays/<env>` → one Unit in `<app>-<env>` | Small-to-medium overlays; gives the user a concrete Unit to customize. |
-| One Unit per workload | Split the overlay output per workload (Deployment + Service + ConfigMap bundle) | Large overlays, or when the user needs to govern workloads independently (different ApplyGates, targeted rollouts). Requires more editing post-render; see `import-unit-granularity`. |
-| One Unit per resource | Split per document | Rare — only when the user has a specific policy reason (e.g., ConfigMap churn separate from workload churn). |
+| Pattern                                               | What you render                                                                 | When to use                                                                                                                                                                           |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One Unit per overlay (recommended onboarding default) | `kustomize build overlays/<env>` → one Unit in `<app>-<env>`                    | Small-to-medium overlays; gives the user a concrete Unit to customize.                                                                                                                |
+| One Unit per workload                                 | Split the overlay output per workload (Deployment + Service + ConfigMap bundle) | Large overlays, or when the user needs to govern workloads independently (different ApplyGates, targeted rollouts). Requires more editing post-render; see `import-unit-granularity`. |
+| One Unit per resource                                 | Split per document                                                              | Rare — only when the user has a specific policy reason (e.g., ConfigMap churn separate from workload churn).                                                                          |
 
 For onboarding, default to one Unit per overlay per env-Space. The user can split later using `cub unit create` + `cub-mutate` without re-running Kustomize.
 
@@ -136,7 +136,7 @@ Record the source reference (git SHA, overlay path) in `--change-desc` — Units
 From this point on, the overlay is an artifact, not a source of truth. Customizations go through:
 
 - **Cloning** for new environments: `cub unit create --space <app>-<new-env> <app> --upstream-unit <app>-<base-env>/<app>`.
-- **Semantic mutations** via `cub-mutate`: `cub function do set-container-image / set-replicas / set-env-var / ...` — these produce named, auditable changes. This is strictly better than adding another overlay and re-rendering.
+- **Semantic mutations** via `cub-mutate`: `cub function set set-container-image / set-replicas / set-env-var / ...` — these produce named, auditable changes. This is strictly better than adding another overlay and re-rendering.
 - **Defaults functions** for policy (resources, probes, security context, namespaces) — see `references/functions-catalog.md`.
 
 If the upstream base or overlay in git changes in a way you need to pull in, re-render that overlay and run the new YAML through `cub unit update --space <app>-<env> <app> <new-rendered.yaml>` with a `--change-desc` explaining the source change. The Unit's merge behavior preserves in-ConfigHub customizations.
@@ -147,7 +147,7 @@ From here, `cub-apply` / `verify-apply` take over.
 
 ## Tool boundary
 
-- Allowed: `kustomize build`, `kubectl kustomize`, `cub unit create/update`, `cub function do`, read-only `cub unit *` for verification.
+- Allowed: `kustomize build`, `kubectl kustomize`, `cub unit create/update`, `cub function set`, read-only `cub unit *` for verification.
 - Not allowed: `kubectl apply -k` (that deploys to a cluster bypassing ConfigHub), editing the upstream base / overlays tree as part of this flow (that's a git operation, done outside this skill), `helm template`-inflated overlays without acknowledging that `import-from-helm` is the better path.
 
 ## Stop conditions
