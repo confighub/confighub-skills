@@ -38,7 +38,7 @@ Three distinct flags. Get them mixed up and cub either rejects the command or si
 
 ### `--where "<expr>"` — on `list` and bulk-operation commands
 
-Filters on entity metadata fields. Used by `cub unit list`, `cub trigger list`, `cub space list`, `cub filter list`, etc., and by bulk-operation commands (`cub unit update --where ...`, `cub run --where ...`, `cub function do --where ...`).
+Filters on entity metadata fields. Used by `cub unit list`, `cub trigger list`, `cub space list`, `cub filter list`, etc., and by bulk-operation commands (`cub unit update --where ...`, `cub run --where ...`, `cub function get --where ...`).
 
 ```
 cub unit list --where "Slug LIKE 'app-%'"
@@ -48,11 +48,11 @@ cub trigger list --space "*" --where "Space.Slug = 'platform' AND FunctionName L
 
 ### `--unit <slug|uuid>[,…]` — slug-targeting for bulk-only commands
 
-On the bulk-operation commands that have no single-unit form — `cub function do` and `cub run` — prefer `--unit` over `--where "Slug = '<slug>'"` when the Space is pinned. It's shorter, reads like what a human would actually type, and accepts multiple values (repeat the flag or comma-separate).
+On the bulk-operation commands that have no single-unit form — `cub function vet|get|set|do` and `cub run` — prefer `--unit` over `--where "Slug = '<slug>'"` when the Space is pinned. It's shorter, reads like what a human would actually type, and accepts multiple values (repeat the flag or comma-separate).
 
 ```
-cub function do --space <space> --unit <slug> -- <function> [args]
-cub function do --space <space> --unit a,b,c -- <function> [args]
+cub function vet|get|set --space <space> --unit <slug> -- <function> [args]
+cub function vet|get|set --space <space> --unit a,b,c -- <function> [args]
 cub run --space <space> --unit <slug> set-image <container> <image>
 ```
 
@@ -73,8 +73,8 @@ cub filter create --space platform -o json standard-vets Trigger \
 
 Filters on configuration content (the YAML inside a Unit). Accepted by:
 
-- `cub unit list`, `cub unit apply`, `cub unit update`, `cub function do`, `cub run`, and similar unit/function verbs.
-- `cub filter create --space <space> <slug> Unit --where-data "..."` — valid *only* when the Filter's `From` is `Unit`. Invalid for `Space`, `Trigger`, `Target`, or `Worker` Filters — configuration data is a Unit-level thing.
+- `cub unit list`, `cub unit apply`, `cub unit update`, `cub function vet|get|set|do`, `cub run`, and similar unit/function verbs.
+- `cub filter create --space <space> <slug> Unit --where-data "..."` — valid _only_ when the Filter's `From` is `Unit`. Invalid for `Space`, `Trigger`, `Target`, or `Worker` Filters — configuration data is a Unit-level thing.
 
 ```
 cub unit list --where-data "spec.replicas > 2"
@@ -126,11 +126,11 @@ cub unit list --where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"
 cub filter create --space <space> -o json deployments Unit --resource-type "apps/v1/Deployment"
 ```
 
-`ToolchainType` *is* a valid `--where` attribute (`cub unit list --where "ToolchainType = 'Kubernetes/YAML'"`).
+`ToolchainType` _is_ a valid `--where` attribute (`cub unit list --where "ToolchainType = 'Kubernetes/YAML'"`).
 
 Filters are also first-class entities (`cub filter create …`) that can be referenced by slug via `--filter <space>/<slug>` — see `filters-and-queries.md` for the recipes.
 
-**`--where` / `--where-field` / `--where-data` / `--where-resource` support AND only.** No `OR`, no parenthesized `(a OR b) AND c` compositions. The built-in operators you *can* use include `=`, `!=`, `<`, `>`, `<=`, `>=`, `LIKE`, `NOT LIKE`, `ILIKE`, the regex family (`~`, `~*`, `!~`, `!~*`), `IN (...)`, `NOT IN (...)`, `IS NULL` / `IS NOT NULL`, and `LEN(...)`. For a disjunction, either:
+**`--where` / `--where-field` / `--where-data` / `--where-resource` support AND only.** No `OR`, no parenthesized `(a OR b) AND c` compositions. The built-in operators you _can_ use include `=`, `!=`, `<`, `>`, `<=`, `>=`, `LIKE`, `NOT LIKE`, `ILIKE`, the regex family (`~`, `~*`, `!~`, `!~*`), `IN (...)`, `NOT IN (...)`, `IS NULL` / `IS NOT NULL`, and `LEN(...)`. For a disjunction, either:
 
 - Run separate commands, one per disjunct, and union the results in the caller (Claude's head, a jq merge, or a shell loop).
 - Use `IN (...)` when every disjunct differs only in one value on the same field (e.g., `kind IN ('NetworkPolicy', 'Role', 'RoleBinding')`).
@@ -142,12 +142,12 @@ Filters are also first-class entities (`cub filter create …`) that can be refe
 
 Four related but distinct blobs a Unit can expose. Confusing them leads to wrong diffs and wrong decisions during drift / verification / rollback.
 
-| View | Command | What it is | When to read it |
-|---|---|---|---|
-| **Data** | `cub unit data <slug> --space <s>` | The current head revision's declared configuration — the YAML ConfigHub would apply. | Authoring, reviewing a pending change, comparing to LiveData to assess drift. |
-| **LiveData** | `cub unit livedata <slug> --space <s>` | The cluster's current resources, cleaned up the same way the Worker cleans during refresh / import (status stripped, controller-managed fields elided per `ignoredFieldManagers`). **This is what a `cub unit refresh` would write back to Data.** | Comparing to Data for drift: same shape as Data, apples-to-apples. |
-| **LiveState** | `cub unit livestate <slug> --space <s>` | The cluster's resources with nothing elided — full `.status`, `.metadata.managedFields`, controller-written fields, everything. | Debugging the workload itself (is a controller reporting an error? is status wedged? what managers own which fields?). Not for drift diffs against Data — too noisy. |
-| **BridgeState** | `cub unit bridgestate <slug> --space <s>` | A bridge-implementation blob. Contents vary by bridge: the Kubernetes bridge stores an Inventory object (what resources the Unit owns in the cluster); `ArgoCDOCI` / `FluxOCI` store the Application / HelmRelease / Kustomization they create. | Bridge-specific diagnosis — "does ConfigHub think it owns this resource?", "did the OCI bridge create the Argo Application?". Not a health check for Worker or Target connectivity (use `cub worker status` for that). |
+| View            | Command                                   | What it is                                                                                                                                                                                                                                         | When to read it                                                                                                                                                                                                        |
+| --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Data**        | `cub unit data <slug> --space <s>`        | The current head revision's declared configuration — the YAML ConfigHub would apply.                                                                                                                                                               | Authoring, reviewing a pending change, comparing to LiveData to assess drift.                                                                                                                                          |
+| **LiveData**    | `cub unit livedata <slug> --space <s>`    | The cluster's current resources, cleaned up the same way the Worker cleans during refresh / import (status stripped, controller-managed fields elided per `ignoredFieldManagers`). **This is what a `cub unit refresh` would write back to Data.** | Comparing to Data for drift: same shape as Data, apples-to-apples.                                                                                                                                                     |
+| **LiveState**   | `cub unit livestate <slug> --space <s>`   | The cluster's resources with nothing elided — full `.status`, `.metadata.managedFields`, controller-written fields, everything.                                                                                                                    | Debugging the workload itself (is a controller reporting an error? is status wedged? what managers own which fields?). Not for drift diffs against Data — too noisy.                                                   |
+| **BridgeState** | `cub unit bridgestate <slug> --space <s>` | A bridge-implementation blob. Contents vary by bridge: the Kubernetes bridge stores an Inventory object (what resources the Unit owns in the cluster); `ArgoCDOCI` / `FluxOCI` store the Application / HelmRelease / Kustomization they create.    | Bridge-specific diagnosis — "does ConfigHub think it owns this resource?", "did the OCI bridge create the Argo Application?". Not a health check for Worker or Target connectivity (use `cub worker status` for that). |
 
 Rules of thumb:
 
@@ -253,7 +253,7 @@ The `--show` flag applies only to function commands and selects which sub-payloa
 
 ## Change descriptions on mutations
 
-`cub unit update`, `cub function do`, `cub run`, `cub unit update --patch` all accept `--change-desc`. **Always pass it** on mutations to configuration data. The description is stored in every affected unit's head revision. For `cub run` across many units, the same description is recorded in every affected unit — phrase it so it reads sensibly at the per-unit level.
+`cub unit update`, `cub function set|do`, `cub run`, `cub unit update --patch` all accept `--change-desc`. **Always pass it** on mutations to configuration data. The description is stored in every affected unit's head revision. For `cub run` across many units, the same description is recorded in every affected unit — phrase it so it reads sensibly at the per-unit level.
 
 ## Showing mutation diffs
 
@@ -289,16 +289,17 @@ Why the wildcards are safe:
 - `Bash(cub * list-* *)` picks up multi-word list variants like `cub worker list-function`, `cub worker list-status`.
 - The five `cub unit <verb>` entries (`diff`, `tree`, `bridgestate`, `livedata`, `livestate`) and the two `cub worker <verb>` entries (`logs`, `status`) are read-only verbs that don't fit the `get`/`list` shape.
 - `cub function explain` is read-only but doesn't match the wildcards above (it's not `list` or `get`), so it's listed explicitly.
+- `cub function vet|get` are read-only but haven't yet been added to all of the skill permissions lists.
 
 ### Write set (add these to the Read set for mutating skills)
 
 ```
-Bash(cub space create *) Bash(cub space update *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub target create *) Bash(cub target update *) Bash(cub worker create *) Bash(cub worker update *) Bash(cub link create *) Bash(cub link update *) Bash(cub function do *) Bash(cub run *)
+Bash(cub space create *) Bash(cub space update *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub target create *) Bash(cub target update *) Bash(cub worker create *) Bash(cub worker update *) Bash(cub link create *) Bash(cub link update *) Bash(cub function *) Bash(cub run *)
 ```
 
 ### Known ambiguity
 
-`cub function do` and `cub run` can invoke either getter/validator functions (read) or mutating functions (write). The function name appears after `--`, which shell-glob patterns past the double-dash can't reliably match. Both verbs live in the Write set only. Read-only skills must do queries with `cub unit list --where-data`, `cub unit get`, `cub revision list`, etc. If a read-only skill genuinely needs `cub function do <getter>`, promote it to a mutating skill or add a narrow pattern (e.g., `Bash(cub function do * -- get-*)`) after confirming the matcher handles it.
+`cub function do` and `cub run` can invoke either getter/validator functions (read) or mutating functions (write). The function name appears after `--`, which shell-glob patterns past the double-dash can't reliably match. Both verbs live in the Write set only. Read-only skills must do queries with `cub function get` or `cub function vet`, or `cub unit list --where-data`, `cub unit get`, `cub revision list`, etc. `cub function set|do --dry-run` is also read-only, but has the difficulty previously mentioned with glob patterns.
 
 ### Do not grant
 
