@@ -1,6 +1,6 @@
 ---
 name: triggers-and-applygates
-description: 'Use when the user wants validation to be enforced (not just advisory) on ConfigHub Units, is setting up a new Space and wants policy to apply automatically, asks about ApplyGates, says "block bad config from being deployed", "wire up schema validation", "enforce a policy", "require approval", or needs to diagnose why a Unit is blocked from applying. This skill installs the platform-Space + Filter + TriggerFilterID pattern — centralized Triggers that run on every Mutation and attach ApplyGates when validation fails. Do not load for: running validators one-off without installing them (use cub-mutate with vet-* functions instead), or for authoring the YAML itself.'
+description: 'Make validation enforced, not advisory, via the platform-Space + Filter + TriggerFilterID pattern — Triggers that attach ApplyGates when validation fails. Use for "block bad config from being deployed", "wire up schema validation", "enforce a policy", "why is this Unit blocked?". Not for one-off validator runs (use cub-mutate).'
 phase: decide
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub space update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *)
 ---
@@ -19,12 +19,12 @@ Make validation enforced, not advisory. Without Triggers, `vet-*` functions are 
 ## Do not load for
 
 - One-off validation runs (use `cub-mutate` or a direct `cub function vet vet-schemas …`).
-- Authoring YAML (use `config-as-data`).
+- Authoring YAML (use `confighub-core`).
 - Fixing the config itself — this skill diagnoses and sets up gates; fixing is `cub-mutate`.
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. User has write permission on the `platform` Space (or whichever Space will hold Triggers) and on the target application Spaces.
 3. Confirm with the user: should Triggers be centralized in a `platform` Space, or do they already have a different convention? Default recommendation is `platform`.
 

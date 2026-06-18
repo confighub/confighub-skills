@@ -1,6 +1,6 @@
 ---
 name: rollback-revision
-description: 'Use when the user wants to roll back a change by moving a Unit''s head (or a set of Units'' heads) to a prior revision — phrases like "roll back this change", "revert the last release", "undo the ChangeSet", "restore to the last applied revision", "back out yesterday''s image bump", "put the head back where it was before this ChangeSet", "roll back the promotion". Always rolls back by moving head via `cub unit update --restore <target>` against one Unit or a Filter-scoped set (optionally tagged), then hands off to the `cub-apply` skill to push the restored state. Do not load for drift between ConfigHub and cluster (use `drift-reconcile`) or for rolling back a single-field change where a forward mutation via `cub-mutate` is clearer.'
+description: 'Roll back a change by moving a Unit head (or a set of Unit heads) to a prior revision via cub unit update --restore, then hand off to cub-apply. Use for "roll back this change", "revert the last release", "undo the ChangeSet", "restore to the last applied revision". Not for a forward one-field fix where a new cub-mutate is clearer.'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub unit update *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub filter create *)
 ---
@@ -20,17 +20,15 @@ Rollback always means: create a new head whose data equals some prior revision's
 - User says "roll back", "revert", "undo" — and means it: the restored state should be the new baseline.
 - Post-promotion rollback: a ChangeSet went out, the destination env rejects it, restore every affected Unit to `Before:ChangeSet:<slug>`.
 - Single-Unit revert: one Unit got a bad revision, restore to `LastAppliedRevisionNum` or a specific prior number.
-- Reverting a drift-reconcile outcome that accepted live state and the user changed their mind.
 
 ## Do not load for
 
-- Cluster-vs-ConfigHub drift — `drift-reconcile` decides which side wins; this skill only rewinds ConfigHub Unit history.
 - Fixing a single wrong field when the forward mutation is obviously cleaner (a `cub-mutate` run with `set-container-image` back to the old tag). Restore is heavier than a one-line change.
 - Rolling back a change that hasn't been applied yet — nothing's live, so either do a forward `cub-mutate` or `cub unit update --restore` to the revision before the bad one; no ChangeSet-level rollback narrative needed.
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one). User has write permission on the target Space(s).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete). User has write permission on the target Space(s).
 2. The rollback scope is explicit: single Unit slug, or a Filter (usually the `<app>-home/<app>-app` Filter from the promotion that's being rolled back) + optional `--where` narrowing.
 3. The rollback target is explicit. Valid `--restore` targets:
    - Absolute revision number (`--restore 42`).
@@ -158,4 +156,4 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 - `references/revisions.md` — restore-target syntax (`Tag:`, `ChangeSet:`, relative / absolute numbers, UUIDs).
 - `references/filters-and-queries.md` — scoping the rollback via Filter.
 - `references/cub-cli.md` — `--change-desc` scope, `-` sentinel for `--changeset` close.
-- Companion skills: `cub-apply` (runtime for the post-restore apply), `cub-mutate` (forward fix when it's clearer than restore), `promote-release` (the forward counterpart — this rolls back what that promoted), `drift-reconcile` (divergence between ConfigHub and cluster, different problem), `verify-apply` (post-rollback checks).
+- Companion skills: `cub-apply` (runtime for the post-restore apply), `cub-mutate` (forward fix when it's clearer than restore), `promote-release` (the forward counterpart — this rolls back what that promoted), `verify-apply` (post-rollback checks).

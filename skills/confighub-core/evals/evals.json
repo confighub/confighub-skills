@@ -5,21 +5,56 @@
       "id": 1,
       "name": "new-user-tour",
       "prompt": "I'm new to ConfigHub. Can you give me a quick tour of how it works and what I should know to start using it for Kubernetes?",
-      "expected_output": "Explains the config-as-data model in a paragraph or two using plain language, names the primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate) with one-liners, surfaces the key invariants (--change-desc on Unit mutations, -o mutations for inline diffs, mutations go through cub, Space topology is per-app-per-env), and routes to a concrete next step — usually skill-examples-bootstrap so the user has something to tinker with. Does not try to do a task.",
+      "expected_output": "Explains the config-as-data model in a paragraph or two using plain language, names the primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate) with one-liners, surfaces the key invariants (--change-desc on Unit mutations, -o mutations for inline diffs, mutations go through cub, one Space per app-per-env, one resource per Unit), and routes to a concrete next step — usually skill-examples-bootstrap. Does not try to do a task.",
       "files": []
     },
     {
       "id": 2,
       "name": "confusing-target-vs-worker",
       "prompt": "What's the difference between a Target and a Worker in ConfigHub? I keep mixing them up.",
-      "expected_output": "Distinguishes cleanly: a Worker is a running process that executes operations (apply/refresh/import) against the real world; a Target is a binding that points at where a Unit should land (e.g., a specific Kubernetes cluster+namespace) and optionally references a Worker. Shows the relationship: Target names the destination, Worker does the work. Routes to worker-bootstrap or target-bind depending on which one the user actually needs to set up.",
+      "expected_output": "Distinguishes cleanly: a Worker is a running process that executes operations (apply/refresh/import) against the real world; a Target is a binding that points at where a Unit should land (e.g., a specific Kubernetes cluster+namespace) and optionally references a Worker. Notes one Target per ToolchainType per Space. Routes to worker-bootstrap or target-bind depending on which the user needs.",
       "files": []
     },
     {
       "id": 3,
       "name": "generic-help-routes",
       "prompt": "Help me use ConfigHub to change the replica count of my app from 1 to 3 in staging.",
-      "expected_output": "Recognizes this as a concrete mutation task and hands off immediately — does not re-explain the model. Routes to cub-mutate (the skill that handles field changes via functions with --change-desc), possibly with a brief note that staging should be its own Space. Does not itself run any cub command.",
+      "expected_output": "Recognizes this as a concrete mutation task and hands off immediately — does not re-explain the model. Routes to cub-mutate. Does not itself run any cub command.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "user-wants-helm-values",
+      "prompt": "We have this in ConfigHub now but I'd really like to have a values.yaml where I can tweak the replica count and image tag per environment. Can you set that up?",
+      "expected_output": "Declines politely, explains the config-as-data rule (Units contain literal YAML, no values file split), and proposes the ConfigHub-native alternative: one Space per environment, functions like set-replicas and set-container-image to apply per-env differences, upstream/downstream Unit relationships to clone baseline. Doesn't add a values file.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "first-real-layout",
+      "prompt": "We have two apps (web and api) and three environments (dev, staging, prod). All three environments are in the same cluster for now, but prod will move to its own cluster soon. How should I lay out my ConfigHub Spaces?",
+      "expected_output": "Recommends one Space per (app, env): web-dev, web-staging, web-prod, api-dev, etc. Environments are Spaces, not slug suffixes. A platform Space for org-wide Triggers/Filters; per-app home Spaces for ChangeSets/Tags/Filters. PascalCase Space labels (Application, Environment, Cluster). Notes prod can later carry a Region/Cluster suffix when it moves.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "suffix-naming-migration",
+      "prompt": "I already have a Space called `web` with Units named `web-dev`, `web-staging`, `web-prod`. Is that OK or should I restructure?",
+      "expected_output": "Flags suffix-naming as an anti-pattern that collapses Target separation, ApplyGate scoping, and clone-based promotion. Proposes migrating to per-env Spaces (web-dev, web-staging, web-prod) via cub unit create --dest-space. Pushes back constructively, not just 'you're doing it wrong'.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "one-resource-per-unit",
+      "prompt": "Can I just put every Kubernetes resource in its own ConfigHub Unit? That way I can validate each one independently.",
+      "expected_output": "Confirms that one resource per Unit is the default and recommended granularity — scopes revisions, ApplyGates, diffs, and blast radius to a single resource. Notes CRDs stand alone naturally, and that generator imports (cub helm install) may start coarser before being split. Does not steer toward mega-Units.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "protect-prod-space",
+      "prompt": "How do I stop someone from accidentally deleting our prod Space and destroying the live resources?",
+      "expected_output": "Explains Delete Gates (any entity, block delete) vs Destroy Gates (Units only, block destroy of live resources). Shows cub space update --delete-gate and cub unit update --delete-gate/--destroy-gate with a descriptive gate name, and the '-' sentinel to remove. Recommends gating prod-bound entities at create time.",
       "files": []
     }
   ]

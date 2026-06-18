@@ -1,6 +1,6 @@
 ---
 name: cub-query
-description: 'Use when the user wants to find, count, inspect, read, or audit Kubernetes workloads and application configuration stored in ConfigHub — both fleet-wide sweeps and single-workload lookups. Natural phrasing is workload- or application-centric: "where is checkout v0.4.2 deployed?", "which Deployments run more than 5 replicas?", "find workloads missing resource requests or limits", "what image tag is our nonprod worker running?", "how many replicas does our frontend have in us-east?", "is our api up to date with the latest release?", "show me the YAML / env vars / annotations of our frontend". ConfigHub-native phrasing is equally in scope: "which Units ...", "what''s in Space X", "Units with Label env=prod". Workload-in-environment phrasing like "frontend in us-east" maps to a Unit slug plus a Space slug or Space Label — see space-topology for the conventions. Load any time intent is find / list / show / which / where / how many / audit / inspect / read / what tag / is X up to date over ConfigHub-managed workloads — one workload or the whole fleet. Do not load for: mutating data (cub-mutate), authoring (config-as-data), designing the Space/Label taxonomy itself (space-topology), or live cluster state not in ConfigHub (kubectl).'
+description: 'Find, count, inspect, or audit Kubernetes workloads and config stored in ConfigHub — fleet sweeps and single-workload lookups. Use for "where is checkout deployed?", "which Deployments run over 5 replicas?", "find workloads missing resource limits", "what image tag is our worker on?". Not for live cluster state (use kubectl).'
 phase: verify
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function get *) Bash(cub function vet *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *)
 ---
@@ -28,7 +28,7 @@ Users most often phrase questions in workload/application/environment terms: "ou
 - **Environment / region / cluster** → a Space. Teams following the one-Space-per-deployment-boundary convention encode region either in the Space slug (e.g., `prod-use2-…`) or as a Space Label (`Region=us-east-2`).
 - **Fleet** → `--space "*"`, optionally narrowed with `--where "Space.Labels.Environment = 'prod'"`.
 
-Concrete conventions (slug shapes, which Label keys are in use, whether environment is a slug prefix or a Label) belong to the team — load the `space-topology` skill if the mapping is unclear or needs to be established. Before asking the user to restate in ConfigHub terms, try `cub space list` and `cub unit list --space <candidate>` to discover the actual names.
+Concrete conventions (slug shapes, which Label keys are in use, whether environment is a slug prefix or a Label) belong to the team — load the `confighub-core` skill if the mapping is unclear or needs to be established. Before asking the user to restate in ConfigHub terms, try `cub space list` and `cub unit list --space <candidate>` to discover the actual names.
 
 ## When to use
 
@@ -45,13 +45,13 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 ## Do not load for
 
 - Mutations (`cub-mutate`).
-- Authoring (`config-as-data`).
-- Designing the Space / Label / slug taxonomy rather than querying against it (`space-topology`).
+- Authoring (`confighub-core`).
+- Designing the Space / Label / slug taxonomy rather than querying against it (`confighub-core`).
 - Live-cluster state not in ConfigHub (`kubectl get`).
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. For cross-space queries (`--space "*"`), user has read permission on the spaces of interest.
 
 ## The query toolkit
@@ -71,12 +71,12 @@ cub unit data <slug> --space <space>
 revision=$(cub unit get --space <space> <slug> -o jq=".Unit.LastAppliedRevisionNum")
 cub revision data --space <space> <unit-slug> $revision
 
-# What the cluster had at the time of the last apply, refresh, or import, cleaned the same way `cub unit refresh` cleans
-# (status stripped, controller-managed fields elided). Apples-to-apples with Data.
+# What the bridge reported as live at the last action. For OCI/ConfigHub server bridges this echoes the published
+# Data (no cluster read); it is the running cluster only for external cluster-reading bridges. See references/cub-cli.md.
 cub unit livedata <slug> --space <space>
 
-# Full cluster state at the time of the last action with .status, managedFields, everything — debugging mainly,
-# for Kubernetes workloads. Prefer kubectl for live workload troubleshooting.
+# The unelided live-state view at the last action. For OCI/ConfigHub Targets this mirrors the published Data;
+# for actual running-workload troubleshooting use kubectl / argocd / flux directly (see verify-apply).
 cub unit livestate <slug> --space <space>
 ```
 
@@ -105,7 +105,7 @@ cub function get --space <space> --unit <slug> \
   --show values
 ```
 
-If the user named the workload in application/environment terms and you don't yet know the Space or Unit slug, resolve the mapping before querying: `cub space list` to find the Space matching the environment/region (slug pattern or `Space.Labels.Region=...`), then `cub unit list --space <space>` to find the Unit matching the workload name. Do **not** guess a naming convention from another environment's Space — slugs vary. If the layout is unfamiliar, load `space-topology` for the conventions; the canonical name is always whatever `cub unit list` prints.
+If the user named the workload in application/environment terms and you don't yet know the Space or Unit slug, resolve the mapping before querying: `cub space list` to find the Space matching the environment/region (slug pattern or `Space.Labels.Region=...`), then `cub unit list --space <space>` to find the Unit matching the workload name. Do **not** guess a naming convention from another environment's Space — slugs vary. If the layout is unfamiliar, load `confighub-core` for the conventions; the canonical name is always whatever `cub unit list` prints.
 
 See `references/cub-cli.md` (Data / LiveData / LiveState / BridgeState rows) for the semantics of each read surface, and `references/functions-catalog.md` for the full getter catalog.
 

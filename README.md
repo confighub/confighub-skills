@@ -1,12 +1,12 @@
 # confighub-skills
 
-A set of Claude Code / agentskills.io skills for operating Kubernetes workloads with **ConfigHub** as the source of truth, and **ArgoCD or Flux** for delivery.
+A set of Claude Code / agentskills.io skills for operating Kubernetes workloads with **ConfigHub** as the source of truth, delivering by publishing Units to ConfigHub's built-in **OCI** registry for **ArgoCD or Flux** to pull (or via a **ConfigHub** Target).
 
 Skills here assume:
 
-- You store Kubernetes configuration as data in ConfigHub Units — fully materialized YAML, literal values, no templates or values-file split. See the "Configuration as Data" doctrine at https://docs.confighub.com/markdown/background/config-as-data.md.
+- You store Kubernetes configuration as data in ConfigHub Units — fully materialized YAML, literal values, no templates or values-file split, **one resource per Unit** by default. See the "Configuration as Data" doctrine at https://docs.confighub.com/markdown/background/config-as-data.md.
 - Mutations go through `cub` (unit update, function do, run). `kubectl` / `argocd` / `flux` are used for read-only diagnosis only.
-- You deploy via ArgoCD or Flux Targets bound to Spaces.
+- You deliver via an **OCI** or **ConfigHub** Target bound to a Space. Both are served by **server workers** hosted in the ConfigHub server — there's no process to run to create or use a Target (`cub worker create --is-server-worker`). An OCI Target publishes Unit data to ConfigHub's OCI registry; ArgoCD or Flux, configured outside ConfigHub, pulls and converges the cluster. You run an external worker only to host custom worker functions. Typically one OCI Target per Space.
 
 ## Install
 
@@ -21,10 +21,10 @@ The plugin manifest is at `.claude-plugin/plugin.json`; Claude Code auto-discove
 
 Prerequisites for the skills to actually _do_ anything:
 
-- `cub` CLI on PATH, with a valid session (`cub organization list` succeeds — `cub context get` only reads local login state and can still show a user when the token is expired).
-- `kubectl` on PATH for skills that touch clusters.
+- `cub` CLI on PATH, with a valid session (`cub auth status` succeeds — it calls the server's `/me` to verify the token; `cub context get` only reads local login state and can still show a user when the token is expired).
+- `kubectl` on PATH for read-only cluster-convergence checks (`verify-apply`).
 - A running ConfigHub server (self-hosted or `https://hub.confighub.com/`).
-- For GitOps imports: `argocd` / `flux` CLI on PATH as read-only diagnostic helpers.
+- `argocd` / `flux` CLI on PATH as read-only diagnostic helpers, to confirm the GitOps tool pulled the OCI artifact and converged the cluster.
 
 ## Layout
 
@@ -41,28 +41,20 @@ confighub-skills/
 │   ├── triggers-recipes.md     platform-Space + Filter + TriggerFilterID recipe
 │   └── yaml-patterns.md        literal-value K8s authoring patterns for all common resource types
 └── skills/
-    ├── confighub-core/         orientation + routing + Delete/Destroy Gates
-    ├── config-as-data/         authoring doctrine
+    ├── confighub-core/         orientation + routing + config-as-data/topology/one-resource-per-Unit doctrine + Delete/Destroy Gates
     ├── kubernetes-resources/   author common K8s resource types as ConfigHub Units
-    ├── app-config/             AppConfig Units + ConfigMapRenderer for .properties/.env/.yaml/etc.
-    ├── space-topology/         one Space per (app, env[, region]); <app>-home for ChangeSets/Tags/Filters
+    ├── app-config/             AppConfig Units → ConfigMap via Upsert link + render-configmap Invocation
     ├── cub-query/              read-only query across Units, Spaces, Revisions
     ├── cub-mutate/             bulk + surgical mutation; ChangeSet-wrapped multi-Unit changes
     ├── triggers-and-applygates/  platform-Space policy + vet-* Triggers + gate diagnosis
     ├── skill-examples-bootstrap/ creates the skill-examples playground Space
-    ├── worker-bootstrap/       install bridge workers in clusters
-    ├── target-bind/            create Targets, attach Units to destinations
-    ├── cub-apply/              apply Units to their Targets (incl. ChangeSet bulk release)
-    ├── verify-apply/           post-apply verification, troubleshooting, and release close-out
-    ├── import-from-helm/       cub helm install/upgrade onboarding for existing charts
-    ├── import-from-kustomize/  kustomize build → cub unit create
-    ├── import-from-argocd/     cub gitops discover/import against ArgoCD Applications
-    ├── import-from-flux/       cub gitops discover/import against Flux HelmReleases + Kustomizations
-    ├── import-from-cluster/    cub unit import for plain live-resource adoption
-    ├── import-unit-granularity/ decision helper — one Unit or many?
-    ├── promote-release/        preflight + ChangeSet-wrapped bulk upgrade (env-by-env or base-to-fleet)
+    ├── worker-bootstrap/       server worker (no process) for OCI/ConfigHub delivery; external worker for custom functions
+    ├── target-bind/            create OCI / ConfigHub Targets, attach Units
+    ├── cub-apply/              apply/publish Units to their Targets (incl. ChangeSet bulk release)
+    ├── verify-apply/           post-apply verification (publish + Argo/Flux convergence) and release close-out
+    ├── import/                 onboard existing Helm charts / Kustomize overlays
+    ├── promote-release/        variant spaces (cub variant upload/create/promote) + ChangeSet-wrapped bulk upgrade
     ├── rollback-revision/      head-moving rollback via cub unit update --restore
-    ├── drift-reconcile/        ConfigHub ↔ cluster divergence; decide who wins
     └── incident-management/    orchestrator for the ConfigHub side of a production incident
 ```
 

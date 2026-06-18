@@ -1,311 +1,205 @@
 ---
 name: promote-release
-description: 'Use when the user wants to promote a release from one env-Space to the next, or push a base revision to every downstream across the fleet — phrases like "promote to staging", "roll forward to prod", "push this release to the next environment", "upgrade the downstream Units to match upstream", "is staging ready to roll forward?", "what do I need to check before promoting to prod?", "preflight before pushing the release to prod", "which Units are behind their upstream?". One skill for the whole promotion arc: runs the preflight checks (source converged, destination in scope, diffs sane, policy + approval ready, upstream linkage matches intent) to produce a go / no-go and a concrete scope; on go, wraps the promotion in a ChangeSet, bulk-runs `cub unit update --patch --upgrade --where ...`, closes the ChangeSet, and hands off to `cub-apply` for the rollout. Do not load for rollback of a prior promotion (use `rollback-revision` + `references/changesets.md`), cluster-ConfigHub drift (use `drift-reconcile`), post-promotion verification (use `verify-apply`), or single-Unit in-place mutations (use `cub-mutate`).'
+description: 'Promote a release to the next environment or across the fleet, and manage variant spaces — cub variant create / promote to reconcile a variant with its upstream, or a ChangeSet-wrapped bulk upgrade for partial / cross-space scopes. Phrases: promote to staging, roll forward to prod, which Units are behind upstream, push the base to every downstream. Not for rollback (use rollback-revision).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub unit update *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub filter update *) Bash(kubectl get *) Bash(kubectl describe *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub variant upload *) Bash(cub variant create *) Bash(cub variant promote *) Bash(cub unit update *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub filter update *) Bash(kubectl get *) Bash(kubectl describe *)
 ---
 
 # promote-release
 
-The end-to-end promotion skill: decide, execute, hand off. Preflight the source and destination, produce a concrete scope, wrap the promotion in a ChangeSet, bulk upgrade the Units, close the ChangeSet, and hand off to `cub-apply`.
+Promote a release forward. There are two mechanisms; pick by scope:
 
-## Why wrap every promotion in a ChangeSet
+- **Variant spaces (space-level, preferred for the common case).** `cub variant promote <space>` reconciles a whole variant Space with the upstream Space it was cloned from — in one command. Set up with `cub variant create` (clone a Space into a variant) and, for a brand-new base, `cub variant upload` (ingest rendered manifests into a base Space).
+- **ChangeSet-wrapped bulk upgrade (fine-grained / cross-space).** Manual `cub unit update --patch --upgrade --where …` inside a ChangeSet, when you need a partial scope, a cross-Space fleet push, or explicit ChangeSet grouping / approval / atomic rollback.
 
-Promotions span multiple Units by definition. A ChangeSet:
-
-- **Locks** the scope so a concurrent release can't interleave mutations mid-promotion.
-- **Groups** revisions so they can be approved and applied as a set (`--revision ChangeSet:<slug>`).
-- **Rolls back atomically** via `--restore Before:ChangeSet:<slug>` across every affected Unit if something goes wrong in the destination env.
-- **Audits** as one entity — every touched Unit's revision history carries the ChangeSet's Tags.
-
-If the scope is literally one Unit, skip the ChangeSet and use `cub-mutate` with `--upgrade`; the overhead isn't worth it. Two or more Units: always wrap.
+Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` to verify the token; if it fails, ask the user to run `cub auth login`). Confirm verbs and flags with `cub <verb> --help` before composing — never invent flags. This skill hands off the cluster rollout to `cub-apply`.
 
 ## When to use
 
-- User says "promote to staging / prod", "roll forward", "push the release", "upgrade the downstreams to match upstream".
-- User asks the decision question: "is this ready?", "what do I need to check before promoting?", "which Units are behind their upstream?".
-- Before any `cub unit update --patch --upgrade` that spans more than one Unit.
-- Pushing a shared base revision (e.g., a common chart) out to every downstream across env-Spaces.
+- "Promote to staging / prod", "roll forward", "push the release", "upgrade the downstreams to match upstream".
+- The decision question: "is this ready?", "which Units are behind their upstream?".
+- Standing up a new environment/region/tenant variant of an existing Space.
+- Pushing a shared base out to every downstream across env-Spaces.
 
 ## Do not load for
 
 - Rollback of a prior promotion — use `rollback-revision` + `references/changesets.md` (`Before:ChangeSet:<slug>`).
-- Drift between ConfigHub and cluster in the _same_ env — use `drift-reconcile`.
-- Verifying a promotion _after_ it applied — use `verify-apply`.
+- Verifying a promotion after it applied — use `verify-apply`.
 - In-place single-Unit changes — use `cub-mutate`.
-- Applying to the cluster — this skill hands off to `cub-apply` once the ChangeSet closes.
+- Importing rendered manifests for the first time when you're not setting up a promotable base — `import` (`cub variant upload` here is for seeding a base Space you intend to clone and promote).
 
-## Preflight gates (for this skill to do its work)
+## Topology assumptions
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
-2. The source env-Space and destination env-Space are known. Promotion data flows `<app>-<source-env>` → `<app>-<destination-env>`. Note this is the *opposite* of ConfigHub's Link direction: a `UpgradeUnit` Link points *from* a downstream Unit *to* its upstream Unit (dependency edge, against the direction of data flow). When a section below reads "the destination Unit's upstream", the upstream is in the source env.
-3. The app's home Space is known (`<app>-home`) — the `<app>-app` Filter, release ChangeSets, and Tags live there.
-4. User has at least read permission on both env-Spaces and the home Space, and write permission on the destination env-Space and the home Space.
-5. No other ChangeSet is currently open against the destination scope:
+Promotion data flows `<source>` → `<destination>` (a parent/base Space → its variant/downstream Spaces). One Space per deployment boundary, **one Target per ToolchainType (e.g. Kubernetes/YAML) per Space** (`confighub-core`). Note the direction gotcha: an `UpgradeUnit` Link points downstream→upstream (dependency edge), the **opposite** of data flow.
 
-   ```bash
-   cub unit list --space <app>-<destination-env> --filter <app>-home/<app>-app \
-     --where "ChangeSetID IS NOT NULL"
-   ```
+---
 
-   Any rows = stop; close the open ChangeSet (or narrow the Filter around it) before opening a new one.
+## The variant lifecycle (space-level)
 
-## The loop
+### 1. Seed a base Space — `cub variant upload`
 
-### 1. Decide — preflight the promotion
-
-The goal of this phase is a concrete go / no-go and a scope that the execution phase can pick up verbatim.
-
-#### A. Source env is actually ready
-
-Promoting from an env that isn't itself converged just ships the same problems forward. `--where` supports AND only (no OR). Run one query per condition and union the results in the preflight report. `cub unit list` also takes at most one `--filter` per command — combine a named Filter with `--where` rather than stacking two `--filter`s.
+When you have already-rendered manifests (from the installer, `kustomize build`, `helm template`, or stdin) and want a promotable base Space, ingest them. This command does **not** render — it stores what you give it.
 
 ```bash
-# Units with unapplied changes (head ahead of live).
-cub unit list --space <app>-<source-env> \
-  --filter <app>-home/<app>-app \
-  --where "HeadRevisionNum > LiveRevisionNum AND TargetID IS NOT NULL"
-
-# Units with open ApplyGates.
-cub unit list --space <app>-<source-env> \
-  --filter <app>-home/<app>-app \
-  --where "LEN(ApplyGates) > 0"
-
-# Units whose last apply hasn't fully completed in the cluster.
-cub unit list --space <app>-<source-env> \
-  --filter <app>-home/<app>-app \
-  --where "LiveRevisionNum != LastAppliedRevisionNum"
+kustomize build overlays/base | cub variant upload \
+  --component web --variant base \
+  --granularity per-resource \
+  --target web-base/cluster -
 ```
 
-Any rows from any of the three queries = not ready. Name each problem Unit and which of the three categories it's in (gate / unapplied / lagging `LiveRevisionNum`) in the preflight report.
+- `--component` and `--variant` are **required** and become the well-known `Component` / `Variant` Space labels; `--environment` / `--region` / `--layer` / `--owner` set the rest. The Space slug comes from `--space-pattern` (default `template:{{.Labels.Component}}-{{.Labels.Variant}}`) or explicit `--space`. The Space is created if missing.
+- `--granularity per-resource` = one Unit per resource (matches the one-resource-per-unit doctrine). The default `minimal` packs everything into one Unit with CRDs and each AppConfig file split out — fine for a quick start, but prefer `per-resource` for ongoing management.
+- `--target` binds the created Units and stamps the Space's `TargetID` annotation (the one-Target-per-Space convention).
+- `--namespace` synthesizes a Namespace if absent. Links between Units are inferred from references/selectors/CRD relationships; reported cycles are broken at the weakest edge.
+- **Rendered Secrets are never uploaded** — apply them out-of-band via a SecretStore.
 
-Cross-check the delivery side — the Unit's `UnitStatus.Status` reflects whether the last apply landed cleanly:
+### 2. Clone a variant — `cub variant create`
+
+Clone the base (or any upstream) Space and all its Units into a new downstream Space, linked upstream so it can be promoted later.
 
 ```bash
-cub unit list --space <app>-<source-env> \
-  --filter <app>-home/<app>-app \
-  -o jq='[.[] | {Slug: .Unit.Slug, Status: .UnitStatus.Status, SyncStatus: .UnitStatus.SyncStatus, ActionResult: .UnitStatus.ActionResult}
-         | select(.Status != "Ready" or .SyncStatus != "Synced")]'
+cub variant create prod web-base \
+  --space-pattern "template:{{.Labels.Component}}-{{.Labels.Variant}}" \
+  --environment Prod --region us-east2 \
+  --target web-prod/cluster \
+  --namespace web-prod \
+  --unit-delete-gate prod-critical --unit-destroy-gate prod-critical
 ```
 
-Any non-empty result = broken state in the source env. Promoting forward ships the broken state.
+- First arg is the **variant name** (becomes the `Variant` label); second is the **upstream Space**. New Space labels inherit from upstream with `Variant` overridden; `--environment` / `--region` / `--variant-labels` adjust the rest.
+- Copies the upstream Space's `WhereTrigger`, `TriggerFilterID`, Permissions, and DeleteGates, and stamps an `UpstreamSpaceID` annotation (this is what `cub variant promote` reads later — only Spaces made by `cub variant create` are promotable).
+- `--target` retargets the cloned Units and stamps the Space `TargetID`. `--namespace` runs `set-namespace` on the cloned Kubernetes/YAML Units, replacing a `confighubplaceholder` namespace from the base — so each variant lands in its own namespace.
+- **Auto-customize on clone:** define `PostClone` Triggers and select them via the upstream Space's `WhereTrigger` / `TriggerFilterID` so they're copied down and run during the clone. Trigger args can read Space metadata in Go templates, e.g. `template:{{.SpaceLabels.Region}}` or `template:{{.SpaceAnnotations.host}}` (set the latter with `--space-annotation`). See `triggers-and-applygates`.
+- `--unit-delete-gate` / `--unit-destroy-gate` protect a prod variant's Units; `--space-delete-gate` protects the Space. `--wait` (default true) waits for the cloned Units' Triggers.
 
-In the case of base Units, `TargetID` will be `NULL` and `LiveRevisionNum` will be 0. If there's a `vet-placeholders` ApplyGate on a base, that can be ignored.
+### 3. Promote a variant — `cub variant promote`
 
-#### B. Destination needs what's being promoted
-
-The Units that _would_ change are the ones whose `UpstreamRevisionNum` is behind their upstream's `HeadRevisionNum`. Use the standard `needs-upgrade` filter (`references/filters-and-queries.md`):
-
-```bash
-cub unit list --space <app>-<destination-env> \
-  --filter platform/needs-upgrade
-```
-
-If empty, there's nothing to promote — tell the user and stop.
-
-Narrow further if the user wants to promote only part of the app:
+Reconcile a variant Space with its recorded upstream, in one command. Three steps run server-side: (1) **upgrade** every Unit whose upstream advanced (`UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum`), merging upstream changes; (2) **clone** any Units added to the upstream since the variant was created/last promoted; (3) **copy** the new Units' non-`UpgradeUnit` links, retargeting intra-Space endpoints to their downstream copies. It waits for Triggers.
 
 ```bash
-# Only the API Units, not the workers.
-cub unit list --space <app>-<destination-env> \
-  --filter platform/needs-upgrade \
-  --where "Slug LIKE '%-api%'"
-```
+# Preview first — units that would upgrade (with the diff) and units that would be added.
+cub variant promote web-prod --dry-run -o mutations
 
-The combination of `--filter` + `--where` recorded here is what gets passed to the execution phase.
-
-#### C. Diffs are what the user expects
-
-For each Unit in scope, show the pre-promotion diff:
-
-```bash
-for u in $(cub unit list --space <app>-<destination-env> --filter platform/needs-upgrade --quiet -o jq='.[].Unit.Slug'); do
-  echo "=== $u ==="
-  cub unit update --patch --upgrade --dry-run -o mutations \
-    --space <app>-<destination-env> --unit $u
-done
-```
-
-Read the diffs with the user. Flag anything surprising: images moving by more than one minor version, resource-limit changes not expected, namespace/annotation churn that looks like drift rather than intent.
-
-#### D. Destination policy + approval
-
-Confirm the destination Space has its expected Triggers attached and no lingering ApplyGates from prior runs that would immediately block:
-
-```bash
-cub space get <app>-<destination-env> \
-  -o jq='{AttachedFilter: .TriggerFilter.Slug, ResolvedTriggers: (.Triggers // [] | length), TriggerFilterID: .Space.TriggerFilterID}'
-
-cub unit list --space <app>-<destination-env> --filter <app>-home/<app>-app \
-  --where "LEN(ApplyGates) > 0"
-```
-
-If approval is required (`vet-approvedby` or `is-approved` Trigger), surface _who_ needs to approve and _how_ (`cub unit approve --revision ChangeSet:<...>`) so it's part of the promotion plan, not a surprise mid-flight.
-
-#### E. Upstream linkage is actually what the user thinks
-
-A Unit gets promoted via its `UpstreamUnitID` — whatever `cub unit update --upgrade` resolves. Confirm the graph:
-
-```bash
-cub unit tree --space <app>-<destination-env> --filter <app>-home/<app>-app
-cub link list --space <app>-<destination-env> --where "UpdateType = 'UpgradeUnit'"
-```
-
-If any destination Unit points upstream at something the user doesn't expect (e.g., it's linked to a shared base rather than to the source env), the "promotion" is going to pull from that base, not from `<app>-<source-env>`. Stop and confirm intent before the mutation.
-
-#### Preflight output
-
-Produce a concrete go / no-go with these fields:
-
-- **Scope**: exact `--space` + `--filter` + `--where` the mutation will use.
-- **Count**: how many Units are in scope.
-- **Blockers** (if any): per-Unit list of outstanding gates / unapproved / not-yet-live / mis-linked.
-- **Diffs**: short summary per Unit; full diffs on request.
-- **ChangeSet proposal**: slug (`release-<YYYYMMDD>-<shortref>` in `<app>-home`, or whatever the user names it), description draft.
-- **Approval plan** (if relevant): who approves, via what revision reference.
-- **Recommendation**: `go`, `go with narrowed scope`, or `no-go` with specific remediation.
-
-If `no-go`, stop and route back to the relevant remediation skill (`cub-apply` for unapplied state, `triggers-and-applygates` for gate blockers, `drift-reconcile` for env drift). Do not try to promote anyway.
-
-### 2. Execute — open, upgrade, close
-
-Every promotion runs the same three-command loop. The only difference between an env-by-env promotion and a fleet-wide base push is the **selector** in `--where` / `--filter` / `--space`.
-
-```bash
-# 0. Context (from the preflight output).
-HOME_SPACE=<app>-home
-APP_FILTER=$HOME_SPACE/<app>-app
-CHANGESET_SLUG=release-$(date +%Y%m%d)-<shortref>
-CHANGESET_REF=$HOME_SPACE/$CHANGESET_SLUG
-
-# 1. Create the ChangeSet in the home Space.
-cub changeset create --space $HOME_SPACE $CHANGESET_SLUG \
-  --description "<one-line release description from preflight>"
-
-# 2. Bulk upgrade every in-scope downstream Unit. --patch holds the
-#    ChangeSet open on every affected Unit; --upgrade does the per-Unit
-#    merge from each Unit's resolved upstream head; -o mutations
-#    prints the diff inline so the user sees what landed.
-cub unit update --patch \
-  --space <SCOPE_SPACE> \
-  <SCOPE_SELECTOR> \
-  --changeset $CHANGESET_REF \
-  --upgrade \
-  -o mutations \
-  --change-desc "Upgrade to upstream head as part of $CHANGESET_SLUG.
+# Promote, wrapped in a ChangeSet, with a change description.
+cub variant promote web-prod \
+  --changeset web-home/release-2024-06 \
+  --change-desc "Promote web to prod.
 
 User prompt: <verbatim>
-Clarifications: <condensed, e.g. 'promoting app-a from staging to prod; source last applied rev 47'>"
-
-# 3. Close the ChangeSet — same scope, no --upgrade, just --changeset -.
-cub unit update --patch \
-  --space <SCOPE_SPACE> \
-  <SCOPE_SELECTOR> \
-  --changeset -
+Clarifications: <condensed or 'none'>"
 ```
 
-After close, each affected Unit's head revision carries the ChangeSet's end tag. No cluster changes yet — only ConfigHub state has moved.
+Then hand off the cluster rollout to `cub-apply` (apply the Space, or the ChangeSet revision if you used `--changeset`). `verify-apply` owns verification.
 
-#### Selectors for the two common shapes
+**Use the manual ChangeSet flow below instead when** you need to promote only a subset of a Space, push a shared base across *many* Spaces at once, or want explicit ChangeSet open/close/approve/atomic-rollback control beyond what `--changeset` on `variant promote` gives.
 
-**Env-by-env** (most common): the destination env-Space contains downstream Units linked to the source env-Space. Promote everything in the app Filter that's behind its upstream.
+---
 
-```
---space <app>-<destination-env>
---filter <app>-home/<app>-app \
-  --where "Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"
-```
+## ChangeSet-wrapped bulk upgrade (fine-grained / cross-space)
 
-**Base → fleet** (push a shared base out everywhere at once): every downstream Unit across all env-Spaces whose `UpstreamUnitID` is the base. Cross-space requires `--space "*"`.
+For partial scopes or a base→fleet push that spans Spaces. Wrap any multi-Unit promotion in a ChangeSet — it locks the scope against interleaving releases, groups revisions for set-wise approve/apply (`--revision ChangeSet:<slug>`), and enables atomic rollback (`--restore Before:ChangeSet:<slug>`). One Unit only: skip the ChangeSet and use `cub-mutate --upgrade`.
 
-```
---space "*"
---where "Unit.UpstreamUnitID = '<base-unit-uuid>' AND Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"
-```
+### Decide — preflight
 
-The mechanics are identical; only the selector differs. Use the env-by-env selector for controlled env-ladder promotions; use the base-fleet selector when a common base change should hit every env simultaneously.
+Produce a concrete go / no-go. `--where` is AND-only (run one query per condition, union in the report); `cub unit list` takes at most one `--filter`.
 
-> `cub unit push-upgrade` is deprecated; do not use it. The selector-based `cub unit update --patch --upgrade` form above is the unified replacement and it composes cleanly with `--dry-run`, `-o mutations`, and `--changeset`.
-
-### 3. Approval (if required)
-
-If the destination env has an `is-approved` / `vet-approvedby` Trigger, the new end-tag revisions need approval before apply. The ChangeSet makes this one command:
+**A. Source is converged** — promoting an unconverged env ships problems forward:
 
 ```bash
-cub unit approve --space <SCOPE_SPACE> \
-  <SCOPE_SELECTOR> \
-  --revision ChangeSet:$CHANGESET_REF
+cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
+  --where "HeadRevisionNum > LiveRevisionNum AND TargetID IS NOT NULL"   # unapplied
+cub unit list --space <app>-<source> --filter <app>-home/<app>-app --where "LEN(ApplyGates) > 0"
+cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
+  -o jq='[.[] | select(.UnitStatus.Status != "Ready" or .UnitStatus.SyncStatus != "Synced")]'
 ```
 
-Route this to the approver per the preflight's approval plan — don't self-approve unless the user explicitly has that role.
+Any rows = not ready (name each Unit + category). Base Units legitimately have `TargetID` NULL / `LiveRevisionNum` 0; a `vet-placeholders` gate on a base can be ignored.
 
-### 4. Hand off to cub-apply
+**B. Destination needs it** — `cub unit list --space <app>-<dest> --filter platform/needs-upgrade`. Empty = nothing to promote, stop. Narrow with `--where "Slug LIKE '%-api%'"` for a subset.
 
-Apply the ChangeSet as a set:
+**C. Diffs are expected** — per in-scope Unit: `cub unit update --patch --upgrade --dry-run -o mutations --space <app>-<dest> --unit <u>`. Flag surprises (image jumps >1 minor, unexpected limit/annotation churn).
+
+**D. Policy + approval** — `cub space get <app>-<dest> -o jq='{AttachedFilter: .TriggerFilter.Slug, TriggerFilterID: .Space.TriggerFilterID}'`; check for lingering gates. If `vet-approvedby` / `is-approved` is set, surface who approves and how.
+
+**E. Upstream linkage matches intent** — `cub unit tree --space <app>-<dest>`; `cub link list --space <app>-<dest> --where "UpdateType = 'UpgradeUnit'"`. If a Unit points at an unexpected upstream, the promotion pulls from there — stop and confirm.
+
+Output: **Scope** (exact `--space`/`--filter`/`--where`), **Count**, **Blockers**, **Diffs** summary, **ChangeSet proposal** (`release-<YYYYMMDD>-<shortref>` in `<app>-home`), **Approval plan**, **Recommendation** (go / go-narrowed / no-go). On no-go, route to remediation (`cub-apply`, `triggers-and-applygates`) — don't promote anyway.
+
+### Execute — open, upgrade, close
 
 ```bash
-cub unit apply --space <SCOPE_SPACE> \
-  <SCOPE_SELECTOR> \
-  --revision ChangeSet:$CHANGESET_REF \
-  --wait --timeout 10m0s
+HOME_SPACE=<app>-home ; CHANGESET_REF=$HOME_SPACE/release-$(date +%Y%m%d)-<shortref>
+
+cub changeset create --space $HOME_SPACE release-<YYYYMMDD>-<shortref> --description "<release desc>"
+
+cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> \
+  --changeset $CHANGESET_REF --upgrade -o mutations \
+  --change-desc "Upgrade to upstream head as part of <changeset>.
+
+User prompt: <verbatim>
+Clarifications: <condensed>"
+
+cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> --changeset -   # close
 ```
 
-From here, `cub-apply` / `verify-apply` own the runtime.
+**Selectors:**
+
+- **Env-by-env:** `--space <app>-<dest> --filter <app>-home/<app>-app --where "Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"`.
+- **Base → fleet (cross-space):** `--space "*" --where "Unit.UpstreamUnitID = '<base-uuid>' AND Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"`.
+
+> `cub unit push-upgrade` is deprecated — the selector-based `--patch --upgrade` form is its replacement.
+
+### Approval + apply
+
+```bash
+cub unit approve --space <SCOPE_SPACE> <SCOPE_SELECTOR> --revision ChangeSet:$CHANGESET_REF   # if required
+cub unit apply   --space <SCOPE_SPACE> <SCOPE_SELECTOR> --revision ChangeSet:$CHANGESET_REF --wait --timeout 10m0s
+```
+
+Don't self-approve unless the user holds the role. After apply, `verify-apply` owns the runtime.
 
 ## Rollback
 
-If the destination env rejects the release, the ChangeSet makes rollback one command (per `references/changesets.md`):
+`cub variant promote` and the ChangeSet flow both roll back the same way — move head back, then apply:
 
 ```bash
-cub tag create --space $HOME_SPACE rollback-$CHANGESET_SLUG \
-  --annotation "description=Rollback $CHANGESET_SLUG"
-
-cub unit update --patch \
-  --space <SCOPE_SPACE> \
-  <SCOPE_SELECTOR> \
+cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> \
   --restore "Before:ChangeSet:$CHANGESET_REF" \
-  --tag $HOME_SPACE/rollback-$CHANGESET_SLUG \
-  --change-desc "Rollback $CHANGESET_SLUG. User prompt: <verbatim>. Clarifications: <condensed>"
-
+  --change-desc "Rollback <changeset>. User prompt: <verbatim>. Clarifications: <condensed>"
 cub unit apply --space <SCOPE_SPACE> <SCOPE_SELECTOR> --wait
 ```
 
-Each Unit's head reverts to its pre-ChangeSet state and the subsequent apply pushes that back to the cluster. Full detail: `rollback-revision` + `references/changesets.md`.
+Full detail: `rollback-revision` + `references/changesets.md`.
 
 ## Tool boundary
 
-- Allowed: `cub changeset create/update`, `cub unit update` (patch + upgrade + restore), `cub filter create/update`, `cub tag create`, `cub unit tag`, read-only `cub unit/revision/link list/get/tree/bridgestate/diff`, `kubectl get`/`describe` for the preflight cluster cross-check.
-- Not allowed: `cub unit push-upgrade` (deprecated — use the selector-based `cub unit update --patch --upgrade` instead), `cub unit apply` (hand off to `cub-apply`), `kubectl apply` / other out-of-band cluster mutation. If the upgrade merge has conflicts requiring data edits, those go through `cub-mutate` _inside_ the open ChangeSet, not here.
+- Allowed: `cub variant upload/create/promote`, `cub changeset create/update`, `cub unit update` (patch + upgrade + restore), `cub filter create/update`, `cub tag create`, `cub unit tag`; read-only `cub unit/revision/link list/get/tree/bridgestate/diff`, `kubectl get/describe` for the preflight cross-check.
+- Not allowed: `cub unit push-upgrade` (deprecated), `cub unit apply` (hand off to `cub-apply`), `kubectl apply` / out-of-band cluster mutation. Merge-conflict edits go through `cub-mutate` inside the open ChangeSet.
 
 ## Stop conditions
 
-- Preflight recommendation is `no-go` — route back to the relevant remediation skill (`cub-apply`, `triggers-and-applygates`, `drift-reconcile`).
-- Another ChangeSet is already open against the scope — close it (or narrow the Filter around it); do not open a second one.
-- Destination scope is empty — nothing to promote. Tell the user and stop.
-- Upgrade merge leaves conflicts (`cub unit diff` shows `<<<<<<<` markers or the Unit's `MergeConflicts` field is non-empty) — stop, resolve in `cub-mutate` (still within the open ChangeSet), then re-diff and close.
-- User wants to skip the ChangeSet for a >1-Unit promotion. Push back: loses lock + atomic rollback.
-- Approval is required and the user tries to self-approve without the role — stop and route to the approver.
-- Upstream linkage doesn't match intent. Stop and ask.
+- `cub variant promote` on a Space with no `UpstreamSpaceID` annotation (not made by `cub variant create`) — it errors; set the variant up with `cub variant create` first.
+- Preflight `no-go` — route to remediation.
+- Another ChangeSet already open against the scope; destination scope empty; upgrade merge leaves conflicts (`cub unit diff` shows `<<<<<<<` / non-empty `MergeConflicts`) — resolve in `cub-mutate` within the ChangeSet, re-diff, close.
+- User wants to skip the ChangeSet for a >1-Unit manual promotion (loses lock + atomic rollback), or self-approve without the role, or upstream linkage doesn't match intent — stop and confirm.
 
 ## Verify chain
 
-1. `cub unit list --space <SCOPE_SPACE> --filter $APP_FILTER` (or the fleet selector) — every scoped Unit's `UpstreamRevisionNum` now matches the upstream's head (no rows in `platform/needs-upgrade` for the scope).
-2. `cub revision list --space <SCOPE_SPACE> --filter $APP_FILTER --where "ChangeSet.Slug = '$CHANGESET_SLUG'"` — revisions for every Unit are tagged with the ChangeSet.
-3. `cub changeset get --space $HOME_SPACE $CHANGESET_SLUG` — shows both start and end tags set, open state = closed.
+- Variant: `cub variant promote <space> --dry-run` reports zero would-upgrade / would-add after a successful promote; `cub unit list --space <space> --filter platform/needs-upgrade` is empty.
+- ChangeSet: scoped Units no longer match `platform/needs-upgrade`; `cub revision list --space <SCOPE_SPACE> --where "ChangeSet.Slug = '<slug>'"` shows the tagged revisions; `cub changeset get --space $HOME_SPACE <slug>` shows start+end tags (closed).
 
 ## Evidence
 
-- `cub changeset get --space $HOME_SPACE $CHANGESET_SLUG --web` — the release entity in the GUI, linking to every Unit revision.
-- `cub unit list --space <SCOPE_SPACE> --filter platform/needs-upgrade --web` — the exact set that was in scope (should be empty post-close).
-- `cub unit tree --space <SCOPE_SPACE> --filter $APP_FILTER --web` — upstream linkage the promotion followed.
-- `cub unit diff <u> --space <SCOPE_SPACE> --from-revision Tag:<start-tag>` per Unit — what landed vs. what was there.
+- `cub changeset get --space $HOME_SPACE <slug> --web` — the release entity linking every Unit revision.
+- `cub space get <variant-space> --web` — the variant Space, its labels, `UpstreamSpaceID`, and `TargetID`.
+- `cub unit tree --space <SCOPE_SPACE> --web` — upstream linkage the promotion followed.
 
 ## References
 
-- `references/changesets.md` — lifecycle, rollback, merge / rebase.
-- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `has-upstream`, `not-approved` recipes.
+- `cub variant upload --help`, `cub variant create --help`, `cub variant promote --help` — authoritative flags.
+- `references/changesets.md` — lifecycle, rollback, merge/rebase.
+- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `not-approved` recipes.
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close.
-- `references/revisions.md` — revision references (`ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`).
-- Companion skills: `space-topology` (home / env Space layout), `cub-mutate` (conflict resolution within an open ChangeSet), `cub-apply` (runtime), `rollback-revision` (post-promotion rollback path), `verify-apply` (post-rollout).
-- https://docs.confighub.com/markdown/guide/variants.md
-- https://docs.confighub.com/markdown/guide/dependencies.md
+- `references/revisions.md` — `ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`.
+- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `cub-apply` (runtime), `rollback-revision`, `verify-apply`.
+- `https://docs.confighub.com/markdown/guide/variants.md`, `.../guide/dependencies.md`.

@@ -1,155 +1,125 @@
 ---
 name: worker-bootstrap
-description: 'Use when the user needs to install a ConfigHub bridge worker in a Kubernetes cluster so that Units can apply, refresh, or import against real infrastructure — phrases like "set up a worker", "install the ConfigHub worker", "connect ConfigHub to my cluster", "make ConfigHub able to deploy", "add an Argo renderer worker", "add a Flux renderer worker", "I need a worker for OCI publishing", or "the worker isn''t running / is crashing". Creates the worker entity, generates the Kubernetes manifest with the right provider types, installs it (or exports it for review / storage as a ConfigHub Unit), verifies it''s running, and stops before you try to deploy anything through a worker that isn''t healthy. Do not load for creating Targets (use target-bind — Targets reference Workers but are a separate concern) or for day-2 application apply (use cub-apply once the worker is up).'
+description: 'Set up a ConfigHub worker. Default: a server worker (cub worker create --is-server-worker) — no process to run, and all that OCI / ConfigHub Targets need. Run an external worker (cub worker run / install) only to host custom worker functions. Phrases: set up a worker, do I need to run a worker, add custom functions. Not for creating Targets (use target-bind).'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub worker logs *) Bash(cub worker status *) Bash(cub worker create *) Bash(cub worker update *) Bash(cub worker install *) Bash(cub worker upgrade *) Bash(cub worker get-envs *) Bash(cub worker get-secret *) Bash(cub unit create *) Bash(cub unit update *) Bash(kubectl get *) Bash(kubectl describe *) Bash(kubectl logs *)
 ---
 
 # worker-bootstrap
 
-Gets a bridge worker running in a cluster so ConfigHub can execute target operations against it.
+Get a ConfigHub worker in place so Targets can function. In the common case there is **nothing to run**.
 
-## Why this matters
+Confirm verbs and flags with `cub <verb> --help` before composing.
 
-A Worker is the runtime that actually *does* things — apply a Unit, refresh live state, import existing resources. Without a healthy worker for the right provider type, Targets can't function. Getting the worker set up correctly is a prerequisite to everything in `target-bind` / `cub-apply` / `verify-apply`.
+## The key fact
+
+OCI and ConfigHub Targets are served by **server workers** — bridges hosted inside the ConfigHub server. You **do not run a process** to create or use them. A worker entity is still required (a Target references one), but for delivery it's a one-line `--is-server-worker` create.
+
+You only run an **external worker** to host **custom worker functions** — your own function implementations that aren't built into the server.
+
+So pick the path:
+
+| Goal | Path |
+| --- | --- |
+| Publish Units to OCI for Argo/Flux, or apply ConfigHub-native config | **Server worker** (below) — no process |
+| Provide custom worker functions of your own | **External worker** (below) — runs a process |
 
 ## When to use
 
-- First-time setup: no workers exist yet in this Space or org.
-- Adding a renderer worker: ArgoCD, Flux, ArgoCD-via-OCI.
-- Adding a provider worker: `Kubernetes` (applies directly), `OpenTofu/AWS`, `ConfigHub`, `ConfigMapRenderer`.
-- Diagnosing a crashing or missing worker (`cub worker status`, `cub worker logs`, pod-level `kubectl describe`).
-- Upgrading a worker to match the current ConfigHub server version (`cub worker upgrade`).
+- "Do I need to run a worker?" — usually no; create a server worker.
+- First-time delivery setup (OCI / ConfigHub Targets).
+- You have custom worker functions to host.
+- Diagnosing an external worker that isn't advertising its functions.
 
 ## Do not load for
 
-- Creating Targets — `target-bind` handles that.
-- Applying Units — `cub-apply` handles that.
-- Authoring the worker's Kubernetes manifest by hand — `cub worker install` generates it with the right defaults; don't author a competing one.
+- Creating Targets — `target-bind` (Targets reference a worker but are a separate step).
+- Applying Units — `cub-apply`.
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
-2. `kubectl config current-context` points at the cluster where the worker should run, and the user has permission to create Deployments / ServiceAccounts / RBAC in the worker namespace (defaults to `confighub`).
-3. Confirm with the user: which provider types does this worker need? Pick from:
-   - `Kubernetes` — applies plain K8s YAML directly to the cluster.
-   - `ArgoCDRenderer` — emits Argo Applications; Argo deploys.
-   - `FluxRenderer` — emits Flux resources; Flux deploys.
-   - `ArgoCDOCI` — packages config as OCI artifacts for Argo to pull.
-   - `ConfigMapRenderer`, `ConfigHub`, `OpenTofu/AWS` — others.
-   Multiple types can live on one worker (`--provider-types kubernetes,argocdrenderer`).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
+2. For an external worker only: `kubectl config current-context` points at the intended cluster (if installing in-cluster), or you have a host to run `cub worker run` on.
 
-## The loop
-
-### 1. Create the worker entity
+## Server worker (default — no process)
 
 ```bash
-cub worker create --space <space> <worker-slug>
+cub worker create --space <space> --allow-exists --is-server-worker server-worker
 ```
 
-No `--change-desc` on worker create — workers aren't versioned configuration data.
+- `--allow-exists` makes it idempotent. Place it in any Space (`default` is a common home); reference cross-Space as `<space>/server-worker`.
+- Add `--use-user-identity` if the worker should operate as the requesting user (required for some ConfigHub-provider operations).
+- No `--change-desc` — workers aren't versioned configuration data.
 
-### 2. Install the worker into the cluster
+That's it. Hand off to `target-bind` to create an OCI or ConfigHub Target against `<space>/server-worker`.
 
-Two paths. Pick based on how you want to govern the worker itself.
+## External worker (only for custom functions)
 
-**Direct install** (simplest — bootstrap case, first worker):
+Run an external worker when you need it to host **custom worker functions**. Create the entity, then run or install it, then confirm it advertises its functions.
 
 ```bash
-cub worker install <worker-slug> \
-  --space <space> \
-  --provider-types kubernetes \
-  --namespace confighub \
-  --export --include-secret \
-  | kubectl apply -f -
+cub worker create --space <space> <worker-slug>          # the entity (no --is-server-worker)
 ```
 
-`cub worker install` only *generates* the Kubernetes manifest (Deployment, ServiceAccount, RBAC, Secret with worker credentials) — it does not apply it. Pipe `--export` through `kubectl apply -f -` using the user's current kubeconfig to actually install. `--include-secret` inlines the credential Secret so the worker can authenticate; for a production bootstrap, prefer `--export-secret-only` and store the credential in an external SecretStore (see the managed-install path below). Image defaults to the pinned `ghcr.io/confighubai/confighub-worker` release.
-
-After applying, wait for the worker to become Ready:
+**Run locally** (simplest for development):
 
 ```bash
-kubectl -n confighub rollout status deploy/<worker-slug>
-cub worker get --space <space> <worker-slug>   # condition: Ready
+cub worker run --space <space> <worker-slug>             # see `cub worker run --help` for type/function flags
 ```
 
-**Managed install** (preferred once a bootstrap worker exists):
+**Install into a cluster** (`cub worker install` generates the manifest — Deployment, ServiceAccount, RBAC, credential Secret — it does not apply it):
 
 ```bash
-cub worker install <worker-slug> \
-  --space <space> \
-  --provider-types kubernetes \
-  --namespace confighub \
-  --export > /tmp/worker-manifest.yaml
+# Direct install (bootstrap):
+cub worker install <worker-slug> --space <space> --namespace confighub --export --include-secret | kubectl apply -f -
 
-cub unit create --space <space> <worker-slug>-manifest /tmp/worker-manifest.yaml \
+# Or store the manifest as a ConfigHub-managed Unit and apply it via cub-apply:
+cub worker install <worker-slug> --space <space> --namespace confighub --export > /tmp/worker-manifest.yaml
+cub unit create --space <space> <worker-slug>-manifest /tmp/worker-manifest.yaml -o mutations \
   --change-desc "Store worker manifest as a ConfigHub-managed Unit.
 
 User prompt: <verbatim>
-Clarifications: <condensed>" \
-  -o mutations
-
-# Apply via an existing worker through cub-apply in a subsequent step.
+Clarifications: <condensed>"
 ```
 
-The `--export` form produces the same manifest without applying it, so you can store it as a Unit and manage it under ConfigHub like any other workload.
+The credential Secret is redacted by default; use `--include-secret` only when you genuinely need it inlined, and keep credentials in an external SecretStore rather than Unit data (see `references/yaml-patterns.md`). Image defaults to the pinned `ghcr.io/confighubai/confighub-worker` release.
 
-The Secret resource is redacted by default in the manifest. Use `--include-secret` when you genuinely need it in the exported Unit (then protect it via external secret storage, not Unit data — see `references/yaml-patterns.md`), or use `--export-secret-only` plus an external SecretStore to keep credentials out of the Unit body.
-
-### 3. Verify the worker is healthy
+Verify it's healthy and advertising the expected custom functions:
 
 ```bash
-cub worker get --space <space> <worker-slug>
-cub worker status --space <space> <worker-slug>
-cub worker list-function --space <space> <worker-slug>
+cub worker get --space <space> <worker-slug>             # condition: Ready
+cub worker status --space <space> <worker-slug>          # recent heartbeat
+cub worker list-function --space <space> <worker-slug>   # custom functions present
 ```
 
-`list-function` confirms which functions the worker can run (varies by provider type). If it's empty or missing expected functions, the worker is likely still starting or misconfigured.
-
-Pod-level fallback for diagnosing startup failures:
-
-```bash
-kubectl -n confighub get pods -l app=<worker-slug>
-kubectl -n confighub describe pod <worker-pod>
-cub worker logs --space <space> <worker-slug>
-```
-
-### 4. Hand off
-
-Worker is running and advertising functions. Next steps depend on user intent:
-
-- Need to bind a Unit to a destination → `target-bind`.
-- Need to actually apply a Unit → `cub-apply` (requires a Target, so usually goes through `target-bind` first).
-- Upgrading after a server update → `cub worker upgrade <worker-slug>`.
+Pod-level fallback for an in-cluster worker that won't start: `kubectl -n confighub describe pod <worker-pod>` + `cub worker logs --space <space> <worker-slug>`.
 
 ## Tool boundary
 
-- Mutations: `cub worker create/install/upgrade/update`, `cub unit create/update` for the managed-install variant.
-- Read-only: `cub worker get/list/logs/status/list-function/list-status`, `cub worker get-envs/get-secret` (credential read), `kubectl get/describe/logs` on the worker namespace.
-- Not allowed: `kubectl apply` / `edit` / `delete` against the worker's resources. `cub worker install` handles the direct-install case; everything else flows through a Unit.
+- Mutations: `cub worker create` (incl. `--is-server-worker`), `cub worker install/upgrade/update`, `cub unit create/update` for the managed-manifest variant.
+- Read-only: `cub worker get/list/logs/status/list-function`, `cub worker get-envs/get-secret`, `kubectl get/describe/logs` on the worker namespace.
+- Not allowed: `kubectl apply/edit/delete` against worker resources except the documented direct-install pipe; otherwise flow through a Unit.
 
 ## Stop conditions
 
-- User isn't pointing at the intended cluster (`kubectl config current-context` disagrees with what the user described). Stop and reconcile before installing.
-- Worker Secret is missing or malformed after install — don't retry blind. Read `cub worker get-envs` / `get-secret` to diagnose.
-- Worker pod keeps crashing (`CrashLoopBackOff`). Collect `kubectl describe pod` + `cub worker logs` output, surface the actual error, and stop.
-- User asks to bypass the worker image pin to chase a bleeding-edge feature. Warn and only proceed with explicit confirmation.
+- External worker only: `kubectl config current-context` disagrees with the intended cluster — reconcile first.
+- External worker pod keeps crashing (`CrashLoopBackOff`) — collect `kubectl describe pod` + `cub worker logs`, surface the error, stop.
+- User asks to run a process for OCI/ConfigHub delivery — they don't need to; a server worker suffices.
 
 ## Verify chain
 
-1. `cub worker get --space <space> <worker-slug>` — status field shows `Ready` or equivalent.
-2. `cub worker status --space <space> <worker-slug>` — heartbeat is recent.
-3. `cub worker list-function --space <space> <worker-slug>` — function list includes the expected provider-type functions.
-4. If managed install: `cub unit get --space <space> <worker-slug>-manifest --web` opens the Unit that holds the manifest.
+- Server worker: `cub worker get --space <space> server-worker` shows it exists; that's all a delivery Target needs.
+- External worker: `cub worker status` (recent heartbeat) + `cub worker list-function` (custom functions present).
 
 ## Evidence
 
 - `cub worker get --space <space> <worker-slug> --web` — worker details in the GUI.
-- `cub unit get --space <space> <worker-slug>-manifest --web` — for the managed-install variant.
+- `cub unit get --space <space> <worker-slug>-manifest --web` — for the managed-manifest variant.
 
 ## References
 
-- ConfigHub worker guide: `https://docs.confighub.com/markdown/guide/workers.md`
-- Worker entity: `https://docs.confighub.com/markdown/background/entities/worker.md`
-- `references/cub-cli.md` — CLI conventions, `--change-desc`, `-o mutations`.
-- `references/yaml-patterns.md` — handling of Secret resources in Units.
+- `cub worker create --help`, `cub worker run --help`, `cub worker install --help` — authoritative flags.
+- ConfigHub worker guide: `https://docs.confighub.com/markdown/guide/workers.md`.
+- `references/cub-cli.md` — CLI conventions.
+- `references/yaml-patterns.md` — Secret handling in Units.
+- Companion skills: `target-bind` (create the OCI / ConfigHub Target against the worker), `cub-apply` (apply/publish).

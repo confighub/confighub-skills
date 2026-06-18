@@ -1,6 +1,6 @@
 ---
 name: skill-examples-bootstrap
-description: 'Use when the user wants a working ConfigHub playground to exercise the other skills against — phrases like "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", "walk me through with a real example", "I''m new to ConfigHub, show me something I can poke at", or "reset the examples". Creates (or refreshes) a `skill-examples` Space with seed Units covering common Kubernetes resource types — Deployment, StatefulSet, DaemonSet, Job, CronJob, Ingress, NetworkPolicy, RBAC, HPA, PDB — and applies the canonical defaults-function chain so the end state demonstrates config-as-data with provenance intact. Other skills (like `kubernetes-resources`) pull from these live examples in preference to hardcoded YAML. Idempotent: re-running is safe. Do not load for creating real application Spaces (use config-as-data + space setup directly) or for bootstrapping triggers/policy (use triggers-and-applygates).'
+description: 'Create or refresh a skill-examples Space with seed Units covering common Kubernetes resource types — a playground to exercise the other skills against. Use for "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", "reset the examples". Not for creating real application Spaces (use confighub-core).'
 phase: cross-cutting
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *)
 ---
@@ -18,9 +18,9 @@ Creates a ConfigHub playground Space so users can exercise the other skills agai
 
 ## Do not load for
 
-- Creating real app Spaces (use `config-as-data` + direct `cub space create`).
+- Creating real app Spaces (use `confighub-core` + direct `cub space create`).
 - Setting up Triggers / policy (use `triggers-and-applygates`).
-- Importing existing Helm or Kustomize configs (future `import-*` skills).
+- Importing existing Helm or Kustomize configs (use `import`).
 
 ## What gets created
 
@@ -46,7 +46,7 @@ Every mutation call passes `--change-desc` with the user prompt verbatim so the 
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. Confirm with the user: is this a first-time bootstrap, or a refresh? A refresh preserves the Space but re-runs the recipe against the existing Units.
 
 ## The loop
@@ -176,7 +176,7 @@ Point them at the GUI and the other skills:
 
 ## Stop conditions
 
-- User is not authenticated (`cub organization list` fails). Tell them to run `cub auth login`.
+- User is not authenticated (`cub auth status` fails). Tell them to run `cub auth login`.
 - User lacks permission to create Spaces in the current organization.
 
 ## Verify chain
@@ -198,4 +198,4 @@ Point them at the GUI and the other skills:
 - `references/cub-cli.md` — CLI discipline + Read/Write permission sets.
 - `references/yaml-patterns.md` — what makes the scaffolded YAML "good" literal YAML.
 - `references/functions-catalog.md` — defaults functions used.
-- Companion skill: `config-as-data` — the doctrine this recipe demonstrates.
+- Companion skill: `confighub-core` — the doctrine this recipe demonstrates.

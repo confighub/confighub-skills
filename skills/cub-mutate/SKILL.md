@@ -1,6 +1,6 @@
 ---
 name: cub-mutate
-description: 'Use whenever the user wants to change data inside a ConfigHub Unit — update an image, adjust replicas, set environment variables, add labels/annotations, change a resource field, apply defaults, or make a bulk edit across many units. This skill enforces the "prefer a function over a hand-edit" rule, composes a proper change description that captures the user''s prompt and clarifications, and chooses between `cub function set` (single function, targeted or bulk) and `cub unit update` (whole-unit replacement or restore). Load proactively any time the user says "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or any natural request that will end in a write to ConfigHub. Do not load for: creating a brand-new Unit (use config-as-data), reading/inspecting config (use cub-query), or setting up validation (use triggers-and-applygates).'
+description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit. Use for "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or a bulk edit across many units. Not for creating a brand-new Unit (use confighub-core).'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub link create *) Bash(cub link update *)
 ---
@@ -23,13 +23,13 @@ The get / modify / write-back loop for ConfigHub Units.
 
 ## Do not load for
 
-- Creating a new Unit (`config-as-data`).
+- Creating a new Unit (`confighub-core`).
 - Pure inspection / query (`cub-query`).
 - Setting up Triggers or ApplyGates (`triggers-and-applygates`).
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. User has write permission on the target Space(s).
 3. The Space is covered by a `TriggerFilterID` (or its Triggers are otherwise in place) so validation will enforce the change. If not, suggest `triggers-and-applygates` — but don't block.
 

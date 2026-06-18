@@ -1,6 +1,6 @@
 ---
 name: kubernetes-resources
-description: 'Use when the user wants to create or modify a specific Kubernetes resource type in ConfigHub — phrases like "create a StatefulSet", "add an Ingress", "set up NetworkPolicy", "I need a CronJob", "add RBAC for my app", "set up autoscaling", "create a DaemonSet", "expose my service externally", "add a PDB", "create a Job for data migration", "I need a headless Service", "set up persistent storage". Walks the user through authoring the resource as literal YAML in a ConfigHub Unit, applying best-practice defaults via functions, and wiring it into the Space. Pulls live examples from the `skill-examples` Space when available (seeded by `skill-examples-bootstrap`); falls back to `references/yaml-patterns.md`. Do not load for: AppConfig-based ConfigMaps (use `app-config`), Helm chart imports (use `import-from-helm`), raw config-as-data doctrine questions without a specific resource type (use `config-as-data`).'
+description: 'Author a specific Kubernetes resource type as literal YAML in a ConfigHub Unit with best-practice defaults. Use for "create a StatefulSet", "add an Ingress", "set up NetworkPolicy", "I need a CronJob", "add RBAC for my app", "set up autoscaling", "add a PDB". Not for AppConfig-based ConfigMaps (use app-config).'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub unit diff *) Bash(cub function *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *)
 ---
@@ -20,14 +20,14 @@ Author common Kubernetes resource types as ConfigHub Units — literal YAML, bes
 ## Do not load for
 
 - AppConfig-based ConfigMaps (`.env`, `.properties`, `.yaml` config files) — use `app-config`.
-- Helm chart imports — use `import-from-helm`.
-- General config-as-data doctrine without a specific resource type — use `config-as-data`.
+- Helm chart imports — use `import`.
+- General config-as-data doctrine without a specific resource type — use `confighub-core`.
 - Secrets — ConfigHub Units are not a secret vault. Point users to an external SecretStore; see `references/yaml-patterns.md`.
 - Custom Resource Definitions (writing operators) — out of scope.
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. Target Space exists and the user has write permission.
 3. **Resource type identified.** If the user's request is vague ("set up my app"), ask what specific resources they need before proceeding.
 
@@ -168,16 +168,11 @@ Based on what was created, suggest the logical next skill:
 
 ## Unit granularity guidance
 
-- **Namespace** — always one per Unit.
-- **Deployment + Service** — bundle when they share the same selector and lifecycle.
-- **StatefulSet + headless Service** — bundle (headless Service is required by the StatefulSet).
-- **RBAC (SA + Role + Binding)** — bundle when they only make sense together.
-- **Ingress** — separate Unit (TLS config and routing rules version independently from the Service).
-- **NetworkPolicy** — separate Unit per policy (default-deny can share a Unit as a multi-doc bundle).
-- **HPA, PDB** — separate Units (scaling and disruption config change independently from the workload).
-- **PVC** — separate Unit when the PVC outlives the workload. For StatefulSets, use `volumeClaimTemplates` instead.
-- **Job / CronJob** — one per Unit.
-- **CRDs** — always separate Unit from instances.
+**Default: one Kubernetes resource per Unit** (the doctrine in `confighub-core`). It scopes revisions, ApplyGates, diffs, and blast radius to a single resource, and links resources that reference each other via Links / Needs-Provides rather than co-locating them. Author each resource type below as its own Unit; wire cross-references with `cub link create`.
+
+- **CRDs** — always a separate Unit from their instances (apply-order + blast radius). Slug `<app>-crds`.
+- **PVC** — for StatefulSets, prefer `volumeClaimTemplates` inline rather than a separate PVC resource.
+- Some seeded `skill-examples` Units (e.g. `hello-app` = Deployment + Service) carry a small bundle for demonstration; treat those as examples, not the recommended granularity for new work.
 
 ## Tool boundary
 
@@ -188,7 +183,7 @@ Based on what was created, suggest the logical next skill:
 
 - User asks for a resource type this skill doesn't cover (custom operators, service mesh CRDs). Hand back.
 - User wants to create a Secret with literal values in the Unit. Stop — Secrets go in an external SecretStore.
-- User insists on templating (`{{ }}`, `${VAR}`, values files). Stop and route to `config-as-data` for the doctrine explanation.
+- User insists on templating (`{{ }}`, `${VAR}`, values files). Stop and route to `confighub-core` for the doctrine explanation.
 
 ## Verify chain
 
@@ -206,4 +201,4 @@ Based on what was created, suggest the logical next skill:
 - `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all resource types.
 - `references/functions-catalog.md` — defaults functions, setters, validators.
 - `references/cub-cli.md` — CLI discipline, `--change-desc`, `-o mutations`.
-- Companion skills: `config-as-data` (doctrine), `skill-examples-bootstrap` (seeds the `skill-examples` Space with live examples), `target-bind` (deploy), `cub-apply` (apply), `app-config` (ConfigMap from app config files).
+- Companion skills: `confighub-core` (doctrine), `skill-examples-bootstrap` (seeds the `skill-examples` Space with live examples), `target-bind` (deploy), `cub-apply` (apply), `app-config` (ConfigMap from app config files).
