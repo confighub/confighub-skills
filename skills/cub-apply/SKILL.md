@@ -1,13 +1,13 @@
 ---
 name: cub-apply
-description: 'Use when the user wants to apply (deploy) a ConfigHub Unit or group of Units to their Target — phrases like "apply this", "deploy this to staging", "push the change to the cluster", "roll out the fix", "apply everything that''s unapplied", "apply the ChangeSet", "dry-run what would change". Runs `cub unit apply` with the right scoping (single / list / --where / --filter / --revision ChangeSet:<slug>), respects ApplyGates (never bypasses), waits for completion, and hands off to verify-apply. Do not load for rollback (use rollback-revision — `cub unit apply --revision <N>` does NOT move head and is not a rollback), for authoring changes (use cub-mutate), for binding a destination (use target-bind), or for any post-apply verification / troubleshooting / close-out (use verify-apply).'
+description: 'Apply (deploy) a ConfigHub Unit or group of Units to their Target via cub unit apply, respecting ApplyGates. Use for "apply this", "deploy this to staging", "push the change to the cluster", "roll out the fix", "apply everything unapplied", "apply the ChangeSet", "dry-run what would change". Not for rollback (use rollback-revision).'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit apply *) Bash(cub unit cancel *) Bash(cub unit tag *) Bash(cub worker logs *) Bash(cub worker status *)
 ---
 
 # cub-apply
 
-The runtime verb. Takes a Unit's head (or a specific revision) and pushes it through its Target.
+The runtime verb. Takes a Unit's head (or a specific revision) and pushes it through its Target. For an **OCI** Target this publishes the Unit's data to ConfigHub's built-in OCI registry — ArgoCD or Flux then pull it and converge the cluster (outside ConfigHub). For a **ConfigHub** Target it applies ConfigHub-native config directly. The publish/apply itself is what `cub unit apply` does; cluster convergence from an OCI publish is verified separately (`verify-apply`).
 
 ## When to use
 
@@ -27,9 +27,9 @@ The runtime verb. Takes a Unit's head (or a specific revision) and pushes it thr
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. The Unit(s) have a `TargetID` (use the `has-target`-equivalent check: `cub unit list --space <s> --where "Slug = '<u>' AND TargetID IS NOT NULL"`). If missing, route to `target-bind`.
-3. The Worker backing the Target is healthy: `cub worker status --space <worker-space> <worker-slug>`. If down, route to `worker-bootstrap`.
+3. The Target's worker exists. OCI and ConfigHub Targets use **server workers** (hosted in the ConfigHub server) — there's no process to be down, so no health check is needed. If the Target references a missing worker, route to `target-bind` / `worker-bootstrap`.
 4. No ApplyGates attached, unless the plan is explicitly to _resolve_ gates before apply: `cub unit list --space <s> --where "Slug = '<u>' AND LEN(ApplyGates) > 0"`. If gates are present, stop and route to `triggers-and-applygates`.
 5. If the user framed the request as "rollback" — stop and route to `rollback-revision`. Head must move first; `cub unit apply --revision <N>` on its own is not a rollback.
 
@@ -137,9 +137,9 @@ Apply returned. That does **not** mean it landed — the apply may still be `Pro
 ## Stop conditions
 
 - ApplyGates present on any Unit in scope. Stop; fix the data (route to `triggers-and-applygates` for diagnosis) and retry.
-- No Worker healthy for the Target's provider. Stop; route to `worker-bootstrap`.
+- Unit has no Target. Stop; route to `target-bind`.
 - `--space "*"` scope without explicit user confirmation of blast radius. Stop and ask.
-- Apply times out (`--timeout` exceeded). Don't retry blindly — collect `cub unit bridgestate`, `cub worker logs`, surface the actual error.
+- Apply times out (`--timeout` exceeded). Don't retry blindly — collect the latest `cub unit-event` and surface the actual error.
 - User asks to bypass a gate via Trigger removal. Refuse; fix the data instead.
 
 ## Verify chain

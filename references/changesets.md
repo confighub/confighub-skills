@@ -6,7 +6,7 @@ Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 
 ## Lifecycle
 
-1. **Create** — `cub changeset create --space <home-space> <slug> --description "<one-line summary>"`. Lives in one Space; Units it covers can be anywhere. `<home-space>` is the app team's home Space (`<app>-home` per `skills/space-topology`) — cross-environment operational artifacts like ChangeSets, Tags, and Filters belong there, not in any single deployment Space.
+1. **Create** — `cub changeset create --space <home-space> <slug> --description "<one-line summary>"`. Lives in one Space; Units it covers can be anywhere. `<home-space>` is the app team's home Space (`<app>-home` per `skills/confighub-core`) — cross-environment operational artifacts like ChangeSets, Tags, and Filters belong there, not in any single deployment Space.
 2. **Open** — bulk-patch the target Units to add them to the ChangeSet. This creates a revision per Unit tagged with the ChangeSet's *start tag*, even if data doesn't change.
 3. **Mutate** — every `cub function do` / `cub unit update` / `cub run` against those Units passes `--changeset <home-space>/<slug>`. Revisions are tagged as part of the ChangeSet.
 4. **Close** — bulk-patch with `--changeset -`. Each Unit's head revision gets the ChangeSet's *end tag*.
@@ -146,6 +146,6 @@ cub revision list --space <target-space> --filter <home-space>/<filter-slug> \
 
 - **Forgetting `--changeset` on a mutation.** The server rejects, but the error is specific — re-run with the flag.
 - **Using `""` instead of `-` to close.** Looks identical, does nothing. Always `-`.
-- **Reusing a ChangeSet slug across Spaces.** Slugs are Space-scoped; `acme-home/release-v452` is not the same as `acme-prod/release-v452`. Pick the app team's home Space (`<app>-home`, per `skills/space-topology`) and put all that app's release ChangeSets there.
+- **Reusing a ChangeSet slug across Spaces.** Slugs are Space-scoped; `acme-home/release-v452` is not the same as `acme-prod/release-v452`. Pick the app team's home Space (`<app>-home`, per `skills/confighub-core`) and put all that app's release ChangeSets there.
 - **Opening a ChangeSet before the Filter is right.** Opening creates revisions on every selected Unit. Dry-run the Filter first (`cub unit list --filter <home-space>/<slug>`) and confirm the set before opening.
 - **Mixing ChangeSet and ad-hoc Tags on the same release.** Pick one. A ChangeSet already produces start / end Tags; don't also hand-apply a separate `release-v452` Tag to the same revisions.

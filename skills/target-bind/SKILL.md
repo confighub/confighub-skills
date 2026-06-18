@@ -1,101 +1,78 @@
 ---
 name: target-bind
-description: 'Use when the user wants to bind a Unit (or many Units) to a destination — a specific Kubernetes cluster+namespace, an ArgoCD Application, a Flux Kustomization, an OCI registry, a Tofu workspace. Phrases like "set up a target", "point this unit at my cluster", "bind these units to prod", "hook up Argo/Flux", "change the namespace this deploys to", "promote these to a different target". Creates or updates a Target with the right provider/toolchain and parameter JSON, attaches Units via cub unit set-target (or --where for bulk), and stops without applying — apply is cub-apply''s job. Do not load for installing a worker (use worker-bootstrap first — Targets reference Workers), for running apply (use cub-apply), or for authoring the Unit''s YAML (use config-as-data).'
+description: 'Bind Units to a delivery Target — ProviderType OCI (publish Unit data to ConfigHub''s OCI registry for ArgoCD/Flux to pull) or ConfigHub (apply ConfigHub/YAML config). Both are server workers, no external worker to run. Phrases: set up a target, publish to OCI, attach units to a target. Creates the Target + server worker and attaches Units via cub unit set-target; stops before apply.'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub target create *) Bash(cub target update *) Bash(cub unit set-target *) Bash(cub unit update *)
+allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker create *) Bash(cub target create *) Bash(cub target update *) Bash(cub unit set-target *) Bash(cub unit update *)
 ---
 
 # target-bind
 
-Creates the binding between Units and destinations. Once bound, a Unit can be applied through `cub-apply`.
+Creates the binding between Units and a delivery destination. Once bound, a Unit can be applied through `cub-apply`.
+
+Confirm verbs and flags with `cub <verb> --help` before composing — never invent flags.
 
 ## What a Target is
 
-A Target is a named, parameterized binding that tells ConfigHub *where* a Unit's configuration should land. It references a Worker to do the execution and carries provider-specific parameters (e.g., for `Kubernetes`: `KubeContext`, `KubeNamespace`, `WaitTimeout`).
+A Target is a named binding that tells ConfigHub *where* a Unit's configuration lands when applied. It references a **server worker** and carries a `ProviderType`. Two ProviderTypes are relevant:
 
-Best practice: one Target per Kubernetes cluster per Space, since a Target corresponds to a cluster. A Target can live in a different Space than the Units that use it (e.g., a shared `targets` Space).
+- **`OCI`** — publishes the Unit's data verbatim to ConfigHub's built-in OCI registry. The bridge performs no remote apply (it succeeds immediately and echoes the data back as live state); a puller you configure outside ConfigHub — **ArgoCD or Flux** — fetches the OCI artifact and deploys it to the cluster. This is the primary delivery path. The OCI transport never routes by toolchain, so **a single OCI Target accepts Units of any toolchain** (KRM, AppConfig, ConfigHub/YAML).
+- **`ConfigHub`** — applies ConfigHub-native `ConfigHub/YAML` config (e.g. Units whose data *is* ConfigHub entities). Toolchain and live-state type are both `ConfigHub/YAML`.
+
+**You do not need to run an external worker to create or attach a Target.** Both providers are *server workers*: bridges hosted inside the ConfigHub server. You only run an external worker to provide **custom worker functions** — see `worker-bootstrap`.
+
+**Best practice:** one OCI Target per Space (it covers every toolchain in the Space). Add a ConfigHub Target only if the Space also manages ConfigHub-native config. A Target can live in a different Space than the Units that use it and be referenced as `<target-space>/<target-slug>`.
 
 ## When to use
 
-- First time binding Units to a destination.
-- Changing where a Unit deploys (different cluster, namespace, controller).
-- Adding an additional delivery path (add an Argo Application target to Units that already have a direct-Kubernetes target).
-- Copying a Target from one Space to another (`--from-target` / `--from-target-space`).
+- First time binding Units to a delivery destination.
+- Setting up OCI publishing for ArgoCD / Flux to consume.
+- Changing which Target a Unit applies through.
+- Binding many Units to a Target at once (`--where`).
 
 ## Do not load for
 
-- Installing the worker itself (`worker-bootstrap`).
+- Running an external worker for custom functions (`worker-bootstrap`).
 - Running the actual apply (`cub-apply`).
-- Authoring or editing the Unit's data (`config-as-data` / `cub-mutate`).
+- Authoring or editing the Unit's data (`confighub-core` doctrine / `cub-mutate`).
+- Rendering an AppConfig file to a ConfigMap (`app-config` — that uses an Upsert link, no Target).
 
 ## Preflight gates
 
-1. `cub organization list` succeeds (proves a valid token; `cub context get` / `cub info` / `cub version` don't require one).
-2. The intended Worker exists in a Space the user can read: `cub worker list --space <worker-space>`. If not, stop and route to `worker-bootstrap`.
-3. For Kubernetes-provider targets: the `KubeContext` value matches a context name the worker's kubeconfig knows about. If unsure, `cub target access` can verify.
-4. Confirm with the user: single-provider target or multi-provider (e.g., both `Kubernetes` direct apply AND `ArgoCDRenderer` output)?
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
+2. A **server worker** exists (or create one — it's a single idempotent command, no process to run):
+
+   ```bash
+   cub worker create --space <space> --allow-exists --is-server-worker server-worker
+   ```
+
+   Place it in any Space; reference cross-Space as `<space>/server-worker`. Add `--use-user-identity` if the worker should act as the requesting user (required for some ConfigHub-provider operations).
+3. For OCI delivery: the user has (or will set up) ArgoCD or Flux configured to pull the published OCI artifact. That configuration lives outside ConfigHub.
 
 ## The loop
 
-### 1. Establish the provider + toolchain
+### 1. Ensure the server worker (preflight step 2)
 
-Pick based on delivery model:
+### 2. Create the Target
 
-| Delivery model | Provider | Toolchain |
-|---|---|---|
-| Apply K8s YAML directly to a cluster | `Kubernetes` | `Kubernetes/YAML` |
-| Emit ArgoCD Applications for Argo to deploy | `ArgoCDRenderer` | `Kubernetes/YAML` |
-| Emit Flux resources for Flux to deploy | `FluxRenderer` | `Kubernetes/YAML` |
-| Publish OCI artifacts for Argo to pull | `ArgoCDOCI` | `Kubernetes/YAML` |
-| Render ConfigMap bundles | `ConfigMapRenderer` | various AppConfig/* |
-
-Multi-provider targets: repeat `--provider` and `--toolchain` in matching positional order.
-
-### 2. Compose parameters
-
-Parameters are a single JSON string passed positionally after the target slug. Known keys (Kubernetes provider):
-
-- `KubeContext` — kubeconfig context name the worker should use.
-- `KubeNamespace` — default namespace for namespaced resources.
-- `WaitTimeout` — how long apply waits for the resource to settle (`2m0s`, `30s`).
-
-Other providers define their own keys. Check `references/triggers-recipes.md` and the ConfigHub docs for per-provider parameter sets.
-
-### 3. Create or update the Target
+**OCI** (toolchain defaults to the `ToolchainAny` wildcard; no parameters needed — it publishes to ConfigHub's OCI registry):
 
 ```bash
-cub target create <target-slug> \
-  '{"KubeContext":"kind-myapp-prod","KubeNamespace":"default","WaitTimeout":"2m0s"}' \
-  <worker-slug> \
+cub target create <target-slug> '' <space>/server-worker \
   --space <target-space> \
-  --provider kubernetes \
-  --toolchain Kubernetes/YAML
+  --provider OCI
 ```
 
-Or multi-provider:
+**ConfigHub** (ConfigHub-native config):
 
 ```bash
-cub target create <target-slug> \
-  '{"KubeContext":"kind-myapp-prod","KubeNamespace":"default"}' \
-  <worker-slug> \
+cub target create <target-slug> '' <space>/server-worker \
   --space <target-space> \
-  --provider kubernetes --toolchain Kubernetes/YAML \
-  --provider argocdrenderer --toolchain Kubernetes/YAML \
-  --option 'argoApplicationNamespace=argocd'
+  --provider ConfigHub --toolchain ConfigHub/YAML --livestate-type ConfigHub/YAML
 ```
 
-Targets are not versioned configuration data — **no `--change-desc`** on create/update.
+Parameters are the JSON string after the slug (`''` = none, the usual case for these providers). Targets are not versioned configuration data — **no `--change-desc`** on create/update. Check `cub target create --help` for the authoritative parameter/option set.
 
-### 4. Optional: scope Triggers to the Target
-
-If you want specific Triggers to run when Units are applied *through* this Target (in addition to or instead of the Space's `TriggerFilterID`), attach a Trigger-filter to the Target:
-
-```bash
-cub target update <target-slug> --space <target-space> \
-  --trigger-filter platform/standard-vets
-```
-
-### 5. Attach Units to the Target
+### 3. Attach Units to the Target
 
 Single Unit:
 
@@ -109,42 +86,39 @@ Bulk:
 cub unit set-target --space <app-space> --where "Labels.App = 'myapp'" <target-slug>
 ```
 
-Cross-Space target reference uses `<target-space>/<target-slug>` when the Target lives in a different Space.
+Cross-Space reference uses `<target-space>/<target-slug>`. `cub unit set-target` is not a data mutation — it takes no `--change-desc`. To record *why* the target changed, mutate the Unit's data in a separate step, or rely on the audit log.
 
-Changing a Unit's target is not a configuration-data mutation — `cub unit set-target` doesn't take `--change-desc`. To record *why* the target changed, mutate the Unit's data in a deliberate step (e.g., update an annotation) with a proper `--change-desc`, or rely on the audit log.
+### 4. Hand off
 
-### 6. Hand off
-
-Target is created and Units are attached. Next step is almost always `cub-apply`.
+Target created and Units attached. Next is almost always `cub-apply` (which publishes to OCI / applies ConfigHub config). Cluster convergence from an OCI publish is ArgoCD/Flux's job — verify it read-only in `verify-apply`.
 
 ## Tool boundary
 
-- Mutations: `cub target create/update`, `cub unit set-target`, `cub unit update` (only when recording target-change rationale in data).
-- Read-only: `cub target get/list`, `cub target access` (for kubecontext verification), `cub worker list/get/list-function` (to confirm the Worker supports the provider types this Target needs), `cub unit livestate/livedata` (to confirm a prior Target wasn't surprisingly live).
-- Not allowed: bypassing Targets by running `kubectl apply` or `argocd app create` directly.
+- Mutations: `cub worker create --is-server-worker`, `cub target create/update`, `cub unit set-target`, `cub unit update` (only when recording a target-change rationale in data).
+- Read-only: `cub target get/list`, `cub worker get/list`, `cub unit livestate/livedata`.
+- Not allowed: bypassing Targets with `kubectl apply` / `argocd app create` / `flux create` directly.
 
 ## Stop conditions
 
-- No Worker exists for the provider types this Target needs. Stop and route to `worker-bootstrap`.
-- `KubeContext` names a context the Worker's kubeconfig doesn't recognize. Fix before proceeding.
-- User is pointing a prod Target at a dev cluster (context name disagreement). Flag loudly before proceeding.
-- `cub unit set-target` across `--space "*"` without a narrow `--where`. Ask the user to confirm blast radius.
+- No server worker exists and the user can't create one — stop (it should just be the one idempotent command above).
+- User asks to bind to a provider other than OCI or ConfigHub — those are the supported delivery providers; clarify intent.
+- `cub unit set-target` across `--space "*"` without a narrow `--where` — confirm blast radius first.
 
 ## Verify chain
 
-1. `cub target get <target-slug> --space <target-space>` — provider/toolchain/parameters match intent; worker slug is set.
-2. `cub target access <target-slug> --space <target-space>` — (for Kubernetes) temporary kubectl access confirms the Worker can reach the cluster.
-3. `cub unit get <unit-slug> --space <app-space>` — `TargetID` points at the expected Target.
-4. For bulk: `cub unit list --space <app-space> --where "TargetID IS NOT NULL"` count matches the `--where` selection count.
+1. `cub target get <target-slug> --space <target-space>` — `ProviderType` (OCI / ConfigHub) and worker are set; for OCI the toolchain is the `ToolchainAny` wildcard.
+2. `cub unit get <unit-slug> --space <app-space>` — `TargetID` points at the expected Target.
+3. For bulk: `cub unit list --space <app-space> --where "TargetID IS NOT NULL"` count matches the `--where` selection.
 
 ## Evidence
 
 - `cub target get <target-slug> --space <target-space> --web` — Target page in the GUI.
-- `cub unit get <unit-slug> --space <app-space> --web` — Unit page shows Target binding and apply state.
+- `cub unit get <unit-slug> --space <app-space> --web` — Unit page shows the Target binding and apply state.
 
 ## References
 
-- Target entity: `https://docs.confighub.com/markdown/background/entities/target.md`
-- Worker guide: `https://docs.confighub.com/markdown/guide/workers.md`
+- `cub target create --help`, `cub worker create --help` — authoritative flags/parameters.
+- Target entity: `https://docs.confighub.com/markdown/background/entities/target.md`.
 - `references/cub-cli.md` — CLI conventions.
-- `references/filters-and-queries.md` — the `TargetID IS NOT NULL` field pattern for verifying bulk bindings.
+- `references/filters-and-queries.md` — the `TargetID IS NOT NULL` pattern for verifying bulk bindings.
+- Companion skills: `worker-bootstrap` (server workers + external workers for custom functions), `cub-apply` (apply/publish), `verify-apply` (confirm Argo/Flux picked up the OCI artifact).

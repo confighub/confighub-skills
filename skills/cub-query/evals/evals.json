@@ -33,7 +33,7 @@
       "id": 5,
       "name": "single-workload-replica-count-in-region",
       "prompt": "How many replicas does our frontend have in us-east?",
-      "expected_output": "Resolves the workload/region phrasing by listing Spaces (matching on slug pattern like `*-use2-*` or on a Space Label such as `Region=us-east-2`) and listing Units in the candidate Space(s) to find a `frontend` Unit. Does not invent a slug. Then runs `cub function do --space <space> --unit <unit> get-replicas --quiet --show output -o jq=...` or `cub unit data <unit> --space <space>` and reports spec.replicas. Single-workload scope, no --space \"*\" sweep unless the user asked for fleet-wide. Does not mutate. If Space layout is ambiguous, references space-topology conventions rather than guessing.",
+      "expected_output": "Resolves the workload/region phrasing by listing Spaces (matching on slug pattern like `*-use2-*` or on a Space Label such as `Region=us-east-2`) and listing Units in the candidate Space(s) to find a `frontend` Unit. Does not invent a slug. Then runs `cub function do --space <space> --unit <unit> get-replicas --quiet --show output -o jq=...` or `cub unit data <unit> --space <space>` and reports spec.replicas. Single-workload scope, no --space \"*\" sweep unless the user asked for fleet-wide. Does not mutate. If Space layout is ambiguous, references confighub-core conventions rather than guessing.",
       "files": []
     },
     {

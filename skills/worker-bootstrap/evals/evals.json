@@ -3,23 +3,23 @@
   "evals": [
     {
       "id": 1,
-      "name": "first-worker-direct-install",
-      "prompt": "I just finished setting up ConfigHub and I want to deploy a Kubernetes app to my dev cluster through it. I'm pointed at the right kubectl context. What do I need to do to get ConfigHub talking to the cluster?",
-      "expected_output": "Confirms the preflight (cub context get, kubectl current-context, namespace permissions, provider-types choice — Kubernetes for direct apply), creates a worker entity via cub worker create, installs it via cub worker install --provider-types kubernetes --namespace confighub --wait, verifies with cub worker get/status/list-function, and hands off to target-bind as the next step. Does not hand-author the worker manifest.",
+      "name": "do-i-need-to-run-a-worker",
+      "prompt": "I just finished setting up ConfigHub and I want to deploy a Kubernetes app to my cluster through ArgoCD. Do I need to run a worker process first?",
+      "expected_output": "Explains that OCI and ConfigHub delivery use server workers hosted in the ConfigHub server — no process to run. Creates one with cub worker create --space <s> --allow-exists --is-server-worker server-worker, and hands off to target-bind to create an OCI target against it. Notes ArgoCD is configured to pull from ConfigHub's OCI registry outside ConfigHub. Does not install or run an external worker.",
       "files": []
     },
     {
       "id": 2,
-      "name": "add-argo-renderer",
-      "prompt": "We already have a Kubernetes worker running, but now we want to use Argo to actually do the deployments instead of applying directly. How do we add that?",
-      "expected_output": "Explains ArgoCDRenderer briefly (worker emits Argo Applications; Argo deploys), creates a separate worker (or adds the provider to the existing worker) with --provider-types argocdrenderer, installs it, verifies list-function now includes Argo renderer functions, and notes that the user still needs target-bind with an Argo-appropriate Target to actually route Units through the Argo path. Does not try to configure ArgoCD itself.",
+      "name": "external-worker-for-custom-functions",
+      "prompt": "I've written some custom worker functions and want a worker that hosts them. How do I run that?",
+      "expected_output": "Explains that custom functions require an external worker (not a server worker): create the entity with cub worker create, then run it with cub worker run (local) or install it into a cluster with cub worker install --export | kubectl apply, and verify with cub worker list-function that the custom functions are advertised. Defers exact flags to cub worker run/install --help.",
       "files": []
     },
     {
       "id": 3,
-      "name": "diagnose-crashing-worker",
-      "prompt": "The worker I installed yesterday is in CrashLoopBackOff. Help me figure out what's wrong.",
-      "expected_output": "Pulls `cub worker status`, `cub worker logs`, and `kubectl describe pod` for the worker pod; surfaces the specific error (image-pull, RBAC, missing secret, server-version mismatch, etc.); recommends a concrete next step — cub worker upgrade if version mismatch; fix RBAC / namespace permissions if authz; regenerate secret via cub worker get-secret if credential corruption. Stops before retrying blindly.",
+      "name": "diagnose-crashing-external-worker",
+      "prompt": "The external worker I installed yesterday for my custom functions is in CrashLoopBackOff. Help me figure out what's wrong.",
+      "expected_output": "Pulls cub worker status, cub worker logs, and kubectl describe pod for the worker pod; surfaces the specific error (image-pull, RBAC, missing secret, server-version mismatch, etc.); recommends a concrete next step — cub worker upgrade if version mismatch; fix RBAC / namespace permissions if authz; check the credential secret. Stops before retrying blindly.",
       "files": []
     }
   ]

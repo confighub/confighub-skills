@@ -1,5 +1,36 @@
 # confighub-skills — plan for remaining work
 
+> **2026-06-17 consolidation (skill-budget + ConfigHub updates).** Skill count cut 23 → 16 to fix the
+> `skillListingBudgetFraction` overflow that was disabling the whole pack. All descriptions rewritten to
+> routing-only, ≤340 chars (was ~700–1250). Changes: removed `import-from-argocd` + `import-from-flux`;
+> merged `config-as-data` + `space-topology` + `import-unit-granularity` into `confighub-core`; merged
+> `import-from-helm` + `import-from-kustomize` + `import-from-cluster` into a single `import` skill; folded
+> the variant lifecycle (`cub variant upload`/`create`/`promote`) into `promote-release`. Doctrine updates:
+> **one resource per Unit** is now the default granularity; **one Target per ToolchainType per Space**.
+> `hooks/skill-reminder.sh`, `hooks/hooks.json` (added `cub variant *`, dropped orphaned `cub gitops *`),
+> `plugin.json`, and `README.md` synced to the new set. P1's `variants` item is now done; the P3
+> description-optimization goal is largely satisfied by the rewrite. Evals from the merged skills were
+> consolidated into the surviving skills' `evals/evals.json`.
+>
+> **2026-06-17 delivery-model rewrite (OCI + server workers).** Second wave, same day. The only relevant
+> target ProviderTypes are now **OCI** (publishes Unit data to ConfigHub's built-in OCI registry for ArgoCD/Flux
+> to pull) and **ConfigHub** (applies `ConfigHub/YAML` config) — both are **server workers** (`cub worker create
+> --is-server-worker`), so no process runs to create/use a Target; an external worker is only needed for custom
+> worker functions. Skills must NOT mention ProviderTypes Kubernetes, ArgoCDOCI, FluxOCI, ArgoCDRenderer,
+> FluxRenderer, ConfigMapRenderer, or OpenTofu/AWS (`Kubernetes/YAML` as a *toolchain* is still fine). Changes:
+> removed `drift-reconcile` (15 skills now — OCI/ConfigHub bridges echo data, so ConfigHub can't detect cluster
+> drift; that's Argo/Flux's domain); cut import §C (live-cluster adoption needed a cluster-reading bridge);
+> rewrote `app-config` to the Upsert-link + `render-configmap` Invocation path (no worker/Target/ConfigMapRenderer,
+> per `docs/guide/app-config.md`); rewrote `target-bind` (OCI/ConfigHub providers, server workers) and
+> `worker-bootstrap` (server worker default; external worker only for custom functions); reframed `cub-apply`
+> (apply = publish to OCI) and `verify-apply` (ConfigHub confirms *published*; cluster convergence verified
+> out-of-band via read-only argocd/flux/kubectl). Updated `confighub-core` vocab/topology, `incident-management`
+> Path C (re-create cluster edits as ConfigHub mutations, no drift skill), `references/cub-cli.md` (OCI live-view
+> caveat), hooks, `plugin.json`, `README.md`, settings example (+`cub variant *`, `cub invocation create`,
+> `cub unit data`). Note: the published guide docs (esp. `rendered-manifests.md`) still describe the old
+> renderer/OCI-bridge model and were NOT used as the source of truth — the code (`bridge_worker_info.go`,
+> `oci.go`, `confighub.go`, `worker_create.go`) and Brian's directive were.
+
 Status as of 2026-04-16, `main` at `6956d39` after PRs [#1](https://github.com/confighub/confighub-skills/pull/1) + [#3](https://github.com/confighub/confighub-skills/pull/3) + [#4](https://github.com/confighub/confighub-skills/pull/4) + [#5](https://github.com/confighub/confighub-skills/pull/5) + [#9](https://github.com/confighub/confighub-skills/pull/9) + [#10](https://github.com/confighub/confighub-skills/pull/10) + [#11](https://github.com/confighub/confighub-skills/pull/11) + [#13](https://github.com/confighub/confighub-skills/pull/13) + [#14](https://github.com/confighub/confighub-skills/pull/14) + [#15](https://github.com/confighub/confighub-skills/pull/15) + [#16](https://github.com/confighub/confighub-skills/pull/16) + [#17](https://github.com/confighub/confighub-skills/pull/17) + [#18](https://github.com/confighub/confighub-skills/pull/18) + [#19](https://github.com/confighub/confighub-skills/pull/19) merged:
 
 - **23 skills shipped** across Waves 1–4 + Wave 5's `space-topology` + `app-config`. Count dropped from 25→23 via two post-iteration-4 consolidations: `verify-delivery` + `reconciliation-check` + `release-verify` merged into `verify-apply` (PR #19); `promotion-preflight` merged into `promote-release` (on this branch). `cub unit push-upgrade` is deprecated — `promote-release` now uses a unified selector-based `cub unit update --patch --upgrade` for both env-by-env and base-to-fleet cases.
@@ -80,7 +111,7 @@ These are settled and load-bearing. Don't relitigate without strong reason.
 3. **ArgoCD and Flux are peers.** Not ArgoCD-primary.
 4. **Configuration as data.** Units contain literal YAML, no parameterization at rest. Helm / Kustomize are onboarding ramps, not ongoing workflows.
 5. **`--change-desc` is Unit-data-mutation-only.** Not on `cub space / trigger / filter / target / worker create/update`.
-6. **`--display-mutations` (plural)** on every mutating call. The singular `--display-mutation` is rejected.
+6. **`-o mutations`** on every mutating call to show the diff inline (this replaced the older `--display-mutations` flag; the singular `--display-mutation` was always rejected).
 7. **Triggers are opt-in but recommended.** Platform-Space + Filter + `TriggerFilterID` recipe, attached with `--where-trigger "-"` to clear the default.
 8. **Permission discipline.** Read set + Write set, both verb-scoped, no `Bash(cub *)`, no delete verbs in normal skills.
 9. **Standard terminology.** Revision / Evidence / completion / ConfigHub-managed / review links. Don't invent synonyms.
@@ -92,7 +123,7 @@ These are settled and load-bearing. Don't relitigate without strong reason.
 15. **`cub --jq` over piping to `jq`.** `cub get` / `list` return an extended envelope with the entity under `.Unit` / `.Space` / etc. and related entities at top level (`.BridgeWorker`, `.TriggerFilter`, `.Triggers`).
 16. **`--where` / `--where-field` / `--where-data` / `--where-resource` are AND only.** No OR. Disjunctions split into separate commands, `IN (...)`, or separate Units.
 17. **`--filter` takes one argument per command.** Combine with `--where`, or create a third Filter expressing the intersection.
-18. **Auth preflight is `cub organization list`** (or any other authenticated read). Never `cub context get` / `cub info` / `cub version` — the first reads local login state and the others don't require a token at all.
+18. **Auth preflight is `cub auth status`** — it loads the active-context token, checks expiry locally, then calls the server's `/me` endpoint to confirm the token is accepted, and exits non-zero with reauth guidance if not. Purpose-built for this (added after the consolidation). Never `cub context get` / `cub info` / `cub version` — they don't require a valid token; `cub organization list` also works but `cub auth status` is canonical.
 19. **`--unit <slug|uuid>[,…]` replaces `--where "Slug = '<slug>'"` for bulk-only commands** (`cub function do`, `cub run`). Composes with `--where` for additional filtering.
 20. **Apply status lives on `cub unit-event`, not on a Unit field.** `cub unit get --jq .UnitStatus` + `.LatestUnitEvent` are the first-look envelopes; `cub unit-event list/get` is the authoritative event stream (including `ResourceStatuses` per resource). `LastActionError` is not a real field.
 21. **Promotion direction ≠ Link direction.** Data flows `<source-env>` → `<destination-env>`; a `UpgradeUnit` Link points _from_ a downstream Unit _to_ its upstream (dependency edge, opposite of data flow). Skills use `<source-env>` / `<destination-env>` for promotion and "upstream / downstream" for Link structure — never "from/to" for both.

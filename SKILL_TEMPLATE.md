@@ -28,7 +28,7 @@ One or two sentences on what the skill enables, in plain terms.
 
 Before acting, confirm:
 
-1. `cub auth login` is current (`cub organization list` succeeds — any authenticated read would work, but `cub context get` / `cub info` / `cub version` do not, since they don't require a valid token).
+1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
 2. Target Space exists and the user has write permission.
 3. <skill-specific gates>
 

@@ -1,6 +1,6 @@
 ---
 name: incident-management
-description: 'Use when the user is in the middle of a production incident and needs an orchestrated plan — phrases like "we have an outage", "prod is crashing", "page me through this", "what do I do first?", "mitigate or roll back?", "production is down since the last release", "something''s broken in staging — help me triage", "we''re on an incident call, walk me through the ConfigHub side", "post-incident cleanup". Triage the situation, decide between stabilize-and-mitigate vs head-moving rollback vs drift reconciliation, route to the right mutation skill with the scope and `--change-desc` composed, and drive the post-incident verification + close-out. Do not load for planned releases (use `promote-release`), for routine change management, or for single-Unit edits the user is confidently making on their own (use `cub-mutate`).'
+description: 'Orchestrate the ConfigHub side of a live production incident — triage, decide stabilize-and-mitigate vs rollback vs drift reconciliation, route to the right mutation skill. Use for "we have an outage", "prod is crashing", "mitigate or roll back?", "post-incident cleanup". Not for planned releases (use promote-release).'
 phase: cross-cutting
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub worker logs *) Bash(cub worker status *) Bash(kubectl get *) Bash(kubectl describe *) Bash(kubectl logs *)
 ---
@@ -56,7 +56,7 @@ Ask (or derive from context) in order. Stop at the first one that routes clearly
    Inspect a specific action with `cub unit-action get <unit-slug> <num>` (the Num column from list), adding `--data`, `--livedata`, `--livestate`, or `--bridgestate` when the payload matters for triage.
 
 2. **Did anyone make out-of-band cluster changes (kubectl, argocd sync, flux reconcile) to stabilize?**
-   - Yes → after incident is contained, `drift-reconcile` to decide who wins per change.
+   - Yes → those edits will be reverted by ArgoCD/Flux on the next sync unless captured in ConfigHub. After the incident is contained, re-create the intended change as a ConfigHub mutation (Path C) so the published desired state matches.
    - No → note, continue.
 
 3. **Is the breakage widespread (many Units) or narrow (one Unit)?**
@@ -64,8 +64,8 @@ Ask (or derive from context) in order. Stop at the first one that routes clearly
    - Narrow → single-Unit path.
 
 4. **Is ConfigHub itself healthy?**
-   - Worker alive: `cub worker status --space <workers-space> <worker>`. If Worker is down, mutations can't apply anyway — route to `worker-bootstrap` fix first, hold the ConfigHub-side mitigation until the Worker is back.
-   - Server reachable: `cub space list` succeeds.
+   - Auth + server reachable: `cub auth status` succeeds (calls the server's `/me`). If it fails, the session is unauthenticated — ask the user to run `cub auth login` before any ConfigHub-side action.
+   - Delivery worker: OCI/ConfigHub Targets use server workers (always available — no process to be down). Only an external worker hosting custom functions can be down; if one is and it's in the path, route to `worker-bootstrap`.
 
 5. **Is the user paging, post-mortem, or blast-radius bounding?**
    - Actively paging → minimize steps, defer tagging / close-out work until green.
@@ -139,13 +139,13 @@ User prompt: <verbatim>
 Clarifications: <condensed — ticket / channel, decision, expected-to-hold-through >
 ```
 
-## Path C — reconcile (post-mitigation, or manual cluster edits were made)
+## Path C — capture out-of-band cluster edits into ConfigHub
 
-Use after an incident where someone applied hotfixes directly in-cluster (`kubectl edit`, `argocd app sync` with an override, etc.) and ConfigHub now diverges from what's live.
+Use after an incident where someone applied hotfixes directly in-cluster (`kubectl edit`, `argocd app sync` with an override, etc.). ConfigHub doesn't read live cluster state, and ArgoCD/Flux will revert those manual edits on their next sync of the published desired state — so a manual edit that *should* persist must be re-created in ConfigHub.
 
-Hand off to `drift-reconcile` with the scope of affected Units. The decisions there (ConfigHub wins / cluster wins / selective merge) should usually lean cluster-wins for incident-time edits that _stuck_ — absorb the stabilization into Data so the next apply doesn't undo it — and ConfigHub-wins for edits that were temporary and the user wants gone.
+Re-express each stabilizing edit as a ConfigHub data mutation (Path B: `cub-mutate`) and re-publish (`cub-apply`), so the OCI-published desired state carries the fix and Argo/Flux converges to it. For edits that were only temporary and should disappear, do nothing — the next sync removes them.
 
-Don't start Path C until the incident is contained (symptoms resolved, no ongoing paging). Reconciling drift while pods are still crashing just adds confusion.
+Don't start Path C until the incident is contained (symptoms resolved, no ongoing paging). Re-publishing while pods are still crashing just adds confusion.
 
 ## During the incident — logging discipline
 
@@ -175,16 +175,15 @@ Once symptoms are gone and the user confirms stable:
 
 3. **If Path B with a ChangeSet was used, consider whether the ChangeSet should be rolled back.** A mitigation is often temporary — the root-cause fix comes later. Keep the ChangeSet open as a marker, or close it and rely on Tag:incident-\* for retrieval.
 
-4. **If Path C absorbed manual cluster fixes into ConfigHub**, confirm the absorbed data has passed the Space's `platform/standard-vets` Triggers. Incident-time edits often produce vet failures; fix them in a follow-up change once you're out of the hot window.
+4. **If Path C re-created manual cluster fixes as ConfigHub mutations**, confirm the new data has passed the Space's `platform/standard-vets` Triggers. Incident-time edits often produce vet failures; fix them in a follow-up change once you're out of the hot window.
 
 ## Tool boundary
 
 Read-only and decision-only. **This skill does not mutate.** Every mutation during an incident goes through the skill it hands off to:
 
 - Rollback → `rollback-revision`.
-- Forward fix → `cub-mutate`.
-- Apply / deploy → `cub-apply`.
-- Drift reconciliation → `drift-reconcile`.
+- Forward fix / capture cluster edits (Path C) → `cub-mutate`.
+- Apply / publish → `cub-apply`.
 - Verification → `verify-apply`.
 
 If you find yourself about to run `cub unit update` / `cub function do` / `cub function set` / `cub unit apply` from here, stop and hand off.
@@ -215,4 +214,4 @@ If you find yourself about to run `cub unit update` / `cub function do` / `cub f
 - `references/changesets.md` — ChangeSet lifecycle + rollback via `Before:ChangeSet:<slug>`.
 - `references/revisions.md` — restore-target syntax.
 - `references/cub-cli.md` — `--change-desc` discipline.
-- Companion skills: `rollback-revision` (Path A), `cub-mutate` (Path B data change), `cub-apply` (Path B runtime), `drift-reconcile` (Path C), `verify-apply` (close-out), `worker-bootstrap` (Worker-down blocker), `promote-release` (the opposite-direction skill — don't use during an incident).
+- Companion skills: `rollback-revision` (Path A), `cub-mutate` (Path B / Path C data change), `cub-apply` (Path B/C runtime), `verify-apply` (close-out), `worker-bootstrap` (external-worker blocker), `promote-release` (the opposite-direction skill — don't use during an incident).
