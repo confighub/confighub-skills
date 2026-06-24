@@ -138,7 +138,15 @@ A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` block
 
 ## Diagnosing a blocked apply
 
-1. `cub unit get <slug> --space <space>` — shows attached ApplyGates and which Trigger produced them.
+1. `cub unit get <slug> --space <space>` — shows attached ApplyGates/ApplyWarnings as `<space>/<trigger>/<function>` keys. The default text view stops at the keys — it does **not** print the failure message.
+1a. **For the actual failure message, read `Unit.ValidationResults`** — a map under the same keys, each entry carrying human-readable `Details[]` and structured `FailedAttributes[]` (e.g. the kyverno policy/rule `Identifier` + `Message`, plus `ResourceType` and `ResourceName`). This is what turns "gated by X" into "here's exactly what X objected to", and it covers warnings too:
+   ```bash
+   cub unit get <slug> --space <space> -o "jq=.Unit.ValidationResults"
+   # just one trigger:
+   cub unit get <slug> --space <space> \
+     -o 'jq=.Unit.ValidationResults["<space>/<trigger>/vet-kyverno"]'
+   ```
+   (`-o jq=<expr>` applies the jq expression to the output directly — no piping to a separate `jq`.)
 2. `cub revision list <slug> --space <space>` — find the revision that failed validation; the `--change-desc` should indicate what the user was trying to do.
 3. `cub trigger get --space platform <trigger-slug>` — see what the Trigger is checking.
 4. Fix the data via `cub function set` or `cub unit update` — the Mutation Triggers re-run automatically and release the gate if it passes.
@@ -181,7 +189,8 @@ Clarifications: <condensed — e.g., "user confirmed the namespace value should 
 ## Evidence
 
 - `cub space get <space> --web` — Space page shows attached Triggers/Filter.
-- `cub unit get <slug> --space <space> --web` — shows gates on a Unit.
+- `cub unit get <slug> --space <space> --web` — shows gates/warnings on a Unit.
+- `cub unit get <slug> --space <space> -o "jq=.Unit.ValidationResults"` — the failure messages behind each gate/warning (`Details[]` + `FailedAttributes[]`).
 - `cub trigger get --space platform <slug> --web` — Trigger details.
 
 ## References
