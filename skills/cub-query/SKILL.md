@@ -11,7 +11,7 @@ The database-like query surface of ConfigHub. Most users don't discover this fro
 
 ## Why this matters
 
-Configuration is stored as data. Every field of every resource in every Unit in every Space is queryable — by metadata (`--where`), by content (`--where-data`), by resource type, and via functions that return structured values. This replaces "clone the repo, grep, try to figure out which env does what." Also, it is generally unnecessary to list all configuration Units or other entities, use --json or --yaml to output the whole entities, and then use jq and yq locally to filter entities and extract specific values.
+Configuration is stored as data. Every field of every resource in every Unit in every Space is queryable — by metadata (`--where`), by content (`--where-data`), by resource type, and via functions that return structured values. This replaces "clone the repo, grep, try to figure out which env does what." Also, it is generally unnecessary to list all configuration Units or other entities and post-process locally — prefer server-side `--where` plus `-o jq`/`-o yq`. One caveat: a singular `get` returns the whole entity, but a **`list` returns only default fields** (entity IDs + Slug + a few) even with `-o json`/`-o yaml`. To pull any other field from a `list` (e.g. `Labels`, `DisplayName`, `ApplyGates`/`ApplyWarnings`), name it with `--select` (or `--select "*"` for everything) — see [Output shaping](#output-shaping).
 
 The same toolkit covers two scopes:
 
@@ -195,8 +195,9 @@ The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revis
 
 ## Output shaping
 
-- `-o json` / `-o yaml` — structured.
-- `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties. When filtering metadata like .Slug note that list and get commands return an envelope structure that contains the requested entity and related entities, so a Unit Slug would be extracted with `-o jq=.Unit.Slug`.
+- `-o json` / `-o yaml` — structured. **For `list` commands this is NOT the whole entity** — only the default fields (IDs + Slug + a few). A singular `get` does return the whole entity.
+- `--select "<fields>"` / `--select "*"` — choose which fields a **`list`** retrieves (comma-separated; IDs + Slug always included). Required to read any non-default field via `-o json`/`-o jq` from a list — e.g. a Unit's `ApplyGates`/`ApplyWarnings`, a View's `DisplayName`, or a Worker's `ProvidedInfo.FunctionWorkerInfo.SupportedFunctions`. Without it those fields come back `null`/absent even though the entity has them. `--select "*"` returns all fields.
+- `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties. When filtering metadata like .Slug note that list and get commands return an envelope structure that contains the requested entity and related entities, so a Unit Slug would be extracted with `-o jq=.Unit.Slug`. (On a list, combine with `--select` if the expression reads a non-default field.)
 - `-o name` — slugs only (space-resident entities print as `<space-slug>/<slug>`).
 - `--show output -o jq=<expr>` — post-process function output with jq. Each Unit's output is wrapped in a per-Unit envelope (`SpaceSlug` / `UnitSlug` / `OutputType` / `Output`), so use `.Output[]` to iterate results and `.SpaceSlug` / `.UnitSlug` for identity. See `references/cub-cli.md`.
 - `--show values` — strip the envelope and emit raw scalar values from AttributeValueList outputs (one per line).

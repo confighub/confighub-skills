@@ -62,6 +62,18 @@ cub space update myapp-prod --trigger-filter platform/standard-vets --where-trig
 
 **Why `--where-trigger "-"`**: `WhereTrigger` and `TriggerFilterID` combine — both must match for a Trigger to apply to the Space. Every Space is created with a default `WhereTrigger = SpaceID = '<this-space>'` so Triggers defined in the Space itself apply by default. When you attach a cross-Space `--trigger-filter` (e.g., Triggers living in `platform`), that default still applies and nothing matches both predicates, so `# Triggers = 0` in `cub space get` even though `cub trigger list --filter <slug>` resolves the filter correctly. To use the filter alone, clear the default with `--where-trigger "-"` (the sentinel; plain `""` is indistinguishable from "flag not set"). Keep both predicates when you actually want the union's intersection — e.g., Space-local Triggers plus the platform baseline. Verify with `cub space get -o json <space>` — `Triggers` should be populated.
 
+**Note:** `--where-trigger "-"` only sticks when a `TriggerFilterID` is also set; on a Space with **no** filter, an empty `WhereTrigger` reverts to the `SpaceID = self` default. To make a Space ignore Triggers entirely (e.g., a `platform` Space whose own units shouldn't be validated by the Triggers it hosts), set `WhereTrigger` to a predicate that matches nothing, e.g. `--where-trigger "SpaceID = '00000000-0000-0000-0000-000000000000'"`.
+
+## Refreshing trigger lists after cross-Space changes
+
+A Space resolves *which* Triggers apply to it when its `WhereTrigger` / `TriggerFilterID` are set. Within a Space that list refreshes automatically — but when Triggers are **created, enabled, or modified in one Space and consumed by another** through a cross-Space `--trigger-filter`, the consuming Space's list goes stale. Newly matching or newly enabled Triggers won't apply to its existing Units until you refresh it:
+
+```bash
+cub space update --patch <consuming-space> --refresh-triggers
+```
+
+This re-lists the matching Triggers and re-evaluates the Space's existing Units against them. Classic symptom: you attached `--trigger-filter` before the Triggers existed (or while they were `--disable`d), so `cub space get -o json <space>` shows `Triggers = 0` and the expected gates/warnings never appear — a refresh fixes it. The same applies to Targets, and a refresh also re-checks permission authorization. Full details: https://docs.confighub.com/markdown/guide/validation-and-policies.md#refreshing-trigger-lists
+
 ## Adding custom policy
 
 `vet-cel` evaluated once per resource (`r` aliases `object`). Return a `bool` for simple pass/fail; return a map with top-level snake_case keys `passed`, `details`, `failed_attributes` for diagnostics. Prefer `failed_attributes` (path-specific, with PascalCase entry keys `ResourceName`/`ResourceType`/`Path`/`Value`) over `details` when you can point at a specific attribute. Full shape and the Kubernetes CEL libraries (`quantity()`, `url()`, `ip()`, `cidr()`, `regex()`, `format()`) are documented in `references/functions-catalog.md` → "`vet-cel` — CEL validator with structured failures".
