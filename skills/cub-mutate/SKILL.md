@@ -153,6 +153,33 @@ cub unit update --space <space> <slug> --restore <rev-num-or-tag> \
 
 Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisionNum`, `LastAppliedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, `Before:ChangeSet:<name>` (pre-open state), a revision UUID.
 
+## Running a saved Invocation
+
+An [Invocation](https://docs.confighub.com/markdown/background/entities/invocation.md) is a saved function call (function name + arguments). Run a **mutating** one with:
+
+```bash
+cub invocation invoke set <slug> \
+  --space <space> --unit <slug-or-where> \
+  --change-desc "<composed description>" \
+  -o mutations \
+  --param <name>=<value>          # repeat per declared parameter
+```
+
+`cub invocation invoke` is verb-scoped like `cub function get/set/vet`: `set` runs only mutating Invocations, `get` only non-mutating, `vet` only validating — so the verb both picks the right Invocation kind and scopes agent permissions to the operation class. For mutations, always use `set`. It reuses the same flags as `cub function set` (`--space`, `--where`/`--unit`/`--filter`, `--changeset`, `--dry-run`, `-o mutations`, `--change-desc`).
+
+- **Fully-bound Invocation** (no parameters): run via `cub invocation invoke set <slug>` with no `--param`, or `cub function set --invocation <slug>`.
+- **Parameterized Invocation**: declares its own parameters; supply each with `--param name=value`. Values are validated (required present, no unknown names) and coerced to the declared type. A parameterized Invocation cannot be referenced by a Trigger (no caller to supply values).
+
+Author a parameterized Invocation with `cub invocation create`, declaring parameters with `--parameter name[:datatype[:required]]` and referencing them from templated argument values via `{{ .Params.<name> }}`:
+
+```bash
+cub invocation create --space <space> scale Kubernetes/YAML \
+  --parameter replicas:int:true \
+  -- set-int-path apps/v1/Deployment spec.replicas 'template:{{ .Params.replicas }}'
+```
+
+Prefer a saved Invocation when the same parameterized change is run repeatedly or must be a single reviewed, permissionable operation; otherwise compose the function call inline with `cub function set` (step 5 above).
+
 ## ChangeSets — when changes span multiple Units
 
 Any time a logical change touches more than one Unit (a release, a defaults rollout, a cross-Space upgrade, a coordinated secret rotation), wrap it in a ChangeSet. Reasons:
