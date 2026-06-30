@@ -62,7 +62,7 @@ cub function set <fn>    Is this a small, surgical path edit (1–3 fields)?
 Restoring history instead? cub unit update --restore <revision-or-tag>
 ```
 
-`yq-i` is the escape-hatch mutator: full yq expression power, still invoked via `cub function set`, still records a proper revision with your `--change-desc`. Its non-mutating counterpart `yq` is in `cub-query`'s territory (reading a value out). Don't confuse the two — the `-i` suffix is the only difference and it's the difference between read and write.
+`set-yq` is the escape-hatch mutator: full yq expression power, still invoked via `cub function set`, still records a proper revision with your `--change-desc`. Its non-mutating counterpart `get-yq` is in `cub-query`'s territory (reading a value out). Don't confuse the two.
 
 ## The loop
 
