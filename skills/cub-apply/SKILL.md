@@ -23,6 +23,7 @@ The runtime verb. Takes a Unit's head (or a specific revision) and pushes it thr
 - Changing the Unit's data first (use `cub-mutate` — that produces a new revision, then you apply it).
 - Rolling back a change (use `rollback-revision` — moves head via `cub unit update --restore`, then comes here for the apply).
 - Creating the Target (use `target-bind`).
+- Cutting an **immutable, point-in-time OCI Release bundle** of the Units in a Space and assigned to a Target, or withdrawing one (use `release-publish`). This skill publishes the live, rolling head; a Release freezes a chosen revision.
 - Verifying the apply landed, troubleshooting a stuck / failed apply, or closing out a release (use `verify-apply`).
 
 ## Preflight gates

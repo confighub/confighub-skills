@@ -159,6 +159,7 @@ The gate **name carries the why** — prefer specific (`used-until-dec25`, `team
 | Post-apply verification, troubleshooting, close-out | `verify-apply` |
 | Onboarding existing Helm / Kustomize config | `import` |
 | Promoting a release env-to-env or fleet-wide; variants | `promote-release` |
+| Publishing / withdrawing an immutable OCI Release bundle of a Space for a Target | `release-publish` |
 | Rolling back by moving head | `rollback-revision` |
 | Orchestrating a production incident | `incident-management` |
 

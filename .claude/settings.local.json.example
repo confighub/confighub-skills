@@ -62,6 +62,8 @@
       "Bash(cub variant upload *)",
       "Bash(cub variant create *)",
       "Bash(cub variant promote *)",
+      "Bash(cub release publish *)",
+      "Bash(cub release withdraw *)",
       "Bash(cub helm install *)",
       "Bash(cub helm upgrade *)",
       "Bash(cub helm template *)",

@@ -1,0 +1,28 @@
+{
+  "prompts": [
+    {
+      "name": "publish-head-release",
+      "prompt": "Cut a release for the web-prod/cluster target, bundling the Units in the web-prod space at their current state. Show me the release ID and digest when it's done."
+    },
+    {
+      "name": "publish-pinned-to-tag",
+      "prompt": "I tagged the revisions I want to ship as v1.2.0 in web-prod. Publish a release for the web-prod/cluster target pinned to that tag, not to head."
+    },
+    {
+      "name": "publish-no-assigned-units",
+      "prompt": "Publish a release of the analytics-staging space to the analytics-staging/cluster target. (None of the Units in analytics-staging are bound to a target yet.)"
+    },
+    {
+      "name": "withdraw-by-id",
+      "prompt": "Withdraw release 61f26b06-3c34-4363-8b9d-7d0a7c2b5f1c. I don't remember which space it's in."
+    },
+    {
+      "name": "withdraw-blocked-by-gate",
+      "prompt": "I tried to withdraw the prod release but it won't go through — one of the bundled Units has a destroy gate. Can you just clear the gate and withdraw it?"
+    },
+    {
+      "name": "list-find-by-digest",
+      "prompt": "Which release across all our spaces has digest sha256:9f2c... ? List it and show me its target and space."
+    }
+  ]
+}

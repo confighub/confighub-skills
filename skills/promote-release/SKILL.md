@@ -26,6 +26,7 @@ Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` t
 - Rollback of a prior promotion — use `rollback-revision` + `references/changesets.md` (`Before:ChangeSet:<slug>`).
 - Verifying a promotion after it applied — use `verify-apply`.
 - In-place single-Unit changes — use `cub-mutate`.
+- Publishing or withdrawing an **immutable OCI Release bundle** (`cub release publish/withdraw`) for a Space and Target — that's a different sense of "release"; use `release-publish`.
 - Importing rendered manifests for the first time when you're not setting up a promotable base — `import` (`cub variant upload` here is for seeding a base Space you intend to clone and promote).
 
 ## Topology assumptions

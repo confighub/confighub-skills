@@ -54,6 +54,7 @@ confighub-skills/
     ├── verify-apply/           post-apply verification (publish + Argo/Flux convergence) and release close-out
     ├── import/                 onboard existing Helm charts / Kustomize overlays
     ├── promote-release/        variant spaces (cub variant upload/create/promote) + ChangeSet-wrapped bulk upgrade
+    ├── release-publish/        immutable OCI Release bundles (cub release publish/withdraw) pinned per Target
     ├── rollback-revision/      head-moving rollback via cub unit update --restore
     └── incident-management/    orchestrator for the ConfigHub side of a production incident
 ```
