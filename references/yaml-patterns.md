@@ -4,7 +4,7 @@ Everything here assumes **Configuration as Data**: fully materialized YAML store
 
 ## Starting from scratch
 
-Use `kubectl create … --dry-run=client -o yaml` (via the `kube-gen` helper or directly) to produce skeletons, then store the result in a Unit. Edit from that point forward via `cub function do` or direct edits — never re-render.
+Use `kubectl create … --dry-run=client -o yaml` (via the `kube-gen` helper or directly) to produce skeletons, then store the result in a Unit. Edit from that point forward via `cub function set` or direct edits — never re-render.
 
 ```bash
 kubectl create deployment my-app --image=confighubplaceholder:confighubplaceholder \
@@ -55,11 +55,11 @@ spec:
 Then:
 
 ```bash
-cub function do --space myapp-dev --where "Slug = 'my-app'" \
+cub function set --space myapp-dev --where "Slug = 'my-app'" \
   set-container-resources-defaults --change-desc "Fill resource defaults"
-cub function do --space myapp-dev --where "Slug = 'my-app'" \
+cub function set --space myapp-dev --where "Slug = 'my-app'" \
   set-container-probe-defaults --change-desc "Fill probe defaults"
-cub function do --space myapp-dev --where "Slug = 'my-app'" \
+cub function set --space myapp-dev --where "Slug = 'my-app'" \
   set-pod-container-security-context-defaults --change-desc "Fill security context defaults"
 ```
 
@@ -162,20 +162,20 @@ spec:
 Then apply defaults:
 
 ```bash
-cub function do --space <space> --where "Slug = 'postgres'" \
+cub function set --space <space> --where "Slug = 'postgres'" \
   -- set-container-resources-defaults --change-desc "..."
-cub function do --space <space> --where "Slug = 'postgres'" \
+cub function set --space <space> --where "Slug = 'postgres'" \
   -- set-container-probe-defaults --change-desc "..."
-cub function do --space <space> --where "Slug = 'postgres'" \
+cub function set --space <space> --where "Slug = 'postgres'" \
   -- set-pod-container-security-context-defaults --change-desc "..."
 ```
 
-Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containerPort`. For databases, override with a TCP probe or exec command afterward via `yq-i`:
+Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containerPort`. For databases, override with a TCP probe or exec command afterward via `set-yq`:
 
 ```bash
-cub function do --space <space> --where "Slug = 'postgres'" \
+cub function set --space <space> --where "Slug = 'postgres'" \
   --change-desc "Switch to TCP liveness probe for postgres" \
-  -- yq-i '
+  -- set-yq '
     with(select(.kind == "StatefulSet");
       .spec.template.spec.containers[0].livenessProbe = {"tcpSocket": {"port": 5432}, "initialDelaySeconds": 15, "periodSeconds": 20} |
       .spec.template.spec.containers[0].readinessProbe = {"tcpSocket": {"port": 5432}, "initialDelaySeconds": 5, "periodSeconds": 10}
@@ -423,6 +423,7 @@ roleRef:
 ```
 
 Principles:
+
 - Grant only the verbs needed — never `*`.
 - Use `resourceNames` to scope Secret access to specific secrets.
 - Set `automountServiceAccountToken: false` on the ServiceAccount; only mount it on pods that need API access.
@@ -431,7 +432,7 @@ Principles:
 `set-automount-service-account-token-false` handles the pod-spec side:
 
 ```bash
-cub function do --space <space> --where "Slug = 'myapp'" \
+cub function set --space <space> --where "Slug = 'myapp'" \
   -- set-automount-service-account-token-false --change-desc "..."
 ```
 

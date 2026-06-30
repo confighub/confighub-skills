@@ -159,33 +159,31 @@ Two variants — **watch the `-i` suffix**, it's the only thing separating read 
 
 | Function | Mutating | Purpose                                                                                                |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `yq`     | **no**   | Run a yq expression and return the result. Read-only.                                                  |
-| `yq-i`   | **yes**  | Run a yq `-i` (in-place) expression and store the result back as the Unit's configuration data. Write. |
+| `get-yq` | **no**   | Run a yq expression and return the result. Read-only.                                                  |
+| `set-yq` | **yes**  | Run a yq `-i` (in-place) expression and store the result back as the Unit's configuration data. Write. |
 
-Prefer a purpose-built function when one exists (`set-container-image`, `set-replicas`, the defaults family, etc.). Reach for `yq` / `yq-i` only for the long tail where no dedicated function fits.
+Prefer a purpose-built function when one exists (`set-container-image`, `set-replicas`, the defaults family, etc.). Reach for `get-yq` / `set-yq` only for the long tail where no dedicated function fits.
 
 Examples:
 
 ```bash
-# Read — yq, non-mutating.
+# Read — get-yq, non-mutating.
 cub function get --space "$space" --where "Slug = '$unit'" \
-  --show output -- yq '.spec.template.spec.containers[0].image'
+  --show output -- get-yq '.spec.template.spec.containers[0].image'
 
-# Write — yq-i, mutating. Always pass --change-desc.
+# Write — set-yq, mutating. Always pass --change-desc.
 cub function set --space "$space" --where "Slug = '$unit'" \
   --change-desc "Bump replicas to 7. User prompt: … Clarifications: …" \
-  -- yq-i '.spec.replicas = 7'
+  -- set-yq '.spec.replicas = 7'
 
 # Subset of documents.
 cub function get --space "$space" --where "Slug = '$unit'" \
-  --show output -- yq 'select(.kind == "Deployment") | .spec.replicas'
+  --show output -- get-yq 'select(.kind == "Deployment") | .spec.replicas'
 
 cub function set --space "$space" --where "Slug = '$unit'" \
   --change-desc "… " \
-  -- yq-i 'with(select(.kind == "Deployment"); .spec.replicas = 3)'
+  -- set-yq 'with(select(.kind == "Deployment"); .spec.replicas = 3)'
 ```
-
-Both invoke `cub function do`, which sits in the Write permission set (see `references/cub-cli.md`). Pattern-based permissions can't split read-only `yq` from mutating `yq-i` reliably, since both live past the `--` separator. Skill authors who want to let a read-only skill run `yq` should promote the skill to mutating **or** gate tightly enough in prose that misuse is obvious in the revision history (empty change description, no Unit data diff).
 
 ## Mutation-graph helpers
 
