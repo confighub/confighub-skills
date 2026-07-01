@@ -23,6 +23,8 @@ ATTRIBUTE OPERATOR VALUE [AND ATTRIBUTE OPERATOR VALUE ...]
 
 Attribute names are **case-sensitive PascalCase** as in JSON encoding (`Slug`, `DisplayName`, `Labels.tier`, `HeadRevisionNum`).
 
+**Flat `AND`-only — no parentheses, no `OR`.** The grammar is a flat list of `ATTRIBUTE OPERATOR VALUE` clauses joined by `AND`; there is no grouping or disjunction. Wrapping any clause in parentheses (e.g. `(ToolchainType = 'Kubernetes/YAML')`) is a syntax error — the parser reads the leading `(` as part of the attribute name and rejects it with `invalid attribute name`. When composing a filter from several sources (a base predicate plus caller-supplied clauses), concatenate them with a bare ` AND `, never with parenthesized groups. For `OR`-like needs, run one query per alternative and union the results client-side, or use `IN (...)` where it fits.
+
 ### Common attributes
 
 All entities: `CreatedAt`, `UpdatedAt`, `DisplayName`, `Slug`, ID fields.
