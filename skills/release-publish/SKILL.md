@@ -22,7 +22,7 @@ Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` t
 
 - Promoting a release env-to-env, fleet-wide, or standing up variant Spaces — that is the `cub variant` / ChangeSet flow in `promote-release`. (Different sense of "release.")
 - Deploying a Unit to its Target — a chosen revision, or head by default — that's `cub-apply`, a per-Unit deploy through the Target. A Release here is a separate thing: an immutable, point-in-time bundle of the Space's release-Target Units, not a per-Unit deploy.
-- Rolling back by moving a Unit's head — `rollback-revision`.
+- Rolling back by moving a Unit to a new Revision based on the rollback Revision — `rollback-revision`.
 - Confirming Argo/Flux pulled an artifact and the cluster converged — `verify-apply`.
 
 ## What a Release is (and is not)
