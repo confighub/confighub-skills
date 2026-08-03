@@ -32,7 +32,7 @@ Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `wo
 
 ## Where-clauses and filters
 
-Quick sketch here; the full filter vocabulary, named-Filter entities, and common operational recipes (`apply-not-completed`, `unapplied-changes`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md` — reach for that when building queries.
+Quick sketch here; the full filter vocabulary, named-Filter entities, and common operational recipes (`unpublished-changes`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md` — reach for that when building queries.
 
 Three distinct flags. Get them mixed up and cub either rejects the command or silently returns the wrong rows.
 
@@ -73,7 +73,7 @@ cub filter create --space platform -o json standard-vets Trigger \
 
 Filters on configuration content (the YAML inside a Unit). Accepted by:
 
-- `cub unit list`, `cub unit apply`, `cub unit update`, `cub function vet|get|set|do`, `cub run`, and similar unit/function verbs.
+- `cub unit list`, `cub unit update`, `cub function vet|get|set|do`, `cub run`, and similar unit/function verbs.
 - `cub filter create --space <space> <slug> Unit --where-data "..."` — valid _only_ when the Filter's `From` is `Unit`. Invalid for `Space`, `Trigger`, `Target`, or `Worker` Filters — configuration data is a Unit-level thing.
 
 ```
@@ -144,12 +144,12 @@ Four related but distinct blobs a Unit can expose. Confusing them leads to wrong
 
 | View            | Command                                   | What it is                                                                                                                                                                                                                                         | When to read it                                                                                                                                                                                                        |
 | --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data**        | `cub unit data <slug> --space <s>`        | The current head revision's declared configuration — the YAML ConfigHub would apply.                                                                                                                                                               | Authoring, reviewing a pending change, comparing to LiveData to assess drift.                                                                                                                                          |
+| **Data**        | `cub unit data <slug> --space <s>`        | The current head revision's declared configuration — the YAML ConfigHub would bundle in a Release.                                                                                                                                                               | Authoring, reviewing a pending change, comparing to LiveData to assess drift.                                                                                                                                          |
 | **LiveData**    | `cub unit livedata <slug> --space <s>`    | The cluster's current resources, cleaned up the same way the Worker cleans during refresh / import (status stripped, controller-managed fields elided per `ignoredFieldManagers`). **This is what a `cub unit refresh` would write back to Data.** | Comparing to Data for drift: same shape as Data, apples-to-apples.                                                                                                                                                     |
 | **LiveState**   | `cub unit livestate <slug> --space <s>`   | The cluster's resources with nothing elided — full `.status`, `.metadata.managedFields`, controller-written fields, everything.                                                                                                                    | Debugging the workload itself (is a controller reporting an error? is status wedged? what managers own which fields?). Not for drift diffs against Data — too noisy.                                                   |
 | **BridgeState** | `cub unit bridgestate <slug> --space <s>` | A bridge-implementation blob whose contents vary by bridge. | Bridge-specific diagnosis. Not a health check for Worker or Target connectivity. |
 
-> **OCI / ConfigHub delivery caveat.** The OCI and ConfigHub bridges are *server workers* that perform no remote read — on apply and refresh they echo the published `Data` back as `LiveData` / `LiveState`. So for an OCI Target these "live" views reflect what ConfigHub published, **not** the running cluster. The actual cluster state is converged and observed via ArgoCD / Flux / `kubectl` (read-only), outside ConfigHub — see `skills/verify-apply`. The cluster-read descriptions in the rows above apply only to external cluster-reading bridges, which aren't part of the OCI/ConfigHub delivery model.
+> **OCI / ConfigHub delivery caveat.** The OCI and ConfigHub bridges are *server workers* that perform no remote read — on refresh they echo the published `Data` back as `LiveData` / `LiveState`. So for an OCI Target these "live" views reflect what ConfigHub published, **not** the running cluster. The actual cluster state is converged and observed via ArgoCD / Flux / `kubectl` (read-only), outside ConfigHub. The cluster-read descriptions in the rows above apply only to external cluster-reading bridges, which aren't part of the OCI/ConfigHub delivery model.
 
 Rules of thumb:
 

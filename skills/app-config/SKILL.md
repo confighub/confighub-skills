@@ -131,7 +131,7 @@ cub link create --space <space> --wait - <configmap-slug> <config-slug> \
   --transform-invocation <space>/render-<fmt>-immutable
 ```
 
-The render runs during link resolution — no `cub unit apply` of the AppConfig Unit, no worker, no Target. Inspect the result:
+The render runs during link resolution — no publish of the AppConfig Unit, no worker, no Target. Inspect the result:
 
 ```bash
 cub unit data --space <space> <configmap-slug>     # the rendered ConfigMap
@@ -200,7 +200,7 @@ spec:
                 name: confighubplaceholder
 ```
 
-The ConfigMap and workload Units are deployed by `cub-apply` like any other Unit; this skill stops once the render pipeline is wired and the rendered ConfigMap is present.
+The ConfigMap and workload Units are published as an OCI bundle Release by `release-publish` like any other Unit; this skill stops once the render pipeline is wired and the rendered ConfigMap is present.
 
 ## Tool boundary
 
@@ -218,7 +218,7 @@ The ConfigMap and workload Units are deployed by `cub-apply` like any other Unit
 
 1. `cub unit data --space <space> <configmap-slug>` — the rendered `ConfigMap` resource is present (immutable: hashed-name entries; mutable: one stable-named ConfigMap).
 2. After a value change upstream: `cub unit data <configmap-slug>` reflects it (auto-update re-rendered).
-3. After the ConfigMap + workload Units are applied via `cub-apply`: `kubectl get configmap -n <ns>` shows the hashed name (immutable) or stable name (mutable); mutable-mode pod template `confighub.com/Hash` matches the ConfigMap's hash.
+3. After the ConfigMap + workload Units are published via `release-publish`: `kubectl get configmap -n <ns>` shows the hashed name (immutable) or stable name (mutable); mutable-mode pod template `confighub.com/Hash` matches the ConfigMap's hash.
 
 ## Evidence
 
@@ -232,4 +232,4 @@ The ConfigMap and workload Units are deployed by `cub-apply` like any other Unit
 - `references/cub-cli.md` — `--change-desc` / `-o mutations` / four Unit views.
 - `references/yaml-patterns.md` — `confighubplaceholder` + Needs/Provides receivers.
 - `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema` / `render-configmap` / `prune-configmaps`.
-- Companion skills: `confighub-core` (raw-ConfigMap authoring; Links / Needs-Provides doctrine), `cub-mutate` (bulk AppConfig edits), `cub-apply` (deploy the ConfigMap + workload Units), `verify-apply` (post-apply checks).
+- Companion skills: `confighub-core` (raw-ConfigMap authoring; Links / Needs-Provides doctrine), `cub-mutate` (bulk AppConfig edits), `release-publish` (publish the ConfigMap + workload Units as an OCI bundle Release).

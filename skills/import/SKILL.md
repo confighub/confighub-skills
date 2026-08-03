@@ -7,7 +7,7 @@ allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --
 
 # import
 
-One onboarding ramp for bringing existing Kubernetes configuration under ConfigHub management. Pick the source, render it into Units, then the rest of the skill set takes over (customize via `cub-mutate`, validate via Triggers, deliver via `cub-apply`).
+One onboarding ramp for bringing existing Kubernetes configuration under ConfigHub management. Pick the source, render it into Units, then the rest of the skill set takes over (customize via `cub-mutate`, validate via Triggers, deliver via `release-publish`).
 
 ## Pick the source
 
@@ -89,7 +89,7 @@ cub unit create --dest-space <app>-staging --space <app>-base   # clone the whol
 
 ### Deliver
 
-Hand off to `cub-apply` for delivery (which publishes the Units to OCI for Argo/Flux to pull, or applies via a ConfigHub Target). When CRDs are present, apply the `<release>-crds` Unit before the workload Unit so the consumer sees the CRDs first; the GitOps tool (Argo sync waves / Flux `dependsOn`) handles establishment ordering at the cluster. `cub-apply` / `verify-apply` own the rollout.
+Hand off to `release-publish` for delivery, which bundles the Units into an immutable OCI bundle Release the Target serves for Argo/Flux to pull. When CRDs are present, keep the `<release>-crds` Unit in the bundle so the consumer sees the CRDs first; the GitOps tool (Argo sync waves / Flux `dependsOn`) handles establishment ordering at the cluster. `release-publish` owns the publish.
 
 ---
 
@@ -131,7 +131,7 @@ Record the source ref (git SHA, overlay path) in `--change-desc` — Units carry
 
 For merge-preserving dev→staging→prod, render a base once into a base Space and clone per env with `--upstream-unit <app>-base/<app>`. Pull upstream changes later with `cub unit update --space <app>-<env> <app> <new-rendered.yaml> --change-desc "…"` (merge preserves in-ConfigHub edits) — or `--upgrade` from the upstream Unit. From here, customize via `cub-mutate` functions instead of new overlays.
 
-Then hand off to `cub-apply` / `verify-apply`.
+Then hand off to `release-publish`.
 
 ---
 
@@ -161,4 +161,4 @@ Then hand off to `cub-apply` / `verify-apply`.
 - `https://docs.confighub.com/markdown/guide/helm-charts.md`, `.../guide/rendered-manifests.md`.
 - `references/cub-cli.md` — CLI discipline; `--change-desc`; `-o mutations`.
 - `references/functions-catalog.md` — post-import customization functions.
-- Companion skills: `confighub-core` (config-as-data doctrine, Space topology, granularity), `cub-mutate` (customize), `target-bind` + `cub-apply` + `verify-apply` (deliver), `triggers-and-applygates` (`vet-placeholders` / `standard-vets`).
+- Companion skills: `confighub-core` (config-as-data doctrine, Space topology, granularity), `cub-mutate` (customize), `target-bind` + `release-publish` (deliver), `triggers-and-applygates` (`vet-placeholders` / `standard-vets`).

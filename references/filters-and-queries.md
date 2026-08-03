@@ -153,12 +153,8 @@ cub filter create --space <space> <slug> <From> --where-field "<expr>"
 The go-to filters for operating a ConfigHub-backed fleet. Create them once in a shared Space (e.g., `platform`) and reuse across apps.
 
 ```bash
-# Applied state differs from the head revision (drift between ConfigHub state and what's live).
-cub filter create --space "$space" apply-not-completed Unit \
-  --where-field "LastAppliedRevisionNum != LiveRevisionNum"
-
-# Unit has changes staged to apply but not yet applied.
-cub filter create --space "$space" unapplied-changes Unit \
+# Unit has changes staged to publish but not yet published.
+cub filter create --space "$space" unpublished-changes Unit \
   --where-field "HeadRevisionNum > LiveRevisionNum AND TargetID IS NOT NULL"
 
 # Pending changes lacking required approvers.

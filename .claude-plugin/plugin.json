@@ -1,6 +1,6 @@
 {
   "name": "confighub-skills",
-  "description": "ConfigHub-native skills for operating Kubernetes with ConfigHub as the source of truth and OCI / ConfigHub Targets for delivery (publish to ConfigHub's OCI registry for ArgoCD or Flux to pull). Covers orientation + config-as-data doctrine, authoring K8s resources and app config, query, bulk mutation, validation triggers, server/external workers, target binding, apply, verification, onboarding imports (Helm / Kustomize), promotion + variants, rollback, and incident triage.",
+  "description": "ConfigHub-native skills for operating Kubernetes with ConfigHub as the source of truth and OCI / ConfigHub Targets for delivery (publish to ConfigHub's OCI registry for ArgoCD or Flux to pull). Covers orientation + config-as-data doctrine, authoring K8s resources and app config, query, bulk mutation, validation triggers, server/external workers, target binding, release publishing, onboarding imports (Helm / Kustomize), promotion + variants, rollback, and incident triage.",
   "version": "0.3.0",
   "author": {
     "name": "ConfigHub"

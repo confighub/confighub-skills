@@ -34,7 +34,7 @@ So pick the path:
 ## Do not load for
 
 - Creating Targets — `target-bind` (Targets reference a worker but are a separate step).
-- Applying Units — `cub-apply`.
+- Publishing Units as an OCI bundle Release — `release-publish`.
 
 ## Preflight gates
 
@@ -73,7 +73,7 @@ cub worker run --space <space> <worker-slug>             # see `cub worker run -
 # Direct install (bootstrap):
 cub worker install <worker-slug> --space <space> --namespace confighub --export --include-secret | kubectl apply -f -
 
-# Or store the manifest as a ConfigHub-managed Unit and apply it via cub-apply:
+# Or store the manifest as a ConfigHub-managed Unit and publish it via release-publish:
 cub worker install <worker-slug> --space <space> --namespace confighub --export > /tmp/worker-manifest.yaml
 cub unit create --space <space> <worker-slug>-manifest /tmp/worker-manifest.yaml -o mutations \
   --change-desc "Store worker manifest as a ConfigHub-managed Unit.
@@ -122,4 +122,4 @@ Pod-level fallback for an in-cluster worker that won't start: `kubectl -n config
 - ConfigHub worker guide: `https://docs.confighub.com/markdown/guide/workers.md`.
 - `references/cub-cli.md` — CLI conventions.
 - `references/yaml-patterns.md` — Secret handling in Units.
-- Companion skills: `target-bind` (create the OCI / ConfigHub Target against the worker), `cub-apply` (apply/publish).
+- Companion skills: `target-bind` (create the OCI / ConfigHub Target against the worker), `release-publish` (publish the OCI bundle Release).

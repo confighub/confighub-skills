@@ -5,7 +5,7 @@
       "id": 1,
       "name": "single-unit-oci-target",
       "prompt": "Bind my 'checkout' unit in space myapp-dev to an OCI target so ArgoCD can deploy it.",
-      "expected_output": "Ensures a server worker exists (cub worker create --allow-exists --is-server-worker), creates an OCI target (cub target create <slug> '' <space>/server-worker --provider OCI), attaches the unit with cub unit set-target, and verifies via cub target get (ProviderType OCI) and cub unit get (TargetID populated). Notes that ArgoCD must be configured outside ConfigHub to pull the published artifact. Hands off to cub-apply. Does not run an external worker or apply.",
+      "expected_output": "Ensures a server worker exists (cub worker create --allow-exists --is-server-worker), creates an OCI target (cub target create <slug> '' <space>/server-worker --provider OCI), attaches the unit with cub unit set-target, and verifies via cub target get (ProviderType OCI) and cub unit get (TargetID populated). Notes that ArgoCD must be configured outside ConfigHub to pull the published artifact. Hands off to release-publish.",
       "files": []
     },
     {
@@ -18,7 +18,7 @@
     {
       "id": 3,
       "name": "do-i-need-a-worker",
-      "prompt": "Do I need to run a worker process before I can create a target and apply my units?",
+      "prompt": "Do I need to create a server worker before I can create a target and publish a Release for my Space?",
       "expected_output": "Explains that OCI and ConfigHub targets are served by server workers hosted in the ConfigHub server — no process to run. Shows cub worker create --is-server-worker, then cub target create --provider OCI. Notes an external running worker is only needed for custom worker functions. Routes to worker-bootstrap for the server-worker create.",
       "files": []
     }
