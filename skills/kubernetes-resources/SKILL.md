@@ -160,7 +160,7 @@ cub function vet --space <space> --unit <slug> -- vet-format
 
 Based on what was created, suggest the logical next skill:
 
-- Workloads → `target-bind` + `cub-apply` to deploy.
+- Workloads → `target-bind` + `release-publish` to deliver.
 - Ingress → ensure the backing Service Unit exists; link via Needs/Provides.
 - NetworkPolicy → apply to the namespace; verify with `kubectl describe networkpolicy`.
 - RBAC → reference the ServiceAccount in the workload's `serviceAccountName`.
@@ -201,4 +201,4 @@ Based on what was created, suggest the logical next skill:
 - `references/yaml-patterns.md` — ConfigHub-native YAML patterns for all resource types.
 - `references/functions-catalog.md` — defaults functions, setters, validators.
 - `references/cub-cli.md` — CLI discipline, `--change-desc`, `-o mutations`.
-- Companion skills: `confighub-core` (doctrine), `skill-examples-bootstrap` (seeds the `skill-examples` Space with live examples), `target-bind` (deploy), `cub-apply` (apply), `app-config` (ConfigMap from app config files).
+- Companion skills: `confighub-core` (doctrine), `skill-examples-bootstrap` (seeds the `skill-examples` Space with live examples), `target-bind` (deploy), `release-publish` (publish the OCI bundle Release), `app-config` (ConfigMap from app config files).

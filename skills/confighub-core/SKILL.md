@@ -155,11 +155,9 @@ The gate **name carries the why** — prefer specific (`used-until-dec25`, `team
 | A playground Space to tinker with | `skill-examples-bootstrap` |
 | Setting up a worker (server worker for delivery; external for custom functions) | `worker-bootstrap` |
 | Creating a Target / binding a Unit to one | `target-bind` |
-| Applying a Unit to its Target (publish to OCI / ConfigHub) | `cub-apply` |
-| Post-apply verification, troubleshooting, close-out | `verify-apply` |
+| Publishing / withdrawing a Space's Units as an immutable OCI bundle Release | `release-publish` |
 | Onboarding existing Helm / Kustomize config | `import` |
 | Promoting a release env-to-env or fleet-wide; variants | `promote-release` |
-| Publishing / withdrawing an immutable OCI Release bundle of a Space for a Target | `release-publish` |
 | Rolling back by moving head | `rollback-revision` |
 | Orchestrating a production incident | `incident-management` |
 

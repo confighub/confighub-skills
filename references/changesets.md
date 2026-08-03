@@ -1,6 +1,6 @@
 # ChangeSets — bulk / multi-Unit changes
 
-A ChangeSet groups related mutations across multiple Units so they can be approved, applied, restored, and merged *as a set*. Use one any time a single logical change spans more than one Unit: a release, a fleet-wide defaults upgrade, a cross-Space promotion, a coordinated secret rotation. The ChangeSet acts as a lock: while a Unit is in a ChangeSet, another ChangeSet can't open against it until the first is closed.
+A ChangeSet groups related mutations across multiple Units so they can be approved, restored, and merged *as a set*. Use one any time a single logical change spans more than one Unit: a release, a fleet-wide defaults upgrade, a cross-Space promotion, a coordinated secret rotation. The ChangeSet acts as a lock: while a Unit is in a ChangeSet, another ChangeSet can't open against it until the first is closed.
 
 Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 
@@ -10,8 +10,9 @@ Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 2. **Open** — bulk-patch the target Units to add them to the ChangeSet. This creates a revision per Unit tagged with the ChangeSet's *start tag*, even if data doesn't change.
 3. **Mutate** — every `cub function do` / `cub unit update` / `cub run` against those Units passes `--changeset <home-space>/<slug>`. Revisions are tagged as part of the ChangeSet.
 4. **Close** — bulk-patch with `--changeset -`. Each Unit's head revision gets the ChangeSet's *end tag*.
-5. **Approve / apply** — reference `ChangeSet:<home-space>/<slug>` as the revision. Approves or applies the end-tag revision per Unit.
-6. **Rollback (optional)** — restore with `--restore "Before:ChangeSet:<home-space>/<slug>"`; every Unit's head reverts to the pre-open state.
+5. **Approve** — reference `ChangeSet:<home-space>/<slug>` as the revision. Approves the end-tag revision per Unit.
+6. **Release** — publish the Space as an immutable OCI bundle pinned to the ChangeSet's end tag: `cub release publish --revision <changeset-end-tag> <space-slug>`. See `skills/release-publish`.
+7. **Rollback (optional)** — restore with `--restore "Before:ChangeSet:<home-space>/<slug>"`; every Unit's head reverts to the pre-open state.
 
 ## Open
 
@@ -25,7 +26,7 @@ cub unit update --patch --space <target-space> \
   --change-desc "Starting <slug> rollout"
 ```
 
-Use a named Filter (`cub filter create ... Unit --where-field "..."`) rather than inlining `--where` — you'll reuse the same Filter across open/mutate/close/approve/apply.
+Use a named Filter (`cub filter create ... Unit --where-field "..."`) rather than inlining `--where` — you'll reuse the same Filter across open/mutate/close/approve.
 
 If any of the selected Units are already in another (open) ChangeSet, the open fails. Close the other one first, or narrow the Filter.
 
@@ -58,7 +59,7 @@ After close, every Unit's head revision carries the ChangeSet's end tag. No furt
 
 ## Approve
 
-If an `is-approved` / `vet-approvedby` Trigger is installed, the end-tag revision per Unit needs approval before apply. Bulk approve references the ChangeSet:
+If an `is-approved` / `vet-approvedby` Trigger is installed, the end-tag revision per Unit needs approval before publish. Bulk approve references the ChangeSet:
 
 ```bash
 cub unit approve --space <target-space> \
@@ -66,15 +67,13 @@ cub unit approve --space <target-space> \
   --revision ChangeSet:<home-space>/<slug>
 ```
 
-## Apply
+## Release
 
 ```bash
-cub unit apply --space <target-space> \
-  --filter <home-space>/<filter-slug> \
-  --revision ChangeSet:<home-space>/<slug> --wait
+cub release publish --revision <changeset-end-tag> <space-slug>
 ```
 
-Apply targets the end-tag revision per Unit. If some Units were in the ChangeSet but had no data change, the per-Unit apply is a no-op for those — still recorded in the apply history with the ChangeSet reference.
+Publishing bundles every Unit in `<space-slug>` assigned to that Space's ReleaseTarget, pinned to the Revision carrying the ChangeSet's end tag. Units in the Space that weren't in the ChangeSet are still bundled — at head, since they carry no matching tagged Revision. See `skills/release-publish`.
 
 ## Rollback
 
@@ -91,9 +90,11 @@ cub unit update --patch --space <target-space> \
   --restore "Before:ChangeSet:<home-space>/<slug>" \
   --tag <home-space>/rollback-<slug>
 
-# Approve and apply the new restore revisions (no --revision -> head).
+# Approve the new restore revisions (no --revision -> head).
 cub unit approve --space <target-space> --filter <home-space>/<filter-slug>
-cub unit apply   --space <target-space> --filter <home-space>/<filter-slug> --wait
+
+# Publish the Space pinned to the rollback tag the restore just applied.
+cub release publish --revision rollback-<slug> <space-slug>
 ```
 
 `Before:ChangeSet:<...>` resolves per Unit to "the revision that was head right before the ChangeSet opened." Each Unit gets a new head revision carrying the restored data.
@@ -131,15 +132,15 @@ cub revision list --space <target-space> --filter <home-space>/<filter-slug> \
 
 ## When to reach for a ChangeSet
 
-- A change spans more than one Unit and you want to approve / apply / rollback *atomically* (at least in audit terms — applies still go per-Unit).
-- A release across many Units — group all revisions so you have one name to roll back or reapply.
+- A change spans more than one Unit and you want to approve / rollback *atomically* (at least in audit terms).
+- A release across many Units — group all revisions so you have one name to roll back or re-publish.
 - A bulk upgrade (`cub unit update --upgrade`) applied across a filter — opening a ChangeSet first makes the "before / after" auditable as one set.
 - The user asks for a "rollback" across many Units — a prior ChangeSet (or a Tag you set at known-good time) is what you need to restore before.
 
 ## When not
 
 - Single-Unit mutation. The per-Unit revision history already gives you named restore targets; a ChangeSet adds overhead without payoff.
-- Rolling release where Units must apply in strict sequence with different approvals — ChangeSets apply as a set, not a sequence.
+- Rolling release where Units must reach the cluster in strict sequence with different approvals — a Release bundles the Space as a set, not a sequence.
 - Ad-hoc experiments in a scratch Space. Lock semantics are a feature when many operators share Units; noise when one person is iterating.
 
 ## Common pitfalls

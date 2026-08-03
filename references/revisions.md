@@ -51,8 +51,8 @@ The `Description` field is what makes revision history self-explaining later —
 
 | Field | Meaning |
 |---|---|
-| `ApplyGates` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Apply is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
-| `ApplyWarnings` | Same shape but for Triggers with `Warn=true` — they surface concerns without blocking apply. |
+| `ApplyGates` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Publish is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
+| `ApplyWarnings` | Same shape but for Triggers with `Warn=true` — they surface concerns without blocking publish. |
 
 Gates and warnings are snapshotted per revision. If you fix the data in a later revision, the new revision's `ApplyGates` will reflect the new state; the old revision still shows what was blocked at the time.
 
@@ -60,13 +60,13 @@ Gates and warnings are snapshotted per revision. If you fix the data in a later 
 
 | Field | Meaning |
 |---|---|
-| `ApprovedBy` | List of User UUIDs who approved this revision (via `cub unit approve` or the corresponding API). Used by `vet-approvedby` to gate apply on approver count. |
+| `ApprovedBy` | List of User UUIDs who approved this revision (via `cub unit approve` or the corresponding API). Used by `vet-approvedby` to gate publish on approver count. |
 
 ### Lifecycle
 
 | Field | Meaning |
 |---|---|
-| `LiveAt` | Timestamp when this revision was applied to its Target. Zero-time (`0001-01-01T00:00:00Z`) if the revision was never applied. Combined with `LastAppliedRevisionNum` on the Unit, lets you reconstruct the apply history. |
+| `LiveAt` | Timestamp when this revision was published to its Target. Zero-time (`0001-01-01T00:00:00Z`) if the revision was never published. Combined with `LastAppliedRevisionNum` on the Unit, lets you reconstruct the publish history. |
 
 ### Grouping
 
@@ -120,4 +120,4 @@ cub revision get <unit> --space <s> --revision <n> -o yaml
 
 - `references/cub-cli.md` — `--change-desc` composition rule and `-o mutations` for inline diffs at mutation time.
 - `references/filters-and-queries.md` — filter vocabulary including revision-state fields (`HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`) on the Unit side.
-- Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `cub-apply` (sets `LiveAt` on the applied revision), `verify-apply` (surfaces the revision history at close-out).
+- Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `release-publish` (publishes from a tagged revision via `cub release publish --revision <tag>`).

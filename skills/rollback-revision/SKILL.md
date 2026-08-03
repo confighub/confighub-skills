@@ -1,19 +1,19 @@
 ---
 name: rollback-revision
-description: 'Roll back a change by moving a Unit head (or a set of Unit heads) to a prior revision via cub unit update --restore, then hand off to cub-apply. Use for "roll back this change", "revert the last release", "undo the ChangeSet", "restore to the last applied revision". Not for a forward one-field fix where a new cub-mutate is clearer.'
+description: 'Roll back a change by moving a Unit head (or a set of Unit heads) to a prior revision via cub unit update --restore, then hand off to release-publish. Use for "roll back this change", "revert the last release", "undo the ChangeSet", "restore to the last published revision". Not for a forward one-field fix where a new cub-mutate is clearer.'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub unit update *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub filter create *)
 ---
 
 # rollback-revision
 
-Move a Unit's head (or a ChangeSet's worth of heads) back to a prior revision, then apply.
+Move a Unit's head (or a ChangeSet's worth of heads) back to a prior revision, then hand off to `release-publish`.
 
 ## `cub unit update --restore` is the only rollback mechanism
 
-Rollback always means: create a new head whose data equals some prior revision's data, then apply that head. Every subsequent mutation branches from the restored head, so the "bad" state stays gone.
+Rollback always means: create a new head whose data equals some prior revision's data, then publish that head. Every subsequent mutation branches from the restored head, so the "bad" state stays gone.
 
-**Do not use `cub unit apply --revision <N>` as a rollback.** That command applies an older revision to the cluster *without moving the Unit's head* — the "bad" revision is still head, and the next `cub-mutate` / `promote-release` / merge will re-introduce it. Use it only to inspect or diff an older revision's applied state, never to undo a change. Whenever the user asks to "roll back," they want head to move; run `cub unit update --restore`.
+**Re-publishing an older Release or Tag is not a rollback.** It's a valid way to put older data back in front of traffic, but head doesn't move — the "bad" revision is still head, and the next `cub-mutate` / `promote-release` / merge will re-introduce it. When the user asks to "roll back," they want head to move; run `cub unit update --restore`.
 
 ## When to use
 
@@ -24,7 +24,7 @@ Rollback always means: create a new head whose data equals some prior revision's
 ## Do not load for
 
 - Fixing a single wrong field when the forward mutation is obviously cleaner (a `cub-mutate` run with `set-container-image` back to the old tag). Restore is heavier than a one-line change.
-- Rolling back a change that hasn't been applied yet — nothing's live, so either do a forward `cub-mutate` or `cub unit update --restore` to the revision before the bad one; no ChangeSet-level rollback narrative needed.
+- Rolling back a change that hasn't been published yet — nothing's live, so either do a forward `cub-mutate` or `cub unit update --restore` to the revision before the bad one; no ChangeSet-level rollback narrative needed.
 
 ## Preflight gates
 
@@ -65,7 +65,8 @@ User prompt: <verbatim>
 Clarifications: <condensed — e.g. 'reverting 2026-04-15 image bump; cert-manager v1.17.3 crashed on prod'>"
 
 cub unit diff <unit> --space <space>       # confirm head == target's data
-cub unit apply <unit> --space <space> --wait
+
+# Head now carries the restored data. Hand off to release-publish to ship it.
 ```
 
 Optionally tag the new head for future reference:
@@ -102,16 +103,17 @@ cub unit update --patch --space $TO_SPACE \
 User prompt: <verbatim>
 Clarifications: <condensed — e.g. 'cert-manager crash in prod; reverting per incident #512; staging unaffected'>"
 
-# 3. Approve + apply the new head revisions (no --revision = head).
+# 3. Approve the new head revisions (no --revision = head).
 cub unit approve --space $TO_SPACE --filter $APP_FILTER   # only if approval Trigger required
-cub unit apply   --space $TO_SPACE --filter $APP_FILTER --wait --timeout 10m0s
+
+# Hand off to release-publish, pinned to $ROLLBACK_TAG.
 ```
 
-Each Unit's head reverts to its pre-ChangeSet data; the apply pushes that to the cluster. The rollback Tag lets you refer to this rollback later (`cub revision list --tag $HOME_SPACE/$ROLLBACK_TAG`).
+Each Unit's head reverts to its pre-ChangeSet data. The rollback Tag is both what `release-publish` pins to and how you refer to this rollback later (`cub revision list --tag $HOME_SPACE/$ROLLBACK_TAG`).
 
 ## Shape C — rollback then reapply held-back changes (merge / rebase)
 
-If changes were made to the affected Units *after* the ChangeSet that you want to keep (e.g., urgent hotfixes applied after the bad release), a plain restore discards them. Use a 3-way merge instead (per `references/changesets.md`):
+If changes were made to the affected Units *after* the ChangeSet that you want to keep (e.g., urgent hotfixes published after the bad release), a plain restore discards them. Use a 3-way merge instead (per `references/changesets.md`):
 
 ```bash
 # Restore per Shape B, then merge back the kept changes.
@@ -129,13 +131,13 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 
 1. `cub unit get <unit> --space <space> -o yaml` — Data matches the target revision's data.
 2. `cub revision list <unit> --space <space>` — the new head revision has the rollback `--change-desc` (and Tag, for Shape B).
-3. `cub unit bridgestate --space <space> --filter <...>` — after apply, every Unit is `Ready`, `LiveRevisionNum` = new head.
+3. `cub unit bridgestate --space <space> --filter <...>` — after `release-publish` runs, every Unit is `Ready`, `LiveRevisionNum` = new head.
 4. For Shape B: `cub revision list --space $TO_SPACE --filter $APP_FILTER --tag $HOME_SPACE/$ROLLBACK_TAG` lists one revision per Unit — all tagged.
 
 ## Tool boundary
 
-- Allowed: `cub unit update --restore` (+ `--patch` + `--tag`), `cub unit tag`, `cub tag create`, `cub changeset` read-only, read-only `cub unit/revision`, `cub unit approve` for the apply gate path. `cub unit apply` is the `cub-apply` skill's territory — hand off.
-- Not allowed: `cub unit apply --revision <N>` as a rollback mechanism — it leaves head unchanged, so the "bad" state returns on the next forward change. Editing Unit data to "manually match" an older revision (defeats the audit point of `--restore`). Rolling back across different applications in one scope (separate ChangeSets per app; one rollback command per app).
+- Allowed: `cub unit update --restore` (+ `--patch` + `--tag`), `cub unit tag`, `cub tag create`, `cub changeset` read-only, read-only `cub unit/revision`, `cub unit approve` for the ApplyGate path. `cub release publish` is the `release-publish` skill's territory — hand off.
+- Not allowed: editing Unit data to "manually match" an older revision (defeats the audit point of `--restore`). Rolling back across different applications in one scope (separate ChangeSets per app; one rollback command per app).
 
 ## Stop conditions
 
@@ -156,4 +158,4 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 - `references/revisions.md` — restore-target syntax (`Tag:`, `ChangeSet:`, relative / absolute numbers, UUIDs).
 - `references/filters-and-queries.md` — scoping the rollback via Filter.
 - `references/cub-cli.md` — `--change-desc` scope, `-` sentinel for `--changeset` close.
-- Companion skills: `cub-apply` (runtime for the post-restore apply), `cub-mutate` (forward fix when it's clearer than restore), `promote-release` (the forward counterpart — this rolls back what that promoted), `verify-apply` (post-rollback checks).
+- Companion skills: `release-publish` (publishes the restored head), `cub-mutate` (forward fix when it's clearer than restore), `promote-release` (the forward counterpart — this rolls back what that promoted).

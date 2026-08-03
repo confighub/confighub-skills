@@ -76,7 +76,7 @@ cub revision data --space <space> <unit-slug> $revision
 cub unit livedata <slug> --space <space>
 
 # The unelided live-state view at the last action. For OCI/ConfigHub Targets this mirrors the published Data;
-# for actual running-workload troubleshooting use kubectl / argocd / flux directly (see verify-apply).
+# for actual running-workload troubleshooting use kubectl / argocd / flux directly.
 cub unit livestate <slug> --space <space>
 ```
 
@@ -229,6 +229,6 @@ Queries are read-only; the "verify" is cross-checking:
 
 ## References
 
-- `references/filters-and-queries.md` — full filter vocabulary, named Filter entities, operational recipes (apply-not-completed, unapplied-changes, not-approved, has-apply-gates, needs-upgrade, has-upstream).
+- `references/filters-and-queries.md` — full filter vocabulary, named Filter entities, operational recipes (unpublished-changes, not-approved, has-apply-gates, needs-upgrade, has-upstream).
 - `references/cub-cli.md` — `cub unit data` / `livedata` / `livestate` / `bridgestate` semantics (see the "Data / LiveData / LiveState / BridgeState" table) and the where/where-data/output flags.
 - `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-placeholders`, etc.).

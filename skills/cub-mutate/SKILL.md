@@ -1,6 +1,6 @@
 ---
 name: cub-mutate
-description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit. Use for "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or a bulk edit across many units. Not for creating a brand-new Unit (use confighub-core).'
+description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit. Use for "update the image", "bump the replicas", "change the env var", "set the annotation", "run the defaults", "edit this unit", or a bulk edit across many units. Not for creating a brand-new Unit (use confighub-core).'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub link create *) Bash(cub link update *)
 ---
@@ -16,7 +16,7 @@ The get / modify / write-back loop for ConfigHub Units.
 ## When to use
 
 - Any single-field change: image, replicas, env var, port, annotation, label, resource requests/limits, probe, security context, hostname.
-- Applying the defaults functions to one or many Units.
+- Running the defaults functions against one or many Units.
 - Bulk changes across multiple Units via `--where` / `--where-data` — usually inside a ChangeSet (see below).
 - Restoring a Unit to a prior revision (or a ChangeSet's pre-open state).
 - Patching metadata (labels, annotations) on one or many Units.
@@ -186,7 +186,7 @@ Any time a logical change touches more than one Unit (a release, a defaults roll
 
 - **Lock.** While a Unit is in an open ChangeSet, another ChangeSet can't open against it — protects you from concurrent releases stepping on each other.
 - **Atomic rollback.** A single `--restore Before:ChangeSet:<name>` against the Filter rewinds every affected Unit to its pre-open state.
-- **Grouped apply / approve.** `--revision ChangeSet:<name>` applies or approves the end-tag revision per Unit as one set.
+- **Grouped approval.** `--revision ChangeSet:<name>` approves the end-tag revision per Unit as one set — and the end tag is a meaningful name to pin a publish to, rather than the `release-<ReleaseNum>` Tag publish creates by default.
 - **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces.
 
 Lifecycle:
@@ -215,17 +215,19 @@ cub unit update --patch --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset -
 
-# 5. Apply / approve as a set.
-cub unit apply --space <target-space> \
+# 5. Approve as a set.
+cub unit approve --space <target-space> \
   --filter <home-space>/<filter-slug> \
-  --revision ChangeSet:<home-space>/<slug> --wait
+  --revision ChangeSet:<home-space>/<slug>
+
+# Hand off to release-publish to ship it.
 ```
 
 **Don't** use a ChangeSet for single-Unit edits (overhead without payoff) or for rolling per-Unit releases that need different approvals per Unit. See `references/changesets.md` for rollback via `Before:ChangeSet:<...>`, the merge / rebase pattern around a restored ChangeSet, and listing revisions by ChangeSet membership.
 
-Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --where-field "…"`) over inlined `--where` so the same selection flows through open / mutate / close / approve / apply. See `references/filters-and-queries.md`.
+Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --where-field "…"`) over inlined `--where` so the same selection flows through open / mutate / close / approve. See `references/filters-and-queries.md`.
 
-The `cub-apply` skill goes into the use of apply in more detail.
+The `release-publish` skill goes into publishing the OCI bundle Release in more detail.
 
 ## Tool boundary
 

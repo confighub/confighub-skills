@@ -1,19 +1,19 @@
 ---
 name: target-bind
-description: 'Bind Units to a delivery Target — ProviderType OCI (publish Unit data to ConfigHub''s OCI registry for ArgoCD/Flux to pull) or ConfigHub (apply ConfigHub/YAML config). Both are server workers, no external worker to run. Phrases: set up a target, publish to OCI, attach units to a target. Creates the Target + server worker and attaches Units via cub unit set-target; stops before apply.'
+description: 'Bind Units to a delivery Target — ProviderType OCI (publish Unit data to ConfigHub''s OCI registry for ArgoCD/Flux to pull) or ConfigHub (writes ConfigHub/YAML config). Both are server workers, no external worker to run. Phrases: set up a target, publish to OCI, attach units to a target. Creates the Target + server worker and attaches Units via cub unit set-target; stops before publish.'
 phase: act
 allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker create *) Bash(cub target create *) Bash(cub target update *) Bash(cub unit set-target *) Bash(cub unit update *)
 ---
 
 # target-bind
 
-Creates the binding between Units and a delivery destination. Once bound, a Unit can be applied through `cub-apply`.
+Creates the binding between Units and a delivery destination. Once bound, the Unit is delivered when its Space is published as an OCI bundle Release through `release-publish`.
 
 Confirm verbs and flags with `cub <verb> --help` before composing — never invent flags.
 
 ## What a Target is
 
-A Target is a named binding that tells ConfigHub *where* a Unit's configuration lands when applied. It references a **server worker** and carries a `ProviderType`. Two ProviderTypes are relevant:
+A Target is a named binding that tells ConfigHub *where* a Unit's configuration lands when published. It references a **server worker** and carries a `ProviderType`. Two ProviderTypes are relevant:
 
 - **`OCI`** — publishes the Unit's data verbatim to ConfigHub's built-in OCI registry. The bridge performs no remote apply (it succeeds immediately and echoes the data back as live state); a puller you configure outside ConfigHub — **ArgoCD or Flux** — fetches the OCI artifact and deploys it to the cluster. This is the primary delivery path. The OCI transport never routes by toolchain, so **a single OCI Target accepts Units of any toolchain** (KRM, AppConfig, ConfigHub/YAML).
 - **`ConfigHub`** — applies ConfigHub-native `ConfigHub/YAML` config (e.g. Units whose data *is* ConfigHub entities). Toolchain and live-state type are both `ConfigHub/YAML`.
@@ -26,13 +26,13 @@ A Target is a named binding that tells ConfigHub *where* a Unit's configuration 
 
 - First time binding Units to a delivery destination.
 - Setting up OCI publishing for ArgoCD / Flux to consume.
-- Changing which Target a Unit applies through.
+- Changing which Target a Unit publishes through.
 - Binding many Units to a Target at once (`--where`).
 
 ## Do not load for
 
 - Running an external worker for custom functions (`worker-bootstrap`).
-- Running the actual apply (`cub-apply`).
+- Publishing the OCI bundle Release (`release-publish`).
 - Authoring or editing the Unit's data (`confighub-core` doctrine / `cub-mutate`).
 - Rendering an AppConfig file to a ConfigMap (`app-config` — that uses an Upsert link, no Target).
 
@@ -90,7 +90,7 @@ Cross-Space reference uses `<target-space>/<target-slug>`. `cub unit set-target`
 
 ### 4. Hand off
 
-Target created and Units attached. Next is almost always `cub-apply` (which publishes to OCI / applies ConfigHub config). Cluster convergence from an OCI publish is ArgoCD/Flux's job — verify it read-only in `verify-apply`.
+Target created and Units attached. Next is almost always `release-publish` (which bundles the Space's Units into an immutable OCI bundle Release the Target serves). Cluster convergence from the OCI bundle Release is ArgoCD/Flux's job.
 
 ## Tool boundary
 
@@ -113,7 +113,7 @@ Target created and Units attached. Next is almost always `cub-apply` (which publ
 ## Evidence
 
 - `cub target get <target-slug> --space <target-space> --web` — Target page in the GUI.
-- `cub unit get <unit-slug> --space <app-space> --web` — Unit page shows the Target binding and apply state.
+- `cub unit get <unit-slug> --space <app-space> --web` — Unit page shows the Target binding and publish state.
 
 ## References
 
@@ -121,4 +121,4 @@ Target created and Units attached. Next is almost always `cub-apply` (which publ
 - Target entity: `https://docs.confighub.com/markdown/background/entities/target.md`.
 - `references/cub-cli.md` — CLI conventions.
 - `references/filters-and-queries.md` — the `TargetID IS NOT NULL` pattern for verifying bulk bindings.
-- Companion skills: `worker-bootstrap` (server workers + external workers for custom functions), `cub-apply` (apply/publish), `verify-apply` (confirm Argo/Flux picked up the OCI artifact).
+- Companion skills: `worker-bootstrap` (server workers + external workers for custom functions), `release-publish` (publish the OCI bundle Release).

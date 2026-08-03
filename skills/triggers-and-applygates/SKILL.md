@@ -7,13 +7,13 @@ allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --
 
 # triggers-and-applygates
 
-Make validation enforced, not advisory. Without Triggers, `vet-*` functions are suggestions; with Triggers, they either **block** the apply path (an ApplyGate) or **flag** it without blocking (an ApplyWarning) — see [Blocking vs warning](#blocking-vs-warning-applygates-and-applywarnings).
+Make validation enforced, not advisory. Without Triggers, `vet-*` functions are suggestions; with Triggers, they either **block** the publish path (an ApplyGate) or **flag** it without blocking (an ApplyWarning) — see [Blocking vs warning](#blocking-vs-warning-applygates-and-applywarnings).
 
 ## When to use
 
 - Setting up a new Space (or retrofitting existing Spaces) and the user wants policy to be enforced.
-- User asks "how do I make sure bad config can't be deployed?", "wire up schema validation", "add a policy", "require approval before apply".
-- User is diagnosing a Unit that won't apply and the reason might be an ApplyGate, or wants to see what non-blocking ApplyWarnings a Unit carries.
+- User asks "how do I make sure bad config can't be deployed?", "wire up schema validation", "add a policy", "require approval before publish".
+- User is diagnosing a Unit that won't publish and the reason might be an ApplyGate, or wants to see what non-blocking ApplyWarnings a Unit carries.
 - User wants a check to advise rather than block (a `--warn` Trigger producing ApplyWarnings), or to flip an existing check between blocking and advisory.
 - Migrating validation from ad-hoc `cub function vet vet-*` calls to automatic enforcement.
 
@@ -116,10 +116,10 @@ cub trigger create --space platform -o json require-approval Mutation Kubernetes
 
 A failing Trigger produces one of two outcomes, tracked in two **separate** Unit fields with the same `<space>/<trigger>/<function>` key shape:
 
-| Trigger | Failure records | Effect on apply |
+| Trigger | Failure records | Effect on publish |
 | --- | --- | --- |
-| default (`--warn` omitted) | `ApplyGates` | **Blocks** — apply is refused until the gate clears |
-| `--warn` | `ApplyWarnings` | **Advisory** — recorded on the Unit, apply still proceeds |
+| default (`--warn` omitted) | `ApplyGates` | **Blocks** — publish is refused until the gate clears |
+| `--warn` | `ApplyWarnings` | **Advisory** — recorded on the Unit, publish still proceeds |
 
 Pass `--warn` on `cub trigger create` to make a check advisory: *"Set trigger to produce ApplyWarnings instead of ApplyGates."* The same validator (`vet-cel`, `vet-kyverno`, `vet-schemas`, …) can be a gate in prod and a warning in dev — the `--warn` flag is what differs, not the function. Add `--description` so the recorded failure explains how to fix it.
 
@@ -146,9 +146,9 @@ cub unit list --space <space> --where "LEN(ApplyWarnings) > 0" --columns Unit.Sl
 cub unit list --space <space> -o "jq=.[].Unit.ApplyWarnings" --select ApplyWarnings
 ```
 
-A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` blocks. When triaging a Space, check **both** — warnings are the "tech debt" tier you fix on your own schedule, gates are the hard stop.
+A Unit can carry warnings and publish cleanly; only a non-empty `ApplyGates` blocks. When triaging a Space, check **both** — warnings are the "tech debt" tier you fix on your own schedule, gates are the hard stop.
 
-## Diagnosing a blocked apply
+## Diagnosing a blocked publish
 
 1. `cub unit get <slug> --space <space>` — shows attached ApplyGates/ApplyWarnings as `<space>/<trigger>/<function>` keys. The default text view stops at the keys — it does **not** print the failure message.
 1a. **For the actual failure message, read `Unit.ValidationResults`** — a map under the same keys, each entry carrying human-readable `Details[]` and structured `FailedAttributes[]` (e.g. the kyverno policy/rule `Identifier` + `Message`, plus `ResourceType` and `ResourceName`). This is what turns "gated by X" into "here's exactly what X objected to", and it covers warnings too:
@@ -163,7 +163,7 @@ A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` block
 3. `cub trigger get --space platform <trigger-slug>` — see what the Trigger is checking.
 4. Fix the data via `cub function set` or `cub unit update` — the Mutation Triggers re-run automatically and release the gate if it passes.
 
-If the Unit applies but you want to know what's flagged on it, inspect `ApplyWarnings` instead (`cub unit get` shows it, or query with `--where "LEN(ApplyWarnings) > 0"`). Same fix loop — correcting the data re-runs the Trigger and clears the warning — but there's no apply block forcing the issue, so warnings persist until someone chooses to address them.
+If the Unit publishes but you want to know what's flagged on it, inspect `ApplyWarnings` instead (`cub unit get` shows it, or query with `--where "LEN(ApplyWarnings) > 0"`). Same fix loop — correcting the data re-runs the Trigger and clears the warning — but there's no publish block forcing the issue, so warnings persist until someone chooses to address them.
 
 **Never** bypass a gate by dropping the Trigger, deleting the Filter, demoting it to `--warn`, or editing gate state directly. If a rule is genuinely wrong, fix the Trigger in `platform` (with `--change-desc` recording why) so the whole fleet benefits.
 
@@ -176,7 +176,7 @@ If the Unit applies but you want to know what's flagged on it, inspect `ApplyWar
 
 `--change-desc` is a Unit-data-mutation flag only. It applies to `cub unit update`, `cub function set`, `cub run`, and `cub unit update --patch`. **It does not apply** to `cub space create/update`, `cub trigger create/update/delete`, `cub filter create/update/delete`, `cub target create/update`, or `cub worker create/update` — those entities aren't versioned configuration data and will reject the flag with `unknown flag: --change-desc`. The audit trail for Space/Trigger/Filter/Target/Worker operations is the entity's own history, not a per-call description.
 
-When this skill's flow does cause a Unit-data mutation (e.g., `cub unit update` while resolving a blocked apply), compose the description as:
+When this skill's flow does cause a Unit-data mutation (e.g., `cub unit update` while resolving a blocked publish), compose the description as:
 
 ```
 <summary: "Fix placeholder that was blocking vet-placeholders gate">
@@ -187,7 +187,7 @@ Clarifications: <condensed — e.g., "user confirmed the namespace value should 
 
 ## Stop conditions
 
-- User asks to bypass or remove an ApplyGate to force apply. Stop — fix the data instead, or update the policy upstream.
+- User asks to bypass or remove an ApplyGate to force publish. Stop — fix the data instead, or update the policy upstream.
 - Flag spellings don't match what `--help` reports. Stop and re-check before guessing.
 
 ## Verify chain
@@ -196,7 +196,7 @@ Clarifications: <condensed — e.g., "user confirmed the namespace value should 
 2. `cub filter get --space platform standard-vets` — Filter selects the expected Triggers.
 3. `cub space get <app-space>` — `TriggerFilterID` references the Filter.
 4. Deliberately make a violating edit (e.g., introduce a placeholder) in a test Unit → confirm an ApplyGate attaches → fix → confirm it releases.
-5. For a `--warn` Trigger, confirm the violation lands in `ApplyWarnings` (not `ApplyGates`) and that apply still succeeds: `cub unit list --space <space> --where "LEN(ApplyWarnings) > 0"`.
+5. For a `--warn` Trigger, confirm the violation lands in `ApplyWarnings` (not `ApplyGates`) and that publish still succeeds: `cub unit list --space <space> --where "LEN(ApplyWarnings) > 0"`.
 
 ## Evidence
 

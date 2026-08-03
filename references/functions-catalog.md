@@ -69,7 +69,7 @@ All of these accept no required parameters and only fill in fields that are miss
 
 ## Validators (`vet-*`)
 
-All return pass/fail; none mutate. Wire them as Mutation triggers so they fail the apply path when they fail. See `references/triggers-recipes.md`.
+All return pass/fail; none mutate. Wire them as Mutation triggers so they fail the publish path when they fail. See `references/triggers-recipes.md`.
 
 | Function           | Checks                                                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

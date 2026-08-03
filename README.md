@@ -22,7 +22,7 @@ The plugin manifest is at `.claude-plugin/plugin.json`; Claude Code auto-discove
 Prerequisites for the skills to actually _do_ anything:
 
 - `cub` CLI on PATH, with a valid session (`cub auth status` succeeds — it calls the server's `/me` to verify the token; `cub context get` only reads local login state and can still show a user when the token is expired).
-- `kubectl` on PATH for read-only cluster-convergence checks (`verify-apply`).
+- `kubectl` on PATH for read-only cluster-convergence checks.
 - A running ConfigHub server (self-hosted or `https://hub.confighub.com/`).
 - `argocd` / `flux` CLI on PATH as read-only diagnostic helpers, to confirm the GitOps tool pulled the OCI artifact and converged the cluster.
 
@@ -34,7 +34,7 @@ confighub-skills/
 ├── SKILL_TEMPLATE.md           shared scaffolding every skill inherits
 ├── references/                 shared reference material (loaded on demand)
 │   ├── cub-cli.md              CLI discipline + extended envelope + AND-only where + four Unit views
-│   ├── changesets.md           ChangeSet lifecycle (create/open/mutate/close/approve/apply/rollback)
+│   ├── changesets.md           ChangeSet lifecycle (create/open/mutate/close/approve/publish/rollback)
 │   ├── revisions.md            Revision data model (fields, provenance, lifecycle)
 │   ├── filters-and-queries.md  filter vocabulary + operational Unit-filter recipes
 │   ├── functions-catalog.md    K8s/YAML functions worth knowing
@@ -50,8 +50,6 @@ confighub-skills/
     ├── skill-examples-bootstrap/ creates the skill-examples playground Space
     ├── worker-bootstrap/       server worker (no process) for OCI/ConfigHub delivery; external worker for custom functions
     ├── target-bind/            create OCI / ConfigHub Targets, attach Units
-    ├── cub-apply/              apply/publish Units to their Targets (incl. ChangeSet bulk release)
-    ├── verify-apply/           post-apply verification (publish + Argo/Flux convergence) and release close-out
     ├── import/                 onboard existing Helm charts / Kustomize overlays
     ├── promote-release/        variant spaces (cub variant upload/create/promote) + ChangeSet-wrapped bulk upgrade
     ├── release-publish/        immutable OCI Release bundles (cub release publish/withdraw) pinned per Target

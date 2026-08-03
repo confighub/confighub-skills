@@ -95,11 +95,11 @@ cub trigger create --space platform -o json require-approval Mutation Kubernetes
 
 Approval policy is recorded as a gate until sufficient approvers sign off.
 
-## Diagnosing a blocked apply
+## Diagnosing a blocked publish
 
 1. `cub unit get <slug> --space <app-space>` — shows attached gates.
 2. `cub revision list <slug> --space <app-space>` — history of validating failures.
 3. Inspect the trigger: `cub trigger get --space platform <trigger-slug>`.
 4. Fix the data (e.g., `cub function do set-container-image …`) — the Mutation triggers re-run.
 
-Never drop the trigger or delete the gate to "make it apply."
+Never drop the trigger or delete the gate to "make it publish."
