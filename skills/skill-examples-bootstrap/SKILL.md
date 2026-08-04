@@ -1,13 +1,18 @@
 ---
 name: skill-examples-bootstrap
-description: 'Create or refresh a skill-examples Space with seed Units covering common Kubernetes resource types — a playground to exercise the other skills against. Use for "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", "reset the examples". Not for creating real application Spaces (use confighub-core).'
+description: 'Create or refresh a skill-examples Space with representative Kubernetes Units for exercising the other skills. Use for "set up the skill-examples space", "bootstrap the examples", "give me a Unit to tinker with", or "reset the examples". Not for real application Spaces (use confighub-core).'
 phase: cross-cutting
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub space create *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *)
+allowed-tools: []
+read-capability-subset: skill-examples-bootstrap
 ---
 
 # skill-examples-bootstrap
 
-Creates a ConfigHub playground Space so users can exercise the other skills against a real, well-formed example.
+**Authority boundary:** this companion may inspect the playground and prepare an idempotent bootstrap proposal, but it must not create or update it. The external mutation broker is `NOT_INTEGRATED`, so executable setup ends in `ASK` or `BLOCK`.
+
+Updates to existing example Units remain `APPROVED_STATE_CAS_NOT_INTEGRATED`: ConfigHub has transactional expected-head/hash checks, but this companion has no protected digest-pinned action and receipt that carries the reviewed values to execution.
+
+Prepares and explains an idempotent ConfigHub playground proposal so users can exercise the other skills against a well-formed example after externally authorized creation.
 
 ## When to use
 
@@ -18,7 +23,7 @@ Creates a ConfigHub playground Space so users can exercise the other skills agai
 
 ## Do not load for
 
-- Creating real app Spaces (use `confighub-core` + direct `cub space create`).
+- Creating real app Spaces (use `confighub-core` to prepare the governed Space proposal).
 - Setting up Triggers / policy (use `triggers-and-applygates`).
 - Importing existing Helm or Kustomize configs (use `import`).
 
@@ -62,7 +67,7 @@ Branch:
 
 - **Space missing** → go to step 2 (full bootstrap).
 - **Space present, Units missing** → skip space create, go to step 3.
-- **Space + Units present** → go to step 4 (re-apply defaults; idempotent).
+- **Space + Units present** → compare current state with the fixture contract and propose only missing/different defaults; do not mutate merely to test idempotence.
 
 ### 2. Create the Space
 
@@ -165,13 +170,14 @@ Clarifications: <condensed or 'none'>" \
 Point them at the GUI and the other skills:
 
 - `cub unit list --space skill-examples` — overview of all seeded Units.
-- `cub unit get hello-app --space skill-examples --web` — inspect the final literal YAML.
-- `cub revision list hello-app --space skill-examples --web` — see the provenance chain.
+- `cub unit open hello-app --space skill-examples --print-url` — inspect the final literal YAML.
+- `cub unit open hello-app --space skill-examples --revisions --print-url` — see the provenance chain.
 - Suggest a concrete next move: "Try `cub-mutate` to bump the image tag", "Try `cub-query` to find all Deployments in `skill-examples`", "Set up `triggers-and-applygates` against `skill-examples` to see an ApplyGate in action", "Use `kubernetes-resources` to create a new resource — it'll pull from these examples."
 
 ## Tool boundary
 
-- Allowed: `cub` read + create/update + `function do` (per frontmatter).
+- Host-ASK: read-only `cub` evidence in this skill's declared capability subset; no raw Bash is auto-allowed.
+- Proposal-only: Space/Unit create/update and function mutations; the external broker is required.
 - Not allowed: `cub * delete *` (users who want to clean up should do it explicitly), any mutating `kubectl`, any `helm`/`kustomize`.
 
 ## Stop conditions
@@ -189,9 +195,9 @@ Point them at the GUI and the other skills:
 
 ## Evidence
 
-- `cub space get skill-examples --web` — Space overview.
-- `cub unit get hello-app --space skill-examples --web` — literal Unit YAML.
-- `cub revision list hello-app --space skill-examples --web` — provenance chain.
+- `cub space open skill-examples --print-url` — Space overview.
+- `cub unit open hello-app --space skill-examples --print-url` — literal Unit YAML.
+- `cub unit open hello-app --space skill-examples --revisions --print-url` — provenance chain.
 
 ## References
 

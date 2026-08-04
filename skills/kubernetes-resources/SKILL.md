@@ -2,10 +2,15 @@
 name: kubernetes-resources
 description: 'Author a specific Kubernetes resource type as literal YAML in a ConfigHub Unit with best-practice defaults. Use for "create a StatefulSet", "add an Ingress", "set up NetworkPolicy", "I need a CronJob", "add RBAC for my app", "set up autoscaling", "add a PDB". Not for AppConfig-based ConfigMaps (use app-config).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub unit diff *) Bash(cub function *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *)
+allowed-tools: []
+read-capability-subset: kubernetes-resources
 ---
 
 # kubernetes-resources
+
+**Authority boundary:** this companion may author and validate a proposed resource, but it must not create or update the ConfigHub Unit. The external mutation broker is `NOT_INTEGRATED`, so the proposal ends in `ASK` or `BLOCK`.
+
+Existing-Unit changes also return `APPROVED_STATE_CAS_NOT_INTEGRATED`: the server can check caller-supplied `HeadRevisionNum` and `DataHash`/`ContentHash` transactionally, but no protected companion action binds those reviewed values through final execution and receipt.
 
 Author common Kubernetes resource types as ConfigHub Units — literal YAML, best-practice defaults applied via functions, wired into the right Space.
 
@@ -176,7 +181,8 @@ Based on what was created, suggest the logical next skill:
 
 ## Tool boundary
 
-- Allowed: `cub` read + create/update + `function do` + `run` + `link create/update`, `kubectl create --dry-run=client` and `kubectl explain` for scaffolding.
+- Host-ASK: read-only `cub` inspection and `kubectl explain` in this skill's declared capability subset; no raw Bash is auto-allowed.
+- Proposal-only: Unit/link create/update and function/run changes. Client-side scaffolding may be shown, but no mutating `kubectl create` permission is granted.
 - Not allowed: `cub * delete *`, mutating `kubectl` (`apply`/`edit`/`patch`/`delete`), `helm`, `kustomize`.
 
 ## Stop conditions
@@ -193,8 +199,8 @@ Based on what was created, suggest the logical next skill:
 
 ## Evidence
 
-- `cub unit get <slug> --space <space> --web` — Unit in the GUI.
-- `cub revision list <slug> --space <space> --web` — provenance chain.
+- `cub unit open <slug> --space <space> --print-url` — Unit in the GUI.
+- `cub unit open <slug> --space <space> --revisions --print-url` — provenance chain.
 
 ## References
 

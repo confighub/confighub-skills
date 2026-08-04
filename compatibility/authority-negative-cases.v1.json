@@ -1,0 +1,92 @@
+{
+  "schema_version": "confighub-skills-authority-negative-cases/v1",
+  "candidate_plugin_version": "0.4.0",
+  "current_boundary": "NO_RAW_BASH_AUTOALLOW_HOST_ASK",
+  "typed_wrapper": "NOT_INTEGRATED",
+  "cases": [
+    {
+      "case_id": "validator-side-effect-flag",
+      "category": "mutation",
+      "command": "cub function vet --space app vet-approvedby 1 --update-apply-gates",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "worker-secret-shell-expansion",
+      "category": "credentials-or-secrets",
+      "command": "cub worker get worker ${:-\"--include-secret\"}",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "kubernetes-secret-read",
+      "category": "credentials-or-secrets",
+      "command": "kubectl get secret db-credentials -o yaml",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "kind-kubeconfig",
+      "category": "credentials-or-secrets",
+      "command": "kind get kubeconfig",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "kustomize-exec-plugin",
+      "category": "plugin-or-exec-loading",
+      "command": "kustomize build . --enable-exec",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "kubectl-kustomize-alpha-plugin",
+      "category": "plugin-or-exec-loading",
+      "command": "kubectl kustomize . --enable-alpha-plugins",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "helm-output-directory",
+      "category": "file-read-or-write-without-bounded-artifact",
+      "command": "cub helm template app chart --output-dir /tmp/rendered",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "argocd-hard-refresh",
+      "category": "controller-hard-refresh",
+      "command": "argocd app get app --hard-refresh",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "credential-minting-getter",
+      "category": "arbitrary-function-get-or-vet",
+      "command": "cub function get --space workers generate-kubecontext",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "zsh-eval-expansion",
+      "category": "shell-composition-or-expansion",
+      "command": "cub release get r ${(e):-${:-$}(printf injected)}",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "unknown-flag",
+      "category": "unknown-verb-or-flag",
+      "command": "cub unit list --definitely-unknown",
+      "current_outcome": "NOT_AUTOALLOWED",
+      "future_typed_outcome": "DENY"
+    },
+    {
+      "case_id": "quoted-where-comparison",
+      "category": "legitimate-read-regression",
+      "command": "cub unit list --space app --where \"HeadRevisionNum > LastAppliedRevisionNum\"",
+      "current_outcome": "HOST_ASK",
+      "future_typed_outcome": "ASK_OR_ALLOW_AFTER_TYPED_VALIDATION"
+    }
+  ]
+}

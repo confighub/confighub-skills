@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+trace=${1:-}
+test "$#" -eq 1 && test -f "$trace" || {
+  printf '%s\n' 'usage: parse-claude-stream-json <claude-stream-jsonl>' >&2
+  exit 2
+}
+command -v jq >/dev/null 2>&1 || {
+  printf '%s\n' 'claude stream trace: BLOCK_TRACE_SCHEMA_INVALID: jq missing' >&2
+  exit 2
+}
+
+fail() {
+  jq -nc --arg status BLOCK_TRACE_SCHEMA_INVALID --arg reason "$*" '{status:$status,reason:$reason}'
+  exit 1
+}
+
+reject_behavior() {
+  local reason=$1
+  jq -c --arg reason "$reason" '{
+    status:"BLOCK_TRACE_BEHAVIOR_REJECTED",
+    schema:"claude-stream-jsonl/v1",
+    reason:$reason,
+    record_count:length,
+    permission_mode:.[0].permissionMode,
+    permission_denials:(.[-1].permission_denials | length),
+    result_subtype:.[-1].subtype,
+    result_is_error:.[-1].is_error
+  }' "$tmp_file"
+  exit 1
+}
+
+test -s "$trace" || fail 'trace is empty'
+
+if ! strict_json_result=$(ruby -rjson - "$trace" <<'RUBY' 2>&1
+class DuplicateRejectingHash < Hash
+  def []=(key, value)
+    raise JSON::ParserError, "duplicate object key #{key.inspect}" if key?(key)
+    super
+  end
+end
+
+path = ARGV.fetch(0)
+count = 0
+File.foreach(path).with_index(1) do |line, line_number|
+  raise JSON::ParserError, "blank JSONL record at line #{line_number}" if line.strip.empty?
+  value = JSON.parse(line, object_class: DuplicateRejectingHash)
+  raise JSON::ParserError, "JSONL record at line #{line_number} is not an object" unless value.is_a?(Hash)
+  count += 1
+end
+raise JSON::ParserError, "trace has no JSONL records" if count.zero?
+puts count
+RUBY
+); then
+  fail "strict JSONL parse failed: $strict_json_result"
+fi
+record_lines=$strict_json_result
+
+tmp_file=$(mktemp)
+trap 'rm -f "$tmp_file"' EXIT
+if ! jq -s '.' "$trace" >"$tmp_file" 2>/dev/null; then
+  fail 'trace is not a valid JSON value stream'
+fi
+record_count=$(jq 'length' "$tmp_file")
+test "$record_count" -eq "$record_lines" || fail 'each JSONL line must contain exactly one complete JSON object'
+
+if ! jq -e '
+  length > 0 and
+  all(.[]; type == "object") and
+  all(.[]; (.type | type) == "string") and
+  all(.[]; [.type] - ["system","assistant","user","result","stream_event","tool_progress","tool_use_summary","auth_status"] | length == 0) and
+  ([.[] | select(.type == "system" and .subtype == "init")] | length) == 1 and
+  .[0].type == "system" and .[0].subtype == "init" and
+  (.[0].permissionMode | type) == "string" and
+  ([.[0].permissionMode] - ["acceptEdits","auto","bypassPermissions","manual","dontAsk","plan"] | length == 0) and
+  ([.[] | select(.type == "result")] | length) == 1 and
+  .[-1].type == "result" and
+  (.[-1].subtype | type) == "string" and
+  ([.[-1].subtype] - ["success","error_during_execution","error_max_turns","error_max_budget_usd","error_max_structured_output_retries"] | length == 0) and
+  (.[-1].is_error | type) == "boolean" and
+  ((.[-1].subtype == "success" and .[-1].is_error == false) or
+   (.[-1].subtype != "success" and .[-1].is_error == true)) and
+  (.[-1].permission_denials | type) == "array" and
+  ((.[-1].errors? // []) | type) == "array" and
+  all((.[-1].errors? // [])[]; type == "string") and
+  all(.[-1].permission_denials[];
+    type == "object" and
+    (.tool_name | type) == "string" and (.tool_name | length) > 0 and
+    (.tool_use_id | type) == "string" and (.tool_use_id | length) > 0 and
+    (.tool_input | type) == "object") and
+  all(.[] | select(.type == "assistant" or .type == "user"); (.message | type) == "object") and
+  all(.[] | select(.type == "tool_progress");
+    (.tool_use_id | type) == "string" and (.tool_name | type) == "string" and
+    (.elapsed_time_seconds | type) == "number")
+' "$tmp_file" >/dev/null; then
+  fail 'records do not match the supported Claude stream-json schema'
+fi
+
+result_subtype=$(jq -r '.[-1].subtype' "$tmp_file")
+result_is_error=$(jq -r '.[-1].is_error' "$tmp_file")
+permission_denials=$(jq '.[-1].permission_denials | length' "$tmp_file")
+result_errors=$(jq '.[-1].errors? // [] | length' "$tmp_file")
+if test "$result_subtype" != success || test "$result_is_error" != false; then
+  reject_behavior "result is not a clean success: subtype=$result_subtype is_error=$result_is_error"
+fi
+test "$permission_denials" -eq 0 || reject_behavior "permission denials are present: $permission_denials"
+test "$result_errors" -eq 0 || reject_behavior "result errors are present: $result_errors"
+
+jq -c '{
+  status:"TRACE_BEHAVIOR_PASS",
+  schema:"claude-stream-jsonl/v1",
+  record_count:length,
+  permission_mode:.[0].permissionMode,
+  permission_denials:(.[-1].permission_denials | length),
+  result_subtype:.[-1].subtype,
+  result_is_error:.[-1].is_error
+}' "$tmp_file"

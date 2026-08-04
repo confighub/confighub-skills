@@ -1,5 +1,7 @@
 # Authoring plain, literal Kubernetes YAML
 
+**Authority boundary:** local dry-run rendering is read-only; storing or changing Unit data is a governed proposal. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`), so every `cub unit create/update`, setter, or other write shown here must be reviewed and executed outside the companion.
+
 Everything here assumes **Configuration as Data**: fully materialized YAML stored in Units. No template syntax, no values-file split.
 
 ## Starting from scratch

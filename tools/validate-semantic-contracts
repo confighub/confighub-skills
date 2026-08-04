@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=${1:-$(cd "$(dirname "$0")/.." && pwd)}
+contract="$root/compatibility/semantic-contracts.v1.json"
+
+fail() {
+  printf 'semantic contracts: FAIL: %s\n' "$*" >&2
+  exit 1
+}
+
+for command_name in jq shasum; do
+  command -v "$command_name" >/dev/null 2>&1 || fail "required command missing: $command_name"
+done
+
+jq empty "$contract" >/dev/null 2>&1 || fail "missing or invalid semantic contract"
+jq -e '
+  .schema_version == "confighub-skills-semantic-contracts/v1" and
+  .candidate_plugin_version == "0.4.0" and
+  (.purpose | contains("Self-renewable local drift") and contains("not trust")) and
+  .minimum_expected_output_chars >= 120 and
+  (.skills | length) == 15 and
+  ([.skills[].skill_id] | length == (unique | length)) and
+  all(.skills[];
+    (.skill_path | type == "string" and startswith("skills/") and endswith("/SKILL.md")) and
+    (.eval_path | type == "string" and startswith("skills/") and endswith("/evals/evals.json")) and
+    (.skill_sha256 | test("^[0-9a-f]{64}$")) and
+    (.eval_sha256 | test("^[0-9a-f]{64}$")) and
+    (.minimum_skill_bytes >= 1000) and
+    (.required_skill_anchors | type == "array" and length >= 3) and
+    (.required_eval_anchors | type == "array" and length >= 1))
+' "$contract" >/dev/null || fail "schema, cardinality, or per-skill guard is incomplete"
+
+minimum_expected_output_chars=$(jq -r '.minimum_expected_output_chars' "$contract")
+checked=0
+while IFS= read -r row; do
+  skill_id=$(printf '%s' "$row" | jq -r '.skill_id')
+  skill_path=$(printf '%s' "$row" | jq -r '.skill_path')
+  eval_path=$(printf '%s' "$row" | jq -r '.eval_path')
+  expected_skill_sha=$(printf '%s' "$row" | jq -r '.skill_sha256')
+  expected_eval_sha=$(printf '%s' "$row" | jq -r '.eval_sha256')
+  minimum_skill_bytes=$(printf '%s' "$row" | jq -r '.minimum_skill_bytes')
+
+  case "$skill_path:$eval_path" in
+    *..*|/*) fail "unsafe contract path for $skill_id" ;;
+  esac
+  test -f "$root/$skill_path" || fail "missing skill body for $skill_id"
+  test -f "$root/$eval_path" || fail "missing eval body for $skill_id"
+
+  actual_skill_sha=$(shasum -a 256 "$root/$skill_path" | awk '{print $1}')
+  actual_eval_sha=$(shasum -a 256 "$root/$eval_path" | awk '{print $1}')
+  test "$actual_skill_sha" = "$expected_skill_sha" || fail "local drift fingerprint changed for $skill_id"
+  test "$actual_eval_sha" = "$expected_eval_sha" || fail "local drift fingerprint changed for $skill_id evals"
+
+  skill_bytes=$(wc -c <"$root/$skill_path" | tr -d ' ')
+  test "$skill_bytes" -ge "$minimum_skill_bytes" || fail "skill body was truncated for $skill_id"
+
+  while IFS= read -r anchor; do
+    grep -Fq -- "$anchor" "$root/$skill_path" || fail "skill anchor disappeared for $skill_id: $anchor"
+  done < <(printf '%s' "$row" | jq -r '.required_skill_anchors[]')
+  while IFS= read -r anchor; do
+    grep -Fq -- "$anchor" "$root/$eval_path" || fail "eval anchor disappeared for $skill_id: $anchor"
+  done < <(printf '%s' "$row" | jq -r '.required_eval_anchors[]')
+
+  jq -e --argjson minimum "$minimum_expected_output_chars" '
+    .execution_policy == "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER" and
+    ((.evals // .prompts) | type == "array" and length > 0) and
+    all((.evals // .prompts)[];
+      (.name | type == "string" and length > 0) and
+      (.prompt | type == "string" and length > 0) and
+      (.expected_output | type == "string" and length >= $minimum))
+  ' "$root/$eval_path" >/dev/null || fail "eval expected_output was deleted or trivialized for $skill_id"
+  checked=$((checked + 1))
+done < <(jq -c '.skills[]' "$contract")
+
+test "$checked" -eq 15 || fail "did not validate all 15 semantic contracts"
+printf 'semantic contracts: LOCAL_DRIFT_MATCH (%d skill bodies + eval suites; self-renewable, not trust evidence)\n' "$checked"

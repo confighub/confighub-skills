@@ -1,11 +1,12 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "skill_name": "cub-query",
   "evals": [
     {
       "id": 1,
       "name": "find-release-deployments",
       "prompt": "Where is checkout v0.4.2 currently deployed? I need to know which spaces/environments have that release.",
-      "expected_output": "Uses `cub unit list` or `cub function do get-container-image` with --space \"*\" and a where-data or output-jq filter to surface every Unit containing image reference :v0.4.2, reports the unit/space pairs in plain English, and offers a cub unit get --web link for at least one. Does not mutate.",
+      "expected_output": "Uses `cub unit list` with where-data or read-only `cub function get ... get-container-image` to identify desired-state candidates containing :v0.4.2 and reports Unit/Space pairs without calling them currently deployed. For an actual deployment claim it routes those candidates to verify-apply for immutable Release/ManifestDigest, controller, and Kubernetes runtime evidence. Offers verified navigation and does not mutate.",
       "files": []
     },
     {
@@ -26,21 +27,21 @@
       "id": 4,
       "name": "single-unit-image-lookup",
       "prompt": "What image tag is our nonprod worker running?",
-      "expected_output": "Locates the Space and Unit via `cub space list` and `cub unit list --space <space>` (does not guess a naming convention from other environments), then extracts the image with either `cub unit data <unit> --space <space>` or a scoped getter `cub function do --space <space> --unit <unit> get-container-image <container>` with -o jq to pull the Value. Reports image:tag in plain English. Does not use `cub unit get ... -o data` (prefer `cub unit data`). Does not mutate. Does not fall back to kubectl.",
+      "expected_output": "Locates the Space and Unit via `cub space list` and `cub unit list --space <space>` without guessing, then extracts the desired image with `cub unit data` or read-only `cub function get ... get-container-image`. Labels it desired ConfigHub state, not the currently running image. Because the prompt asks what is running, routes to verify-apply for Release/controller/Kubernetes proof; does not mutate.",
       "files": []
     },
     {
       "id": 5,
       "name": "single-workload-replica-count-in-region",
       "prompt": "How many replicas does our frontend have in us-east?",
-      "expected_output": "Resolves the workload/region phrasing by listing Spaces (matching on slug pattern like `*-use2-*` or on a Space Label such as `Region=us-east-2`) and listing Units in the candidate Space(s) to find a `frontend` Unit. Does not invent a slug. Then runs `cub function do --space <space> --unit <unit> get-replicas --quiet --show output -o jq=...` or `cub unit data <unit> --space <space>` and reports spec.replicas. Single-workload scope, no --space \"*\" sweep unless the user asked for fleet-wide. Does not mutate. If Space layout is ambiguous, references confighub-core conventions rather than guessing.",
+      "expected_output": "Resolves the workload/region phrasing by listing Spaces (matching a slug only when evidenced, or a Space Label such as Region=us-east-2) and candidate Units without inventing identity. Uses read-only `cub function get ... get-replicas` or `cub unit data`, reports spec.replicas, keeps single-workload scope, and does not mutate. If layout is ambiguous, references confighub-core rather than guessing.",
       "files": []
     },
     {
       "id": 6,
       "name": "single-unit-up-to-date-check",
       "prompt": "Is our nonprod worker up to date with the latest confighub release?",
-      "expected_output": "Two-part query: (1) extracts the currently-running image tag from the Unit using `cub unit data` or a scoped `get-container-image` / `get-container-image-reference` function call; (2) looks up the latest release (e.g., `gh release list --repo confighubai/confighub`). Compares the two and reports whether they match, including the gap if any. Does not mutate.",
+      "expected_output": "Extracts the desired ConfigHub image reference from the Unit and labels it as desired, never currently running. Resolves the comparison reference from an authoritative release source, then routes through verify-apply to bind an immutable ConfigHub Release/ManifestDigest to controller and Kubernetes runtime evidence before declaring the worker up to date. Reports any missing evidence as a proof gap and does not mutate.",
       "files": []
     }
   ]

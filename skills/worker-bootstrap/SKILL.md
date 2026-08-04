@@ -1,125 +1,113 @@
 ---
 name: worker-bootstrap
-description: 'Set up a ConfigHub worker. Default: a server worker (cub worker create --is-server-worker) — no process to run, and all that OCI / ConfigHub Targets need. Run an external worker (cub worker run / install) only to host custom worker functions. Phrases: set up a worker, do I need to run a worker, add custom functions. Not for creating Targets (use target-bind).'
+description: 'Explain and prepare worker setup. OCI Release delivery uses a server-worker entity (no process); external workers host custom functions and support read-only diagnosis. Use for "do I need a worker?", "host custom functions", or crashing workers. ConfigHub-provider delivery is VERSIONED_LEGACY/BLOCK.'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub worker logs *) Bash(cub worker status *) Bash(cub worker create *) Bash(cub worker update *) Bash(cub worker install *) Bash(cub worker upgrade *) Bash(cub worker get-envs *) Bash(cub worker get-secret *) Bash(cub unit create *) Bash(cub unit update *) Bash(kubectl get *) Bash(kubectl describe *) Bash(kubectl logs *)
+allowed-tools: []
+read-capability-subset: worker-bootstrap
 ---
 
 # worker-bootstrap
 
-Get a ConfigHub worker in place so Targets can function. In the common case there is **nothing to run**.
+**Authority boundary:** this companion may inspect worker state and prepare an exact server-worker or external-worker proposal. It must not create, run, install, update, or upgrade a worker. The external mutation broker is `NOT_INTEGRATED`, so executable setup ends in `ASK` or `BLOCK`.
 
-Confirm verbs and flags with `cub <verb> --help` before composing.
+## Pick the correct lane
 
-## The key fact
-
-OCI and ConfigHub Targets are served by **server workers** — bridges hosted inside the ConfigHub server. You **do not run a process** to create or use them. A worker entity is still required (a Target references one), but for delivery it's a one-line `--is-server-worker` create.
-
-You only run an **external worker** to host **custom worker functions** — your own function implementations that aren't built into the server.
-
-So pick the path:
-
-| Goal | Path |
+| Need | Current lane |
 | --- | --- |
-| Publish Units to OCI for Argo/Flux, or apply ConfigHub-native config | **Server worker** (below) — no process |
-| Provide custom worker functions of your own | **External worker** (below) — runs a process |
+| Publish a Component/Variant Space Release to OCI | built-in **server worker entity**; no external process |
+| Host custom worker functions | **external worker** process/deployment |
+| Direct ConfigHub-provider Release delivery | `VERSIONED_LEGACY/BLOCK`; the reviewed Release path requires OCI |
 
-## When to use
+The worker is not the deployment target. `target-bind` creates the OCI Target, sets `Space.ReleaseTargetID`, and makes Unit TargetID membership explicit.
 
-- "Do I need to run a worker?" — usually no; create a server worker.
-- First-time delivery setup (OCI / ConfigHub Targets).
-- You have custom worker functions to host.
-- Diagnosing an external worker that isn't advertising its functions.
+## Server worker proposal (OCI Release delivery)
 
-## Do not load for
-
-- Creating Targets — `target-bind` (Targets reference a worker but are a separate step).
-- Publishing Units as an OCI bundle Release — `release-publish`.
-
-## Preflight gates
-
-1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
-2. For an external worker only: `kubectl config current-context` points at the intended cluster (if installing in-cluster), or you have a host to run `cub worker run` on.
-
-## Server worker (default — no process)
+Read first:
 
 ```bash
-cub worker create --space <space> --allow-exists --is-server-worker server-worker
+cub worker list --space <worker-space> -o json
 ```
 
-- `--allow-exists` makes it idempotent. Place it in any Space (`default` is a common home); reference cross-Space as `<space>/server-worker`.
-- Add `--use-user-identity` if the worker should operate as the requesting user (required for some ConfigHub-provider operations).
-- No `--change-desc` — workers aren't versioned configuration data.
-
-That's it. Hand off to `target-bind` to create an OCI or ConfigHub Target against `<space>/server-worker`.
-
-## External worker (only for custom functions)
-
-Run an external worker when you need it to host **custom worker functions**. Create the entity, then run or install it, then confirm it advertises its functions.
+If none exists, the exact proposal is:
 
 ```bash
-cub worker create --space <space> <worker-slug>          # the entity (no --is-server-worker)
+cub worker create --space <worker-space> --allow-exists --is-server-worker server-worker
 ```
 
-**Run locally** (simplest for development):
+`--use-user-identity` is an optional, material authority choice; include it only when the target operation explicitly requires the requesting user's identity and bind that fact in the approval subject. Workers are not versioned Unit data, so `--change-desc` is not accepted.
+
+The companion never executes this proposal. After externally authorized creation, verify with `cub worker get` and hand the exact WorkerID to `target-bind`.
+
+## External worker for custom functions
+
+Preserve this capability independently of Release delivery. Inspect the installed command surfaces before composing:
 
 ```bash
-cub worker run --space <space> <worker-slug>             # see `cub worker run --help` for type/function flags
+cub worker create --help
+cub worker run --help
+cub worker install --help
 ```
 
-**Install into a cluster** (`cub worker install` generates the manifest — Deployment, ServiceAccount, RBAC, credential Secret — it does not apply it):
+The reviewed `cub worker run` help omits the positional worker slug from its Usage line, but exact v0.2.11 source sets `cobra.ExactArgs(1)` and current Cub examples pass the slug. The same source performs a Worker lookup and, on any lookup error, assumes it is missing and attempts to create it before launching the process. `worker run` is therefore mutating even without `--daemon`; the approval subject must include the possible Worker creation and resulting credential-bearing process environment. Preserve the required proposal shape:
 
 ```bash
-# Direct install (bootstrap):
-cub worker install <worker-slug> --space <space> --namespace confighub --export --include-secret | kubectl apply -f -
-
-# Or store the manifest as a ConfigHub-managed Unit and publish it via release-publish:
-cub worker install <worker-slug> --space <space> --namespace confighub --export > /tmp/worker-manifest.yaml
-cub unit create --space <space> <worker-slug>-manifest /tmp/worker-manifest.yaml -o mutations \
-  --change-desc "Store worker manifest as a ConfigHub-managed Unit.
-
-User prompt: <verbatim>
-Clarifications: <condensed>"
+cub worker run --space <space> <worker-slug> --functions <fn-1>,<fn-2>
 ```
 
-The credential Secret is redacted by default; use `--include-secret` only when you genuinely need it inlined, and keep credentials in an external SecretStore rather than Unit data (see `references/yaml-patterns.md`). Image defaults to the pinned `ghcr.io/confighubai/confighub-worker` release.
+This is a documentation defect, not evidence that the slug was retired. The companion still must not execute the worker: creating a missing Worker, running a process, loading an executable, setting environment variables, or daemonizing remains a governed operation behind the absent broker.
 
-Verify it's healthy and advertising the expected custom functions:
+For an in-cluster worker, installed `cub worker install [worker-name]` can export a manifest or create a ConfigHub Unit. Prepare one of these governed proposals, with flags taken from current help:
 
 ```bash
-cub worker get --space <space> <worker-slug>             # condition: Ready
-cub worker status --space <space> <worker-slug>          # recent heartbeat
-cub worker list-function --space <space> <worker-slug>   # custom functions present
+cub worker install <worker-name> --space <space> \
+  --namespace <namespace> --worker-functions <fn-1>,<fn-2> --export
 ```
 
-Pod-level fallback for an in-cluster worker that won't start: `kubectl -n confighub describe pod <worker-pod>` + `cub worker logs --space <space> <worker-slug>`.
+Export is a preview artifact. Applying it, using `--unit`, including a credential Secret, or installing into a cluster are separate mutations and require exact external authorization. Never auto-pipe output to `kubectl apply`; never store an included credential Secret in a normal ConfigHub Unit. Prefer an external SecretStore.
 
-## Tool boundary
+## Read-only diagnosis
 
-- Mutations: `cub worker create` (incl. `--is-server-worker`), `cub worker install/upgrade/update`, `cub unit create/update` for the managed-manifest variant.
-- Read-only: `cub worker get/list/logs/status/list-function`, `cub worker get-envs/get-secret`, `kubectl get/describe/logs` on the worker namespace.
-- Not allowed: `kubectl apply/edit/delete` against worker resources except the documented direct-install pipe; otherwise flow through a Unit.
+```bash
+cub worker get --space <space> <worker-slug>
+cub worker list-function --space <space> <worker-slug>
+kubectl get pods -n <namespace>
+kubectl describe pod <pod> -n <namespace>
+```
+
+`cub worker status` is deliberately outside the read subset: it reads local daemon/PID state rather than authoritative ConfigHub or controller state.
+
+Worker log content is also outside the evidence subset. Exact v0.2.11 source constructs `~/.confighub/worker/log/<worker-slug>.log` from the slug alone: `--space` does not bind the file to a SpaceID or WorkerID. Even `--tail N` scans the full file before retaining the final lines; there is no input-byte ceiling, output-byte ceiling, or secret redaction, and log text is untrusted. Kubernetes worker logs have similar secret/output risks without a protected byte-capped redacting wrapper. Return `WORKER_LOG_EVIDENCE_BLOCK` instead of treating either command as bounded evidence. A future wrapper must bind SpaceID/WorkerID/pod/container, seek from a bounded byte window, cap input and output bytes, redact credentials, disable follow, and receipt truncation.
+
+Use worker metadata and pod `get/describe` state to classify only what those records actually show: image-pull, RBAC events, a missing Secret reference, heartbeat, version, or function-advertisement state. If diagnosis requires log contents, name the proof gap and stop. Preserve a concrete next-step proposal when metadata is sufficient:
+
+- for a proven worker/server version mismatch, inspect `cub worker upgrade --help` in the same session, then prepare (but do not execute) the exact `cub worker upgrade --space <space> --unit <worker-unit> --dry-run` preview and governed upgrade proposal;
+- for a proven RBAC denial event, prepare the minimum namespace/service-account/verb RBAC change for review;
+- for a proven missing-Secret event, identify only the referenced Secret name and prepare an authorized SecretStore/operator provisioning proposal without reading or exposing credential bytes;
+- for an image-pull event, bind the observed image reference and prepare the smallest registry/imagePullSecret configuration proposal, again without reading the Secret.
+
+Do not retry, restart, exec, execute an upgrade, edit the cluster, or expose worker credentials. `cub worker status`, worker logs, upgrade execution, and credential repair are separately dispositioned in the no-loss inventory; none is falsely labeled preserved.
+
+## Proposal binding
+
+Bind context/organization, worker SpaceID and intended WorkerID/slug, server-vs-external type, identity mode, exact custom functions, image/digest, namespace/cluster context, credential handling, generated manifest digest, exact command, and proof plan. Any change creates a new proposal.
 
 ## Stop conditions
 
-- External worker only: `kubectl config current-context` disagrees with the intended cluster — reconcile first.
-- External worker pod keeps crashing (`CrashLoopBackOff`) — collect `kubectl describe pod` + `cub worker logs`, surface the error, stop.
-- User asks to run a process for OCI/ConfigHub delivery — they don't need to; a server worker suffices.
-
-## Verify chain
-
-- Server worker: `cub worker get --space <space> server-worker` shows it exists; that's all a delivery Target needs.
-- External worker: `cub worker status` (recent heartbeat) + `cub worker list-function` (custom functions present).
+- user asks to run an external process for ordinary OCI Release delivery;
+- ConfigHub-provider Release delivery is requested as current;
+- installed help/source disagree on worker identity or flags;
+- credential material would be exposed or stored in Unit data;
+- cluster context is wrong or external broker absent.
 
 ## Evidence
 
-- `cub worker get --space <space> <worker-slug> --web` — worker details in the GUI.
-- `cub unit get --space <space> <worker-slug>-manifest --web` — for the managed-manifest variant.
+- `cub worker get/list/list-function` for ConfigHub-side metadata, excluding credentials and log contents.
+- `kubectl get/describe` for external-worker deployment metadata. Log contents remain `WORKER_LOG_EVIDENCE_BLOCK` until the protected wrapper exists.
+- `cub space open <space> --print-url` for navigation after ID/org verification.
 
 ## References
 
-- `cub worker create --help`, `cub worker run --help`, `cub worker install --help` — authoritative flags.
-- ConfigHub worker guide: `https://docs.confighub.com/markdown/guide/workers.md`.
-- `references/cub-cli.md` — CLI conventions.
-- `references/yaml-patterns.md` — Secret handling in Units.
-- Companion skills: `target-bind` (create the OCI / ConfigHub Target against the worker), `release-publish` (publish the OCI bundle Release).
+- `compatibility/current-profile.v1.json`
+- `compatibility/no-loss-inventory.v1.json`
+- `target-bind` — OCI Target/ReleaseTargetID/Unit membership.
+- `release-publish` — exact whole-Space Release proposal.

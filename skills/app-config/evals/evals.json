@@ -1,16 +1,20 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "prompts": [
     {
       "name": "properties-for-java-app",
-      "prompt": "I have an existing `application.properties` file for a Spring Boot app. I want it as a ConfigMap in ConfigHub, mounted into the container at /etc/app/application.properties. Walk me through it."
+      "prompt": "I have an existing `application.properties` file for a Spring Boot app. I want it as a ConfigMap in ConfigHub, mounted into the container at /etc/app/application.properties. Walk me through it.",
+      "expected_output": "Prepares an AppConfig/Properties Unit, render-configmap Invocation, Upsert link, ConfigMap placeholder, and workload mount proposal with exact Unit/link identities and --change-desc where supported. Explains the rendered file key/mount path, reads existing state first, never executes, and BLOCKs pending the broker."
     },
     {
       "name": "envfrom-env-injection",
-      "prompt": "Our Node app reads 15 env vars. I have them all in a `.env` file. I want them injected via `envFrom` in the Deployment so I don't list them individually in the container spec. How?"
+      "prompt": "Our Node app reads 15 env vars. I have them all in a `.env` file. I want them injected via `envFrom` in the Deployment so I don't list them individually in the container spec. How?",
+      "expected_output": "Prepares an AppConfig/Env Unit and render-configmap proposal using key/value rendering, plus an exact Deployment envFrom change. Calls out SecretStore handling for sensitive values, binds source and Unit identities, does not execute, and includes read-only verification."
     },
     {
       "name": "mutable-vs-immutable-choice",
-      "prompt": "I'm confused about immutable vs mutable ConfigMaps in ConfigHub. We have a legacy monitoring tool that greps for ConfigMaps by exact name — is that a reason to pick one over the other? Also, if the ConfigMap content changes, which mode gives us an automatic pod restart?"
+      "prompt": "I'm confused about immutable vs mutable ConfigMaps in ConfigHub. We have a legacy monitoring tool that greps for ConfigMaps by exact name — is that a reason to pick one over the other? Also, if the ConfigMap content changes, which mode gives us an automatic pod restart?",
+      "expected_output": "Explains the tradeoff: the exact-name consumer supports a stable mutable ConfigMap; the content-hash pod-template annotation is what triggers a rollout for stable names, while immutable hashed names require reference updates. Produces a choice/proposal only and does not mutate."
     }
   ]
 }

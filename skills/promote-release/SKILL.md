@@ -1,16 +1,19 @@
 ---
 name: promote-release
-description: 'Promote a release to the next environment or across the fleet, and manage variant spaces — cub variant create / promote to reconcile a variant with its upstream, or a ChangeSet-wrapped bulk upgrade for partial / cross-space scopes. Phrases: promote to staging, roll forward to prod, which Units are behind upstream, push the base to every downstream. Not for rollback (use rollback-revision).'
+description: 'Prepare Variant or ChangeSet promotion. Use for "promote to staging", "roll forward to prod", "which Units are behind?", partial promotion, or push a base across the fleet. Covers variant create/promote and exact later Release scope. Not rollback (rollback-revision).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub revision list *) Bash(cub revision get *) Bash(cub variant upload *) Bash(cub variant create *) Bash(cub variant promote *) Bash(cub unit update *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub filter update *) Bash(kubectl get *) Bash(kubectl describe *)
+allowed-tools: []
+read-capability-subset: promote-release
 ---
 
 # promote-release
 
+**Authority boundary:** this companion may run read-only preflight and prepare an exact promotion or approval proposal. It must not execute create, update, approve, promote, or publish operations. The external mutation broker is `NOT_INTEGRATED`, so executable steps end in `ASK` or `BLOCK`.
+
 Promote a release forward. There are two mechanisms; pick by scope:
 
 - **Variant spaces (space-level, preferred for the common case).** `cub variant promote <space>` reconciles a whole variant Space with the upstream Space it was cloned from — in one command. Set up with `cub variant create` (clone a Space into a variant) and, for a brand-new base, `cub variant upload` (ingest rendered manifests into a base Space).
-- **ChangeSet-wrapped bulk upgrade (fine-grained / cross-space).** Manual `cub unit update --patch --upgrade --where …` inside a ChangeSet, when you need a partial scope, a cross-Space fleet push, or explicit ChangeSet grouping / approval / atomic rollback.
+- **ChangeSet-wrapped bulk upgrade (fine-grained / cross-space).** Manual `cub unit update --patch --upgrade --where …` inside a ChangeSet, when you need a partial scope, a cross-Space fleet push, or explicit ChangeSet grouping, review, and set-wise restore.
 
 Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` to verify the token; if it fails, ask the user to run `cub auth login`). Confirm verbs and flags with `cub <verb> --help` before composing — never invent flags. This skill hands off the cluster rollout to `release-publish`.
 
@@ -24,8 +27,8 @@ Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` t
 ## Do not load for
 
 - Rollback of a prior promotion — use `rollback-revision` + `references/changesets.md` (`Before:ChangeSet:<slug>`).
+- Verifying a promotion after it applied — use `verify-apply`.
 - In-place single-Unit changes — use `cub-mutate`.
-- Publishing or withdrawing an **immutable OCI Release bundle** (`cub release publish/withdraw`) for a Space and Target — that's a different sense of "release"; use `release-publish`.
 - Importing rendered manifests for the first time when you're not setting up a promotable base — `import` (`cub variant upload` here is for seeding a base Space you intend to clone and promote).
 
 ## Topology assumptions
@@ -38,14 +41,16 @@ Promotion data flows `<source>` → `<destination>` (a parent/base Space → its
 
 ### 1. Seed a base Space — `cub variant upload`
 
-When you have already-rendered manifests (from the installer, `kustomize build`, `helm template`, or stdin) and want a promotable base Space, ingest them. This command does **not** render — it stores what you give it.
+When a protected renderer has already produced a digest-addressed, byte/resource-bounded manifest plus trusted source-closure receipt, you may prepare an upload proposal for exactly that local artifact. This command does **not** render — it stores what you give it. Do not invoke a renderer or accept remote/unpinned/plugin/exec/unbounded input here; route source inspection to `import` and return `RENDER_SOURCE_POLICY_BLOCK` while its protected render wrapper is absent.
 
 ```bash
-kustomize build overlays/base | cub variant upload \
+cub variant upload \
   --component web --variant base \
   --granularity per-resource \
-  --target web-base/cluster -
+  --target web-base/cluster <receipt-bound-local-manifest>
 ```
+
+Never combine rendering and mutation in a shell pipeline. Bind the exact local artifact digest and trusted render receipt into the upload proposal; changing either requires new review.
 
 - `--component` and `--variant` are **required** and become the well-known `Component` / `Variant` Space labels; `--environment` / `--region` / `--layer` / `--owner` set the rest. The Space slug comes from `--space-pattern` (default `template:{{.Labels.Component}}-{{.Labels.Variant}}`) or explicit `--space`. The Space is created if missing.
 - `--granularity per-resource` = one Unit per resource (matches the one-resource-per-unit doctrine). The default `minimal` packs everything into one Unit with CRDs and each AppConfig file split out — fine for a quick start, but prefer `per-resource` for ongoing management.
@@ -68,7 +73,7 @@ cub variant create prod web-base \
 
 - First arg is the **variant name** (becomes the `Variant` label); second is the **upstream Space**. New Space labels inherit from upstream with `Variant` overridden; `--environment` / `--region` / `--variant-labels` adjust the rest.
 - Copies the upstream Space's `WhereTrigger`, `TriggerFilterID`, Permissions, and DeleteGates, and stamps an `UpstreamSpaceID` annotation (this is what `cub variant promote` reads later — only Spaces made by `cub variant create` are promotable).
-- `--target` retargets the cloned Units and stamps the Space `TargetID`. `--namespace` runs `set-namespace` on the cloned Kubernetes/YAML Units, replacing a `confighubplaceholder` namespace from the base — so each variant lands in its own namespace.
+- `--target` retargets cloned Units and records the target annotation; for an OCI Target it also sets the new Space's `ReleaseTargetID`, which `cub release publish` requires. `--namespace` runs `set-namespace` on cloned Kubernetes/YAML Units, replacing a `confighubplaceholder` namespace from the base.
 - **Auto-customize on clone:** define `PostClone` Triggers and select them via the upstream Space's `WhereTrigger` / `TriggerFilterID` so they're copied down and run during the clone. Trigger args can read Space metadata in Go templates, e.g. `template:{{.SpaceLabels.Region}}` or `template:{{.SpaceAnnotations.host}}` (set the latter with `--space-annotation`). See `triggers-and-applygates`.
 - `--unit-delete-gate` / `--unit-destroy-gate` protect a prod variant's Units; `--space-delete-gate` protects the Space. `--wait` (default true) waits for the cloned Units' Triggers.
 
@@ -89,31 +94,31 @@ User prompt: <verbatim>
 Clarifications: <condensed or 'none'>"
 ```
 
-Then hand off the cluster rollout to `release-publish` (publish the Space as an OCI bundle Release).
+Then hand off to `release-publish`. A ChangeSet remains grouping/rollback evidence; it is not a selector on `cub release publish`. `release-publish` recomputes the complete destination EffectiveReleaseSet and asks again if the promotion scope was narrower.
 
-**Use the manual ChangeSet flow below instead when** you need to promote only a subset of a Space, push a shared base across *many* Spaces at once, or want explicit ChangeSet open/close/approve/atomic-rollback control beyond what `--changeset` on `variant promote` gives.
+**Use the manual ChangeSet flow below instead when** you need to promote only a subset of a Space, push a shared base across *many* Spaces at once, or want explicit ChangeSet open/close/review/set-wise-restore control beyond what `--changeset` on `variant promote` gives.
+
+**Approved-state CAS boundary.** ConfigHub's update provider has a real transactional primitive: caller-supplied `HeadRevisionNum` plus `DataHash`/`ContentHash` can be compared inside the update transaction, and raw patch bodies can carry the values. Stock `cub variant promote` and the current protected companion do not bind the reviewed per-Unit expected state into a digest-pinned final request/receipt. Promotion execution is therefore `APPROVED_STATE_CAS_NOT_INTEGRATED`; this is not evidence that the server lacks Unit CAS.
 
 ---
 
 ## ChangeSet-wrapped bulk upgrade (fine-grained / cross-space)
 
-For partial scopes or a base→fleet push that spans Spaces. Wrap any multi-Unit promotion in a ChangeSet — it locks the scope against interleaving releases, groups revisions for set-wise approval (`--revision ChangeSet:<slug>`), and gives you a named end tag to pin a publish to (`cub release publish --revision <changeset-end-tag>`) rather than the `release-<ReleaseNum>` Tag publish creates by default. It also enables atomic rollback (`--restore Before:ChangeSet:<slug>`). One Unit only: skip the ChangeSet and use `cub-mutate --upgrade`.
+For partial scopes or a base→fleet push that spans Spaces. Wrap any multi-Unit promotion in a ChangeSet — it locks the mutation scope, groups revisions for review, and enables set-wise head restore (`--restore Before:ChangeSet:<slug>`). It does not narrow a later Space Release or create an exact native approval selector. One Unit only: skip the ChangeSet and use the `cub-mutate` proposal path.
 
 ### Decide — preflight
 
 Produce a concrete go / no-go. `--where` is AND-only (run one query per condition, union in the report); `cub unit list` takes at most one `--filter`.
 
-**A. Source is converged** — promoting an unconverged env ships problems forward:
+**A. Source is proved** — promoting an unproved env ships problems forward. Read the newest immutable Release and exact Unit heads, then require `verify-apply` PASS (or an explicitly accepted proof gap) for its ManifestDigest/controller/runtime chain:
 
 ```bash
+cub release get --space <app>-<source> --oci-reference latest
 cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
-  --where "HeadRevisionNum > LiveRevisionNum AND TargetID IS NOT NULL"   # unpublished changes
-cub unit list --space <app>-<source> --filter <app>-home/<app>-app --where "LEN(ApplyGates) > 0"
-cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
-  -o jq='[.[] | select(.UnitStatus.Status != "Ready" or .UnitStatus.SyncStatus != "Synced")]'
+  --select "HeadRevisionNum,LastAppliedRevisionNum,TargetID,ApplyGates" -o json
 ```
 
-Any rows = not ready (name each Unit + category). Base Units legitimately have `TargetID` NULL / `LiveRevisionNum` 0; a `vet-placeholders` gate on a base can be ignored.
+Recompute the source EffectiveReleaseSet from `Space.ReleaseTargetID` equality. Its size must equal the Release `UnitCount`, and every effective Unit's `HeadRevisionNum` must equal the revision captured by that Release (`LastAppliedRevisionNum`) before source desired state can be called aligned with the newest ConfigHub publication. That still does not prove controller consumption or current runtime state; require the `verify-apply` chain above for that claim. Any mismatch is no-go and must be named. An untargeted base Space has no runtime proof; treat base→Variant promotion as reviewed configuration movement, not as a proved live environment. Never ignore an ApplyGate merely because a Unit is in a base.
 
 **B. Destination needs it** — `cub unit list --space <app>-<dest> --filter platform/needs-upgrade`. Empty = nothing to promote, stop. Narrow with `--where "Slug LIKE '%-api%'"` for a subset.
 
@@ -125,7 +130,7 @@ Any rows = not ready (name each Unit + category). Base Units legitimately have `
 
 Output: **Scope** (exact `--space`/`--filter`/`--where`), **Count**, **Blockers**, **Diffs** summary, **ChangeSet proposal** (`release-<YYYYMMDD>-<shortref>` in `<app>-home`), **Approval plan**, **Recommendation** (go / go-narrowed / no-go). On no-go, route to remediation (`release-publish`, `triggers-and-applygates`) — don't promote anyway.
 
-### Execute — open, upgrade, close
+### Proposed sequence — open, upgrade, close
 
 ```bash
 HOME_SPACE=<app>-home ; CHANGESET_REF=$HOME_SPACE/release-$(date +%Y%m%d)-<shortref>
@@ -149,41 +154,53 @@ cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> --changeset -   #
 
 > `cub unit push-upgrade` is deprecated — the selector-based `--patch --upgrade` form is its replacement.
 
-### Approval
+### Native gate limitation + publish
+
+If `vet-approvedby` gates the promoted revisions, do not reproduce or propose
+the non-head ChangeSet approval selector retained as
+`non-head-unit-approval` in `compatibility/no-loss-inventory.v1.json`.
+
+The reviewed server rejects every nonempty selector except `HeadRevisionNum`.
+Omitted/`HeadRevisionNum` approval approves each selected Unit's head at
+execution time and has no expected RevisionID/DataHash CAS. That cannot bind
+the earlier reviewed ChangeSet set across a race. Return
+`APPROVAL_HEAD_RACE_BLOCK`; preserve the reviewed UnitID/RevisionID/DataHash
+set as evidence, not as proof of what native approval will approve. Exact
+ChangeSet approval needs a server-side expected-head precondition.
+
+Next hand off to `release-publish`, which computes all Units whose TargetID equals the destination Space's `ReleaseTargetID`. If that EffectiveReleaseSet contains Units outside the promoted Filter/ChangeSet, return `ASK` with the broadened set and create a new whole-Space review subject. The future provider-CAS-capable execution shape is:
 
 ```bash
-cub unit approve --space <SCOPE_SPACE> <SCOPE_SELECTOR> --revision ChangeSet:$CHANGESET_REF   # if required
-
-# Hand off to release-publish to ship the promoted config.
+cub release publish <destination-variant-space>
 ```
 
-Don't self-approve unless the user holds the role.
+Do not self-approve or execute either command. Exact native approval remains head-racy, the existing Unit update CAS is not integrated into a protected approved-state action, Release provider CAS is absent, and the external broker is unavailable. The companion returns `BLOCK` after producing advisory proposals. Only after protected promotion plus provider-CAS-capable, externally authorized publication may `verify-apply` own immutable Release/controller/runtime proof.
 
 ## Rollback
 
-`cub variant promote` and the ChangeSet flow both roll back the same way — move head back, then publish:
+`cub variant promote` and the ChangeSet flow both roll back by moving heads back, followed by a newly reviewed advisory Space Release proposal:
 
 ```bash
 cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> \
   --restore "Before:ChangeSet:$CHANGESET_REF" \
   --change-desc "Rollback <changeset>. User prompt: <verbatim>. Clarifications: <condensed>"
-
-# Hand off to release-publish to ship the restored head.
+cub release publish <destination-variant-space>
 ```
 
 Full detail: `rollback-revision` + `references/changesets.md`.
 
 ## Tool boundary
 
-- Allowed: `cub variant upload/create/promote`, `cub changeset create/update`, `cub unit update` (patch + upgrade + restore), `cub filter create/update`, `cub tag create`, `cub unit tag`; read-only `cub unit/revision/link list/get/tree/bridgestate/diff`, `kubectl get/describe` for the preflight cross-check.
-- Not allowed: `cub unit push-upgrade` (deprecated), `cub release publish` (hand off to `release-publish`), `kubectl apply` / out-of-band cluster mutation. Merge-conflict edits go through `cub-mutate` inside the open ChangeSet.
+- Host-ASK: read-only preflight/evidence in this skill's declared capability subset; no raw Bash is auto-allowed.
+- Proposal-only: `cub variant upload/create/promote`, ChangeSet/Tag/Filter/Unit upgrade operations, and Release publication. Native approval is `APPROVAL_HEAD_RACE_BLOCK`; promotion/update execution is `APPROVED_STATE_CAS_NOT_INTEGRATED` until the existing server CAS fields are bound through a protected action.
+- Not allowed: retired per-Unit runtime delivery, `kubectl apply`, controller mutation, or any write without the external broker. Hand publication to `release-publish`; merge-conflict changes go through the `cub-mutate` proposal path.
 
 ## Stop conditions
 
 - `cub variant promote` on a Space with no `UpstreamSpaceID` annotation (not made by `cub variant create`) — it errors; set the variant up with `cub variant create` first.
 - Preflight `no-go` — route to remediation.
 - Another ChangeSet already open against the scope; destination scope empty; upgrade merge leaves conflicts (`cub unit diff` shows `<<<<<<<` / non-empty `MergeConflicts`) — resolve in `cub-mutate` within the ChangeSet, re-diff, close.
-- User wants to skip the ChangeSet for a >1-Unit manual promotion (loses lock + atomic rollback), or self-approve without the role, or upstream linkage doesn't match intent — stop and confirm.
+- User wants to skip the ChangeSet for a >1-Unit manual promotion (loses lock + grouped set-wise restore), or self-approve without the role, or upstream linkage doesn't match intent — stop and confirm.
 
 ## Verify chain
 
@@ -192,16 +209,16 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 
 ## Evidence
 
-- `cub changeset get --space $HOME_SPACE <slug> --web` — the release entity linking every Unit revision.
-- `cub space get <variant-space> --web` — the variant Space, its labels, `UpstreamSpaceID`, and `TargetID`.
-- `cub unit tree --space <SCOPE_SPACE> --web` — upstream linkage the promotion followed.
+- `cub component open <component> --variant <variant> --print-url` — deployment graph.
+- `cub space open <variant-space> --print-url` — destination Variant Space.
+- `cub unit open <unit> --space <variant-space> --revisions --print-url` — promoted Unit history.
 
 ## References
 
 - `cub variant upload --help`, `cub variant create --help`, `cub variant promote --help` — authoritative flags.
 - `references/changesets.md` — lifecycle, rollback, merge/rebase.
-- `references/filters-and-queries.md` — `needs-upgrade`, `unpublished-changes`, `has-apply-gates`, `not-approved` recipes.
+- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `not-approved` recipes.
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close.
 - `references/revisions.md` — `ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`.
-- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (publishes the promoted config), `rollback-revision`.
+- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated advisory Release proposal), `rollback-revision`, `verify-apply`.
 - `https://docs.confighub.com/markdown/guide/variants.md`, `.../guide/dependencies.md`.

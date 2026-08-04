@@ -1,5 +1,7 @@
 # Triggers + ApplyGates — the platform-Space recipe
 
+**Authority boundary:** all Trigger, Filter, Space, Unit-approval, and remediation writes in this reference are governed proposals. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`), so it may inspect policy and compose exact steps but must not execute them.
+
 Triggers run functions automatically on lifecycle events (`Mutation`, `PostClone`). A validating function that returns false attaches an ApplyGate, which blocks apply until the failure is resolved.
 
 ## The recommended pattern

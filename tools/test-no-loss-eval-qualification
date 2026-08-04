@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+validator="$root/tools/validate-no-loss-evals"
+inventory="$root/compatibility/no-loss-inventory.v1.json"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+"$validator" >/dev/null
+jq '
+  (.skills[] | select(.skill_id == "app-config").eval_dispositions[] | select(.eval_id == "properties-for-java-app") | .eval_id) = "single-unit-image-lookup" |
+  (.skills[] | select(.skill_id == "cub-query").eval_dispositions[] | select(.eval_id == "single-unit-image-lookup") | .eval_id) = "properties-for-java-app"
+' "$inventory" >"$tmp_dir/swapped.json"
+
+test "$(jq -r '.skills[].eval_dispositions[] | .current_eval // .eval_id' "$inventory" | sort -u | shasum -a 256 | awk '{print $1}')" = \
+  "$(jq -r '.skills[].eval_dispositions[] | .current_eval // .eval_id' "$tmp_dir/swapped.json" | sort -u | shasum -a 256 | awk '{print $1}')" || {
+    printf '%s\n' 'no-loss eval qualification tests: FAIL mutation did not preserve the global eval-name set' >&2
+    exit 1
+  }
+if "$validator" --inventory "$tmp_dir/swapped.json" >/dev/null 2>&1; then
+  printf '%s\n' 'no-loss eval qualification tests: FAIL cross-skill eval swap survived' >&2
+  exit 1
+fi
+
+printf '%s\n' 'no-loss eval qualification tests: PASS (global-name-preserving cross-skill swap rejected)'

@@ -1,36 +1,48 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "skill_name": "import",
   "evals": [
     {
       "id": 1,
       "name": "helm-cert-manager-first-install",
-      "prompt": "I want to install cert-manager v1.17.2 into my ConfigHub Space `platform-dev`. I've used helm install before but I'm new to ConfigHub. Walk me through it."
+      "prompt": "I want to install cert-manager v1.17.2 into my ConfigHub Space `platform-dev`. I've used helm install before but I'm new to ConfigHub. Walk me through it.",
+      "expected_output": "Explains that current cub helm install would create cert-manager-helm and cert-manager-base, one Unit per chart template file, with an untargeted base. Before rendering, requires a canonical local vendored chart/source closure, exact chart/dependency/values/renderer digests, no remote refresh/plugin/lookup, and explicit byte/resource ceilings. A remote chart/version alone is not pinned content, so returns RENDER_SOURCE_POLICY_BLOCK until the network-off bounded render wrapper exists. Only then describes the install/Variant/Release proposals; executes nothing."
     },
     {
       "id": 2,
       "name": "helm-upgrade-preserving-customizations",
-      "prompt": "I installed prometheus via `cub helm install prom prometheus-community/kube-prometheus-stack` a month ago. I cloned it into `prom-prod` and changed retention to 30d. Now I need to upgrade to 72.4.0. How do I do this without losing my retention change?"
+      "prompt": "I installed prometheus via `cub helm install prom prometheus-community/kube-prometheus-stack` a month ago. I cloned it into `prom-prod` and changed retention to 30d. Now I need to upgrade to 72.4.0. How do I do this without losing my retention change?",
+      "expected_output": "Reads the HelmSource/base/downstream relationship and preflights a canonical local vendored chart closure. Blocks remote/unpinned/plugin/lookup or unbounded render with RENDER_SOURCE_POLICY_BLOCK. After a trusted render receipt, proposes the pinned upgrade, explains base file Unit creates/deletes, then a promotion dry-run/proposal with APPROVED_STATE_CAS_NOT_INTEGRATED. Does not promise edits are preserved without the diff, does not execute, and requires a fresh whole-Space Release proposal."
     },
     {
       "id": 3,
       "name": "helm-multi-env",
-      "prompt": "I want to install the same redis chart into dev, staging, and prod — different namespaces, otherwise identical. What's the recommended way to do this with cub helm?"
+      "prompt": "I want to install the same redis chart into dev, staging, and prod — different namespaces, otherwise identical. What's the recommended way to do this with cub helm?",
+      "expected_output": "Proposes one pinned Helm install into <component>-helm/<component>-base, then three `cub variant create <variant> <component>-base --target ... --namespace ...` proposals. It does not run three Helm installs into arbitrary env Spaces. Calls out the Argo Application side effect for cub-cluster targets and hands each Variant to a separately scoped release-publish proposal."
     },
     {
       "id": 4,
       "name": "kustomize-base-plus-overlays",
-      "prompt": "I have a repo with `base/` and `overlays/{dev,staging,prod}/` using Kustomize. I want to start managing these with ConfigHub. How do I import them?"
+      "prompt": "I have a repo with `base/` and `overlays/{dev,staging,prod}/` using Kustomize. I want to start managing these with ConfigHub. How do I import them?",
+      "expected_output": "Preflights the canonical local Kustomize source closure without rendering, rejecting remote bases/resources, symlink escapes, exec/alpha plugins, Helm fetches, unpinned inputs, and absent byte/resource ceilings. Returns RENDER_SOURCE_POLICY_BLOCK until a network-off digest-pinned wrapper emits a bounded render receipt; never emits a raw build-to-upload pipeline. Then describes base/overlay Variant uploads bound to exact artifact digests and requires a verified controller binding, returning CONTROLLER_BINDING_UNPROVEN if absent. Executes nothing."
     },
     {
       "id": 5,
       "name": "kustomize-helm-inflator-redirect",
-      "prompt": "My kustomization.yaml uses the helmCharts inflator to render the bitnami/redis chart with an overlay on top. How do I import this into ConfigHub?"
+      "prompt": "My kustomization.yaml uses the helmCharts inflator to render the bitnami/redis chart with an overlay on top. How do I import this into ConfigHub?",
+      "expected_output": "Makes an explicit source-of-truth choice but returns RENDER_SOURCE_POLICY_BLOCK while the Helm inflator can fetch a remote/unpinned chart or execute outside a canonical local source closure. Requires vendored digest-pinned inputs plus the network-off byte/resource-capped render wrapper and receipt before either Helm Component or complete-overlay upload proposals. Warns not to do both and duplicate resources; does not execute."
     },
     {
       "id": 6,
       "name": "kustomize-flux-crd-out-of-scope",
       "prompt": "I have a Kustomization CRD applied by Flux in my cluster. Can I import this into ConfigHub?",
       "expected_output": "Clarifies that a Flux Kustomization CRD is a GitOps pipeline this skill does not cover (only a local kustomization.yaml). Does not invent a Flux import path."
+    },
+    {
+      "id": 7,
+      "name": "helm-values-compatibility",
+      "prompt": "Our dev and prod Helm values render materially different resources and we cannot migrate those differences yet. Preserve that behavior while onboarding to ConfigHub.",
+      "expected_output": "Does not force both environments through one shared rendered base. Selects HELM_VALUES_COMPATIBILITY and prepares independent pinned <component>-<environment> HelmSource/base components plus environment Variants, using the explicit Component-only space pattern to avoid a duplicated environment suffix and binding each values-file digest/rendered Unit set. Explains that shared variant promotion is lost, proposes a later config-as-data convergence path, executes nothing, and BLOCKs pending the broker."
     }
   ]
 }

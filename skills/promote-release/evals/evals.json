@@ -1,28 +1,35 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "prompts": [
     {
       "name": "ready-to-promote-dev-to-staging",
-      "prompt": "I want to promote app-a from dev to staging. Run the preflight checks and tell me whether we're ready and what the scope would be."
+      "prompt": "I want to promote app-a from dev to staging. Run the preflight checks and tell me whether we're ready and what the scope would be.",
+      "expected_output": "Runs read-only source/destination/upstream/gate/diff preflight, resolves exact UnitIDs and expected destination heads/hashes, and reports PASS/WATCH/BLOCK/ASK plus a promotion proposal. Returns APPROVED_STATE_CAS_NOT_INTEGRATED because stock variant promote/protected execution does not bind those reviewed provider-CAS values. Separately computes the later staging EffectiveReleaseSet and flags any scope difference. Executes neither promote nor publish."
     },
     {
       "name": "source-not-converged",
-      "prompt": "Preflight promotion from staging to prod for app-a. Two Units in staging still have unapplied changes — is that a problem?"
+      "prompt": "Preflight promotion from staging to prod for app-a. Two Units in staging still have unapplied changes — is that a problem?",
+      "expected_output": "Explains current evidence rather than relying solely on legacy unapplied status: identifies staging's immutable Release/controller/runtime state and whether the two heads are intentionally unreleased. Returns BLOCK or ASK when source intent is ambiguous; does not promote."
     },
     {
       "name": "scope-narrowing",
-      "prompt": "I want to promote only the API-related Units (not the workers) from app-a-staging to app-a-prod. Can you scope the preflight to just those?"
+      "prompt": "I want to promote only the API-related Units (not the workers) from app-a-staging to app-a-prod. Can you scope the preflight to just those?",
+      "expected_output": "Resolves an exact API UnitID set and can prepare a ChangeSet-wrapped partial promotion proposal. It explicitly warns that a subsequent Space Release has no Filter selector and may include worker Units sharing ReleaseTargetID; shows the broader EffectiveReleaseSet and ASKs for a new approval or dedicated Variant Space."
     },
     {
       "name": "staging-to-prod-bulk",
-      "prompt": "Preflight says we're good to promote app-a from staging to prod. Scope is the app-a-home/app-a-app filter, 12 Units, ChangeSet name release-20260415. Run the promotion."
+      "prompt": "Preflight says we're good to promote app-a from staging to prod. Scope is the app-a-home/app-a-app filter, 12 Units, ChangeSet name release-20260415. Run the promotion.",
+      "expected_output": "Revalidates the exact 12 UnitID/RevisionID/DataHash set and destination expected heads/hashes, then prepares ChangeSet/promotion proposals without trusting stale preflight. Explains the Unit provider CAS primitive exists but is not carried by a protected promotion action/receipt, so returns APPROVED_STATE_CAS_NOT_INTEGRATED. If vet-approvedby applies, returns APPROVAL_HEAD_RACE_BLOCK. Then computes the complete prod EffectiveReleaseSet, asks again on expansion, and keeps Release execution BLOCKed on its separate provider CAS gap plus the absent broker."
     },
     {
       "name": "single-unit-promotion",
-      "prompt": "I only need to promote the app-a-api Unit from staging to prod — a single Unit. Do I still need a ChangeSet?"
+      "prompt": "I only need to promote the app-a-api Unit from staging to prod — a single Unit. Do I still need a ChangeSet?",
+      "expected_output": "Explains a ChangeSet is optional for one Unit's mutation history, but that does not create a single-Unit Release. Prepares the single upstream-merge subject with expected current head/hash, returns APPROVED_STATE_CAS_NOT_INTEGRATED until protected execution binds it, and shows the complete prod EffectiveReleaseSet before any later publish. Requires new approval or isolation; does not execute."
     },
     {
       "name": "base-to-fleet-upgrade",
-      "prompt": "I have a base chart Unit in app-a-home named app-a-base. I want to push its latest revision to every downstream Unit in all env-Spaces at once. How?"
+      "prompt": "I have a base chart Unit in app-a-home named app-a-base. I want to push its latest revision to every downstream Unit in all env-Spaces at once. How?",
+      "expected_output": "Reads the actual upstream tree rather than assuming one old mega-Unit, resolves every downstream UnitID/Space, previews merge diffs, and proposes ChangeSet-wrapped upgrades. Partitions subsequent publication into exact per-Variant Space Release proposals; never uses one cross-Space publish or executes."
     }
   ]
 }

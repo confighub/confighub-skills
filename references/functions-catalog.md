@@ -1,5 +1,7 @@
 # Kubernetes/YAML functions worth knowing
 
+**Authority boundary:** getters, validators, and explain/help calls are read-only. Setters and every `cub function do`, `cub function set`, or `cub run` example are proposal material only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`).
+
 Discover full semantics with:
 
 ```bash

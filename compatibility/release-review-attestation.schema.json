@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://confighub.com/schemas/confighub-skills-external-review-v1.json",
+  "title": "Externally supplied protected release review binding",
+  "description": "Structure only. A repository-local file conforming to this schema is not trusted evidence; a protected GitHub verifier must authenticate it.",
+  "type": "object",
+  "required": ["schema_version", "provider", "repository", "protected_branch", "ruleset_url", "decision", "subject", "review"],
+  "properties": {
+    "schema_version": {"const": "confighub-skills-external-review/v1"},
+    "provider": {"const": "github"},
+    "repository": {"const": "confighubai/confighub-skills"},
+    "protected_branch": {"const": "main"},
+    "ruleset_url": {"type": "string", "pattern": "^https://github\\.com/confighubai/confighub-skills/settings/rules/[1-9][0-9]*$"},
+    "decision": {"const": "APPROVED"},
+    "subject": {
+      "type": "object",
+      "required": ["commit_sha", "package_sha256", "commit_author_identity"],
+      "properties": {
+        "commit_sha": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+        "package_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "commit_author_identity": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "required": ["review_id", "review_url", "reviewer_identity", "reviewer_role"],
+      "properties": {
+        "review_id": {"type": "string", "minLength": 1},
+        "review_url": {"type": "string", "pattern": "^https://github\\.com/confighubai/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$"},
+        "reviewer_identity": {"type": "string", "minLength": 1},
+        "reviewer_role": {"const": "CODEOWNER"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

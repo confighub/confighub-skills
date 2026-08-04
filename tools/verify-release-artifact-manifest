@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+# shellcheck disable=SC1091
+source "$root/tools/release-artifact-lib.sh"
+manifest="$root/compatibility/release-artifact-manifest.v1.json"
+review_schema="$root/compatibility/release-review-attestation.schema.json"
+release_mode=false
+json_output=false
+expected_commit=""
+expected_package_digest=""
+review_attestation=""
+
+usage() {
+  printf '%s\n' 'usage: verify-release-artifact-manifest [--release --expected-commit <git-sha> --expected-package-digest <sha256> --review-attestation <external-json>] [--json]'
+}
+
+while test "$#" -gt 0; do
+  case "$1" in
+    --release) release_mode=true; shift ;;
+    --expected-commit) test "$#" -ge 2 || { usage >&2; exit 2; }; expected_commit=$2; shift 2 ;;
+    --expected-package-digest) test "$#" -ge 2 || { usage >&2; exit 2; }; expected_package_digest=$2; shift 2 ;;
+    --review-attestation) test "$#" -ge 2 || { usage >&2; exit 2; }; review_attestation=$2; shift 2 ;;
+    --json) json_output=true; shift ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
+
+emit_block() {
+  local status=$1
+  shift
+  if $json_output; then
+    jq -nc --arg status "$status" --arg reason "$*" '{status:$status,release_authorized:false,reason:$reason}'
+  else
+    printf 'local drift/release binding: %s: %s\n' "$status" "$*" >&2
+  fi
+  exit 1
+}
+
+for command_name in jq shasum git rg; do
+  command -v "$command_name" >/dev/null 2>&1 || emit_block BLOCK_LOCAL_GATE_UNREADABLE "required command missing: $command_name"
+done
+jq empty "$manifest" >/dev/null 2>&1 || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'manifest missing or invalid JSON'
+jq empty "$review_schema" >/dev/null 2>&1 || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'packaged review attestation schema missing or invalid JSON'
+jq -e '
+  .["$schema"] == "https://json-schema.org/draft/2020-12/schema" and
+  .type == "object" and .additionalProperties == false and
+  (.required | sort) == (["schema_version","provider","repository","protected_branch","ruleset_url","decision","subject","review"] | sort) and
+  .properties.schema_version.const == "confighub-skills-external-review/v1" and
+  .properties.provider.const == "github" and
+  .properties.repository.const == "confighubai/confighub-skills" and
+  .properties.protected_branch.const == "main" and
+  .properties.ruleset_url.pattern == "^https://github\\.com/confighubai/confighub-skills/settings/rules/[1-9][0-9]*$" and
+  .properties.decision.const == "APPROVED" and
+  .properties.subject.type == "object" and .properties.subject.additionalProperties == false and
+  (.properties.subject.required | sort) == (["commit_sha","package_sha256","commit_author_identity"] | sort) and
+  .properties.review.type == "object" and .properties.review.additionalProperties == false and
+  (.properties.review.required | sort) == (["review_id","review_url","reviewer_identity","reviewer_role"] | sort) and
+  .properties.review.properties.review_url.pattern == "^https://github\\.com/confighubai/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$" and
+  .properties.review.properties.reviewer_role.const == "CODEOWNER"
+' "$review_schema" >/dev/null || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'packaged review attestation schema is not the closed repository/branch/URL contract'
+jq -e '
+  .schema_version == "confighub-skills-local-drift-manifest/v2" and
+  .candidate_plugin_version == "0.4.0" and
+  .algorithm == "sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)" and
+  .self_exclusion == "compatibility/release-artifact-manifest.v1.json" and
+  .plugin_package.roots == [".claude-plugin","commands","compatibility","hooks","references","skills"] and
+  .authority == {classification:"LOCAL_DRIFT_SENTINEL_ONLY",self_renewable:true,trust_evidence:false,release_approval:false} and
+  .release_binding.requires_external_protected_commit == true and
+  .release_binding.requires_external_package_digest == true and
+  .release_binding.requires_distinct_codeowner_review == true and
+  .release_binding.external_authenticity_verifier == "NOT_INTEGRATED" and
+  (.source_tree.file_count | type == "number" and . > 0) and
+  (.plugin_package.file_count | type == "number" and . > 0) and
+  all([.source_tree.path_set_sha256,.source_tree.content_tree_sha256,.plugin_package.path_set_sha256,.plugin_package.content_tree_sha256][]; test("^[0-9a-f]{64}$"))
+' "$manifest" >/dev/null || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'local drift manifest schema or non-authority boundary changed'
+
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+release_source_paths "$root" >"$tmp_dir/source.paths"
+release_package_paths "$root" >"$tmp_dir/package.paths"
+release_canonical_lines "$root" "$tmp_dir/source.paths" "$tmp_dir/source.lines" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'unsafe source filename'
+release_canonical_lines "$root" "$tmp_dir/package.paths" "$tmp_dir/package.lines" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'unsafe package filename'
+
+actual_source_count=$(wc -l <"$tmp_dir/source.paths" | tr -d ' ')
+actual_package_count=$(wc -l <"$tmp_dir/package.paths" | tr -d ' ')
+actual_source_path_digest=$(release_file_sha256 "$tmp_dir/source.paths")
+actual_package_path_digest=$(release_file_sha256 "$tmp_dir/package.paths")
+actual_source_digest=$(release_file_sha256 "$tmp_dir/source.lines")
+actual_package_digest=$(release_file_sha256 "$tmp_dir/package.lines")
+
+test "$actual_source_count" = "$(jq -r '.source_tree.file_count' "$manifest")" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'source-tree file count mismatch'
+test "$actual_package_count" = "$(jq -r '.plugin_package.file_count' "$manifest")" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'package file count mismatch'
+test "$actual_source_path_digest" = "$(jq -r '.source_tree.path_set_sha256' "$manifest")" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'source-tree path set mismatch'
+test "$actual_package_path_digest" = "$(jq -r '.plugin_package.path_set_sha256' "$manifest")" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'package path set mismatch'
+test "$actual_source_digest" = "$(jq -r '.source_tree.content_tree_sha256' "$manifest")" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'source-tree content digest mismatch'
+test "$actual_package_digest" = "$(jq -r '.plugin_package.content_tree_sha256' "$manifest")" || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'package content digest mismatch'
+
+if ! $release_mode; then
+  if $json_output; then
+    jq -nc \
+      --arg status LOCAL_DRIFT_MATCH --arg source_tree_sha256 "$actual_source_digest" --arg package_tree_sha256 "$actual_package_digest" \
+      '{status:$status,authority:"DRIFT_ONLY_SELF_RENEWABLE",release_authorized:false,release_status:"BLOCK_EXTERNAL_PROTECTED_BINDING_REQUIRED",source_tree_sha256:$source_tree_sha256,package_tree_sha256:$package_tree_sha256}'
+  else
+    printf '%s\n' 'local drift manifest: LOCAL_DRIFT_MATCH (self-renewable; not trust or approval evidence)'
+    printf '%s\n' 'release authority: BLOCK_EXTERNAL_PROTECTED_BINDING_REQUIRED'
+  fi
+  exit 0
+fi
+
+test -n "$expected_commit" && test -n "$expected_package_digest" && test -n "$review_attestation" ||
+  emit_block BLOCK_EXTERNAL_RELEASE_EVIDENCE_REQUIRED 'release mode requires externally supplied protected commit, package digest, and distinct CODEOWNER review evidence'
+printf '%s' "$expected_commit" | rg -q '^([0-9a-f]{40}|[0-9a-f]{64})$' || emit_block BLOCK_EXTERNAL_RELEASE_EVIDENCE_INVALID 'expected commit is not a full lowercase object ID'
+printf '%s' "$expected_package_digest" | rg -q '^[0-9a-f]{64}$' || emit_block BLOCK_EXTERNAL_RELEASE_EVIDENCE_INVALID 'expected package digest is not lowercase SHA-256'
+test -f "$review_attestation" && jq empty "$review_attestation" >/dev/null 2>&1 || emit_block BLOCK_EXTERNAL_RELEASE_EVIDENCE_INVALID 'review attestation missing or invalid JSON'
+
+git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1 || emit_block BLOCK_RELEASE_TREE_UNTRUSTED 'release mode requires a Git worktree'
+test -z "$(git -C "$root" status --porcelain=v1 --untracked-files=all)" || emit_block BLOCK_RELEASE_TREE_UNTRUSTED 'release mode requires a clean tree with no untracked files'
+git -C "$root" ls-files --error-unmatch compatibility/release-artifact-manifest.v1.json >/dev/null 2>&1 || emit_block BLOCK_RELEASE_TREE_UNTRUSTED 'local drift manifest is not tracked'
+actual_commit=$(git -C "$root" rev-parse HEAD)
+test "$actual_commit" = "$expected_commit" || emit_block BLOCK_EXTERNAL_COMMIT_MISMATCH 'checked-out commit differs from externally supplied protected commit'
+test "$actual_package_digest" = "$expected_package_digest" || emit_block BLOCK_EXTERNAL_PACKAGE_DIGEST_MISMATCH 'actual package differs from externally supplied package digest'
+
+commit_author_identity=$(git -C "$root" show -s --format=%ae HEAD)
+jq -e \
+  --arg commit "$expected_commit" \
+  --arg package "$expected_package_digest" \
+  --arg author "$commit_author_identity" '
+  .schema_version == "confighub-skills-external-review/v1" and
+  (keys | sort) == (["schema_version","provider","repository","protected_branch","ruleset_url","decision","subject","review"] | sort) and
+  .provider == "github" and
+  .repository == "confighubai/confighub-skills" and
+  .protected_branch == "main" and
+  (.ruleset_url | type == "string" and test("^https://github\\.com/confighubai/confighub-skills/settings/rules/[1-9][0-9]*$")) and
+  .decision == "APPROVED" and
+  (.subject | keys | sort) == (["commit_sha","package_sha256","commit_author_identity"] | sort) and
+  .subject.commit_sha == $commit and
+  .subject.package_sha256 == $package and
+  .subject.commit_author_identity == $author and
+  (.review | keys | sort) == (["review_id","review_url","reviewer_identity","reviewer_role"] | sort) and
+  (.review.review_id | type == "string" and length > 0) and
+  (.review.review_url | type == "string" and test("^https://github\\.com/confighubai/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$")) and
+  .review.reviewer_role == "CODEOWNER" and
+  (.review.reviewer_identity | type == "string" and length > 0) and
+  .review.reviewer_identity != .subject.commit_author_identity
+' "$review_attestation" >/dev/null || emit_block BLOCK_EXTERNAL_REVIEW_EVIDENCE_INVALID 'attestation does not match the closed confighubai/confighub-skills main-branch schema or exact commit/package/distinct APPROVED CODEOWNER review'
+
+# This repository-local program can validate structure and binding, but it
+# cannot authenticate that the GitHub review/ruleset record came from a
+# protected external source. A trusted GitHub verifier must close that loop.
+emit_block BLOCK_EXTERNAL_REVIEW_AUTHENTICITY_UNVERIFIED 'attestation matches the packaged closed repository/branch/URL schema and exact commit/package/reviewer binding, but no trusted external verifier authenticates it'

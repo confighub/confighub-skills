@@ -1,0 +1,47 @@
+{
+  "schema_version": "confighub-skills-render-source-policy/v1",
+  "status": "BLOCK_RENDER_EXECUTION_UNTIL_TYPED_WRAPPER",
+  "source_preflight": {
+    "checker": "tools/check-render-source",
+    "outcome_on_pass": "SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED",
+    "render_allowed": false,
+    "canonical_local_root_required": true,
+    "symlink_escape": "DENY",
+    "duplicate_yaml_keys": "DENY",
+    "remote_url_or_repository": "DENY",
+    "unpinned_source_or_dependency": "DENY",
+    "plugin_or_exec_generator": "DENY",
+    "helm_lookup_or_live_cluster_read": "DENY",
+    "helm_tpl_dynamic_evaluation": "DENY",
+    "helm_dependency_archives": "DENY_REQUIRE_UNPACKED_VENDORED_DIRECTORY",
+    "kustomize_remote_base_or_helm_inflator_fetch": "DENY",
+    "kustomize_schema_authority": "kustomize/v5.8.1 sigs.k8s.io/kustomize/api@v0.21.1 types.Kustomization plus internal/localizer file-bearing fields",
+    "kustomize_file_fields_traversed": [
+      "openapi.path",
+      "resources[]",
+      "bases[]",
+      "components[]",
+      "crds[]",
+      "configurations[]",
+      "patches[].path",
+      "patchesJson6902[].path",
+      "replacements[].path",
+      "configMapGenerator[].files[]",
+      "configMapGenerator[].envs[]",
+      "configMapGenerator[].env"
+    ],
+    "kustomize_unsupported_or_ambiguous_fields": "DENY_UNKNOWN_TOP_LEVEL_OR_FILE_BEARING_NESTED_FIELDS; DENY_PATCHES_STRATEGIC_MERGE; DENY_SECRET_GENERATOR; DENY_PLUGIN_AND_HELM_INFLATOR_FIELDS"
+  },
+  "future_wrapper_requirements": {
+    "network": "OFF",
+    "filesystem": "READ_ONLY_SOURCE_CLOSURE",
+    "renderer_binary_digest_required": true,
+    "max_source_bytes": 10485760,
+    "max_rendered_bytes": 20971520,
+    "max_resources": 1000,
+    "max_single_document_bytes": 1048576,
+    "secret_scan_required": true,
+    "receipt_required": true
+  },
+  "claim_boundary": "Static preflight proves only that the inspected local tree satisfies the enumerated conservative source checks for the reviewed schema. It does not compute a trusted source/render digest receipt, execute a renderer, disable renderer network/egress, bound rendered output/resources, or authorize rendering. The numerical ceilings are required inputs for a future wrapper, not evidence that raw Helm/Kustomize commands enforce them; render execution remains RENDER_SOURCE_POLICY_BLOCK."
+}

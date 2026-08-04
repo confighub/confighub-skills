@@ -1,11 +1,14 @@
 ---
 name: cub-query
-description: 'Find, count, inspect, or audit Kubernetes workloads and config stored in ConfigHub — fleet sweeps and single-workload lookups. Use for "where is checkout deployed?", "which Deployments run over 5 replicas?", "find workloads missing resource limits", "what image tag is our worker on?". Not for live cluster state (use kubectl).'
+description: 'Find, count, inspect, or audit desired and published Kubernetes config stored in ConfigHub. Use for fleet sweeps and single-workload lookups; route "currently running/deployed" claims through verify-apply because ConfigHub metadata alone is not runtime proof.'
 phase: verify
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function get *) Bash(cub function vet *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *)
+allowed-tools: []
+read-capability-subset: cub-query
 ---
 
 # cub-query
+
+**Authority boundary:** this companion is knowledge/read-only. It may inspect and report evidence. Any newly requested create, update, approve, promote, publish, withdraw, install, or delete operation must be handed to a governed proposal path; the external mutation broker is `NOT_INTEGRATED`.
 
 The database-like query surface of ConfigHub. Most users don't discover this from the CLI help alone; the skill makes it the first-reach tool for any "find / list / audit" intent.
 
@@ -16,9 +19,9 @@ Configuration is stored as data. Every field of every resource in every Unit in 
 The same toolkit covers two scopes:
 
 - **Fleet sweeps** — "which workloads across the fleet match <condition>?" — think `SELECT ... FROM units WHERE ...` over the database.
-- **Single-workload reads** — "what's our frontend running in us-east?" / "what image is our worker on?" — think `SELECT * FROM units WHERE id = ?` or `cat workload.yaml`.
+- **Single-workload reads** — "what is desired for our frontend in us-east?" / "what image is recorded for our worker?" — think `SELECT * FROM units WHERE id = ?` or `cat workload.yaml`.
 
-Single-workload lookups belong here too: `cub unit data`, `cub unit livedata`, and getter functions scoped with `--unit` are the right tools, not kubectl and not a hand-edit.
+Single-workload desired-state lookups belong here too: `cub unit data` and getter functions scoped with `--unit` are the right ConfigHub tools. Legacy `livedata` is historical bridge evidence only. A currently-running claim requires controller and Kubernetes evidence through `verify-apply`.
 
 ### Translating workload-speak into a ConfigHub query
 
@@ -32,13 +35,13 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 
 ## When to use
 
-- "Where is <image/release/version> deployed?" — across the fleet.
+- "Where does desired or published config reference <image/release/version>?" — across the fleet. If the user asks where it is actually deployed, this produces candidates and then routes to `verify-apply`.
 - "Which Deployments / workloads have <field> <condition>?" — e.g., replicas > 5, missing resource requests or limits, using a specific registry.
 - "List every Deployment / Service / Ingress / ConfigMap in <environment / region>."
 - "What's the current value of <field> across environments?" — e.g., image tag of `checkout` in dev/staging/prod.
 - "Audit the fleet for config violating <rule>."
 - "Show the revision history / recent changes for <workload> in <environment>."
-- "What's <workload> running in <environment>?" — show its YAML, one field (image, replicas, env var, annotation), or its LiveData from the cluster.
+- "What is desired or most recently published for <workload> in <environment>?" — show its YAML or one field (image, replicas, env var, annotation), labeled with the evidence class.
 - "Is <workload> up to date with <release / upstream / sibling environment>?" — read the current value, compare to the reference.
 - (Same questions phrased in ConfigHub-native terms — "which Units …", "what's in Space X", "Units with Label env=prod" — are equally in scope.)
 
@@ -56,9 +59,9 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 
 ## The query toolkit
 
-### 0. Single-workload inspection — `cub unit data` / `livedata` / `livestate` + scoped getters
+### 0. Single-workload inspection — desired, published, and runtime are separate
 
-For "what's our frontend running in us-east?" / "what image is our worker on?" / "show me the YAML of this workload":
+For "what is desired for our frontend in us-east?" / "what image is recorded for our worker?" / "show me the YAML of this workload":
 
 ```bash
 # ConfigHub's latest YAML for a Unit — the content that would be applied. This is the config data at HeadRevisionNum.
@@ -66,19 +69,19 @@ For "what's our frontend running in us-east?" / "what image is our worker on?" /
 # is not recommended. The best command to use is cub unit data:
 cub unit data <slug> --space <space>
 
-# ConfigHub's data at the applied revision. Use .Unit.LiveRevisionNum for the most recently confirmed live revision,
-# if any, and .Unit.PreviousLiveRevisionNum for the previous live revision, if any.
+# ConfigHub's data at the revision most recently captured by a Space Release.
+# This is publication state, not proof that a controller or cluster consumed it.
 revision=$(cub unit get --space <space> <slug> -o jq=".Unit.LastAppliedRevisionNum")
 cub revision data --space <space> <unit-slug> $revision
 
-# What the bridge reported as live at the last action. For OCI/ConfigHub server bridges this echoes the published
-# Data (no cluster read); it is the running cluster only for external cluster-reading bridges. See references/cub-cli.md.
+# VERSIONED_LEGACY bridge reads. ConfigHub v0.2.11 has sunset bridge/per-Unit
+# delivery; these may expose retained historical state but are not current runtime proof.
 cub unit livedata <slug> --space <space>
-
-# The unelided live-state view at the last action. For OCI/ConfigHub Targets this mirrors the published Data;
-# for actual running-workload troubleshooting use kubectl / argocd / flux directly.
 cub unit livestate <slug> --space <space>
+cub unit bridgestate <slug> --space <space>
 ```
+
+For “what is running?”, bind the immutable Release/ManifestDigest, inspect Argo CD or Flux, and read the cluster through `verify-apply`. Do not answer from `LastAppliedRevisionNum`, LiveData, LiveState, or BridgeState alone.
 
 For **extracting one field** from one Unit (cleaner than grepping YAML), scope a getter with `--unit`:
 
@@ -122,7 +125,7 @@ cub unit list --space "*" --where "Labels.Environment = 'prod'"
 cub unit list --space "*" --where "Space.Slug LIKE 'myapp-%'"
 ```
 
-Useful `--where` fields: `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LiveRevisionNum`, `TargetID`. To filter on a Kubernetes resource kind (Deployment, Service, etc.), use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"` — `ResourceType` is not a `--where` metadata field. `UnappliedChanges` is also not a field.
+Useful current `--where` fields include `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LastAppliedRevisionNum` (most recently captured by publication), and `TargetID`. `LiveRevisionNum` is retained legacy bridge state, not current runtime proof. To filter on a Kubernetes resource kind, use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"`; `ResourceType` is not a metadata field. `UnappliedChanges` is not a field.
 
 ### 2. Content queries — `--where-data`
 
@@ -181,17 +184,17 @@ cub revision list <slug> --space <space> --where "UpdatedAt > '2026-04-01'"
 # Who changed what, when — across a Space.
 cub revision list --space <space> --where "UpdatedAt > '2026-04-01'"
 
-# Recent actions on a Unit.
+# VERSIONED_LEGACY: retained bridge/per-Unit action history.
 cub unit-action list <slug> --space <space> --where "UpdatedAt > '2026-04-01'"
 
-# Recent apply actions across a Space.
+# VERSIONED_LEGACY apply actions across a Space.
 cub unit-action list --space <space> --where "Action = 'Apply'"
 
-# Recent apply progress events across a Space.
+# VERSIONED_LEGACY apply progress events across a Space.
 cub unit-event list --space <space> --where "Action = 'Apply'"
 ```
 
-The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revision history self-explaining.
+These historical reads do not describe current v0.2.11 Release/controller/runtime state. The `--change-desc` captured at mutation time (see `cub-mutate`) makes current revision history self-explaining; use Release records for publication history.
 
 ## Output shaping
 
@@ -205,7 +208,7 @@ The `--change-desc` captured at mutation time (see `cub-mutate`) makes the revis
 
 ## Tool boundary
 
-- Allowed: `cub unit list`, `cub revision list`, `cub space list`, `cub function get/vet` with getter/validator functions, `cub trigger list`, `cub filter list`, etc.
+- Host-ASK: `cub unit/revision/space/trigger/filter` reads and specifically named, reviewed `cub function get/vet` getters/validators in this skill's declared capability subset. Arbitrary functions are not permitted; no raw Bash is auto-allowed.
 - Not allowed: mutating functions from a query skill. If the answer to a query suggests a fix, hand off to `cub-mutate`.
 
 ## Stop conditions
@@ -219,16 +222,16 @@ Queries are read-only; the "verify" is cross-checking:
 
 1. Summarize the result in plain English ("12 Deployments across 4 spaces run more than 5 replicas; here they are").
 2. When counts matter, show the count AND a spot-check of specific entries.
-3. Offer the GUI link for deeper exploration: `cub unit get <slug> --space <space> --web`.
+3. Offer the GUI handoff for deeper exploration: `cub unit open <slug> --space <space> --print-url`.
 
 ## Evidence
 
-- `cub unit get <slug> --space <space> --web` — the Unit page.
-- `cub space get <slug> --web` — Space page with attached Triggers/Filter.
-- `cub revision list <slug> --space <space> --web` — revision history.
+- `cub unit open <slug> --space <space> --print-url` — Unit page.
+- `cub space open <slug> --print-url` — Space page.
+- `cub unit open <slug> --space <space> --revisions --print-url` — revision history.
 
 ## References
 
-- `references/filters-and-queries.md` — full filter vocabulary, named Filter entities, operational recipes (unpublished-changes, not-approved, has-apply-gates, needs-upgrade, has-upstream).
+- `references/filters-and-queries.md` — full filter vocabulary and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`); Release/controller/runtime proof belongs to `verify-apply`.
 - `references/cub-cli.md` — `cub unit data` / `livedata` / `livestate` / `bridgestate` semantics (see the "Data / LiveData / LiveState / BridgeState" table) and the where/where-data/output flags.
 - `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-placeholders`, etc.).

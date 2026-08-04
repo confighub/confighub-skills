@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+parser="$root/tools/parse-claude-stream-json"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+assert_rejected() {
+  local case_name=$1
+  local expected_status=$2
+  if "$parser" "$tmp_dir/$case_name.jsonl" >"$tmp_dir/$case_name.out" 2>/dev/null; then
+    printf 'claude stream-json adversarial tests: FAIL accepted %s\n' "$case_name" >&2
+    exit 1
+  fi
+  jq -e --arg status "$expected_status" '.status == $status' "$tmp_dir/$case_name.out" >/dev/null
+}
+
+printf '%s\n' \
+  '{"type":"system","subtype":"init","permissionMode":"manual","session_id":"s"}' \
+  '{"type":"assistant","message":{"role":"assistant","content":[]},"permission_denials":[{"tool_name":"Fake","tool_use_id":"nested","tool_input":{}}]}' \
+  '{"type":"tool_progress","tool_use_id":"t","tool_name":"Bash","elapsed_time_seconds":1}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' \
+  >"$tmp_dir/valid.jsonl"
+"$parser" "$tmp_dir/valid.jsonl" |
+  jq -e '.status == "TRACE_BEHAVIOR_PASS" and .record_count == 4 and .permission_denials == 0 and .permission_mode == "manual"' >/dev/null
+
+for mode in acceptEdits auto bypassPermissions manual dontAsk plan; do
+  printf '%s\n' \
+    "{\"type\":\"system\",\"subtype\":\"init\",\"permissionMode\":\"$mode\"}" \
+    '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' \
+    >"$tmp_dir/mode-$mode.jsonl"
+  "$parser" "$tmp_dir/mode-$mode.jsonl" |
+    jq -e --arg mode "$mode" '.status == "TRACE_BEHAVIOR_PASS" and .permission_mode == $mode' >/dev/null
+done
+
+printf '%s\n' \
+  '{"type":"system","subtype":"init","permissionMode":"auto"}' \
+  '{"type":"assistant","message":{"permission_denials":[{"tool_name":"Fake","tool_use_id":"nested","tool_input":{}}]}}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' \
+  >"$tmp_dir/nested.jsonl"
+"$parser" "$tmp_dir/nested.jsonl" | jq -e '.permission_denials == 0 and .permission_mode == "auto"' >/dev/null
+
+printf '%s\n' '{' '  "type":"system",' '  "subtype":"init",' '  "permissionMode":"manual"' '}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/multiline.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' 'not-json' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/malformed.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' '{"type":"unknown"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/unknown-event.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"futureMode"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/unknown-mode.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"default"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/legacy-default-mode.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"future_result","is_error":true,"permission_denials":[]}' >"$tmp_dir/unknown-subtype.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":true,"permission_denials":[]}' >"$tmp_dir/inconsistent-success.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"error_during_execution","is_error":false,"permission_denials":[],"errors":["failed"]}' >"$tmp_dir/inconsistent-error.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":"fake"}' >"$tmp_dir/wrong-denials.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/two-results.jsonl"
+printf '%s\n' '{"type":"system","type":"assistant","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/duplicate-top.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[{"tool_name":"Bash","tool_use_id":"t","tool_input":{"command":"one","command":"two"}}]}' \
+  >"$tmp_dir/duplicate-nested.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' '' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' >"$tmp_dir/blank-line.jsonl"
+: >"$tmp_dir/empty.jsonl"
+
+for name in multiline malformed unknown-event unknown-mode legacy-default-mode unknown-subtype inconsistent-success \
+  inconsistent-error wrong-denials two-results duplicate-top duplicate-nested blank-line empty; do
+  assert_rejected "$name" BLOCK_TRACE_SCHEMA_INVALID
+done
+
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[{"tool_name":"Bash","tool_use_id":"t","tool_input":{"command":"cub release publish prod"}}]}' \
+  >"$tmp_dir/permission-denial.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"error_during_execution","is_error":true,"permission_denials":[],"errors":["tool failed"]}' \
+  >"$tmp_dir/error-result.jsonl"
+printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+  '{"type":"result","subtype":"success","is_error":false,"permission_denials":[],"errors":["unexpected"]}' \
+  >"$tmp_dir/success-with-errors.jsonl"
+
+for name in permission-denial error-result success-with-errors; do
+  assert_rejected "$name" BLOCK_TRACE_BEHAVIOR_REJECTED
+done
+
+printf '%s\n' 'claude stream-json adversarial tests: PASS (strict duplicate-free JSONL, current mode/subtype enums, result consistency, and clean-success behavior evidence)'

@@ -7,10 +7,13 @@ Every `SKILL.md` in this repo starts from this scaffold. Keep skills under ~300 
 name: <skill-slug>
 description: <One sentence on what the skill does AND when to trigger, including phrases a user would actually say. End with 1–2 concrete "do NOT load for" cases. Be a bit pushy — Claude undertriggers by default.>
 phase: decide | act | verify | completion | cross-cutting
-allowed-tools: <Read set always; add Write set for mutating skills; add read-only diagnostics like Bash(kubectl get *), Bash(argocd app get *), Bash(flux get *) where the skill needs them. See references/cub-cli.md for the canonical Read and Write sets. Never grant Bash(cub *) or Bash(cub * delete *). Never grant mutating kubectl/argocd/flux patterns — mutations go through cub.>
+allowed-tools: []
+read-capability-subset: <matching skill_id in compatibility/read-capability-subsets.v1.json>
 ---
 
 # <skill-name>
+
+**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute mutations. The external mutation broker is `NOT_INTEGRATED`, so executable paths end in `ASK` or `BLOCK`.
 
 One or two sentences on what the skill enables, in plain terms.
 
@@ -29,16 +32,16 @@ One or two sentences on what the skill enables, in plain terms.
 Before acting, confirm:
 
 1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
-2. Target Space exists and the user has write permission.
+2. Target Space and object identity can be read; record any missing permission as a blocker rather than probing with a write.
 3. <skill-specific gates>
 
 If any gate fails, stop and tell the user what's missing.
 
 ## Tool boundary
 
-- Mutations: `cub unit update`, `cub function do`, `cub run` — always with `--change-desc`.
-- Read-only diagnosis: `kubectl get`, `argocd app get`, `flux get` are allowed.
-- Not allowed: `kubectl apply/edit/patch/delete`, `argocd app sync` as a mutation, raw `helm install/upgrade`, editing values files outside ConfigHub.
+- Host-ASK: only reads in this skill's declared capability subset; no raw Bash is auto-allowed until a typed final-argv wrapper exists.
+- Proposal-only: every ConfigHub mutation, including native approval and Release publication; bind exact identity/scope and `--change-desc` where supported.
+- Not allowed: credentials/secrets, unbounded files, plugin/exec loading, refresh/network side effects, arbitrary functions, unknown flags, or any mutation without the external broker and provider CAS.
 
 ## The loop
 
@@ -46,7 +49,7 @@ Numbered imperative steps. Explain **why** each step matters, not just what. Kee
 
 ## Change description
 
-Every mutation call must pass `--change-desc`. Compose it as:
+Every proposed configuration-data mutation must pass `--change-desc`. Compose it as:
 
 ```
 <one-line summary>
@@ -64,11 +67,11 @@ For bulk `cub run`, the same description is recorded in every affected unit; phr
 
 ## Verify chain
 
-How to prove the change landed (not just that `cub` returned success). Typically a short sequence of read-only commands ending in either a ConfigHub URL the user can click or a specific assertion.
+How to prove externally authorized execution landed (not just that a command returned success). Typically a short sequence of read-only commands ending in an immutable ConfigHub identity plus controller/runtime assertions or named gaps.
 
 ## Evidence
 
-- ConfigHub GUI page the user can open to review the change (prefer `cub unit get --web` or `cub revision list --web` over hand-built URLs).
+- ConfigHub GUI page the user can open to review the change (use `cub unit open <unit> --space <space> --print-url` or `cub unit open <unit> --space <space> --revisions --print-url`; verify object identity before treating a URL as proof).
 - Any relevant controller UI (Argo / Flux) for delivery verification.
 
 ## References
@@ -80,4 +83,4 @@ How to prove the change landed (not just that `cub` returned success). Typically
 
 ## Evals
 
-Every skill ships with `evals/evals.json` holding 2–3 realistic end-user prompts (see skill-creator methodology). Start without assertions; add them after the first run.
+Every skill ships with `evals/evals.json` holding realistic end-user prompts and a top-level `execution_policy: "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER"`. Eval names are stable IDs and must appear in `compatibility/no-loss-inventory.v1.json`; renames require explicit `REPLACED_BY` aliases, never deletion. Mutating scenarios must assert proposal/authority behavior as well as command correctness.

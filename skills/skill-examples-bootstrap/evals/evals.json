@@ -1,25 +1,26 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "skill_name": "skill-examples-bootstrap",
   "evals": [
     {
       "id": 1,
       "name": "first-time-bootstrap",
       "prompt": "I just started with ConfigHub. Can you set up some example Units I can poke at?",
-      "expected_output": "Creates the skill-examples Space, scaffolds hello-ns and hello-app Units via kubectl dry-run, applies the defaults-function chain on each Unit with --change-desc carrying the user prompt, and finishes by pointing the user at the GUI (--web) and suggesting a specific next skill to try (e.g., cub-mutate or cub-query).",
+      "expected_output": "Reads whether skill-examples exists, then prepares an idempotent Space/Unit/defaults proposal with exact identities, literal manifests, -o mutations, and --change-desc. It does not use mutating kubectl or execute ConfigHub writes; BLOCKs pending the broker and offers verified navigation plus a next preserved skill.",
       "files": []
     },
     {
       "id": 2,
       "name": "idempotent-rerun",
       "prompt": "The skill-examples space already exists but I want to make sure everything is in the right state. Can you re-run the setup?",
-      "expected_output": "Detects that the Space and Units already exist (cub space get, cub unit list), skips create steps, re-runs the defaults functions (which are hermetic + idempotent) without producing noisy no-op revisions, and reports the current state plainly. Does not delete or recreate anything.",
+      "expected_output": "Detects existing Space/Units read-only, compares them with the expected fixture contract, and prepares only the missing/different idempotent proposals. It does not re-run functions merely to test idempotence, delete/recreate, or mutate without the broker.",
       "files": []
     },
     {
       "id": 3,
       "name": "walk-through-example",
       "prompt": "Walk me through ConfigHub with a real example I can see end to end.",
-      "expected_output": "Runs the bootstrap, then narrates what happened in plain English — Space created, Units seeded, defaults applied via functions (each with --change-desc), revision history shows provenance — and offers clickable review links (cub unit get --web, cub revision list --web) so the user can see the outcome in the GUI. Does not dump YAML inline when a --web link would do.",
+      "expected_output": "Provides the whole walkthrough as a proposed/read-only sequence: what would be created, why, exact approval boundary, externally executed checkpoint, revision/provenance reads, Release proposal, controller/runtime proof, and verified GUI navigation. Never implies bootstrap ran when no broker receipt exists.",
       "files": []
     }
   ]

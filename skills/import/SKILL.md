@@ -1,164 +1,214 @@
 ---
 name: import
-description: 'Onboard existing Kubernetes config into ConfigHub as Units, from a Helm chart ("cub helm install", "upgrade the chart without losing my edits") or a Kustomize overlay ("import my base + overlays", "kustomize build into Units"). Not for authoring new YAML from scratch (use kubernetes-resources).'
+description: 'Onboard Helm charts or local Kustomize bases/overlays into Component/Variant/Release. Use for cub helm install/upgrade, multi-env variants, CRDs/hooks, preserving downstream edits, or kustomize build + variant upload. Not for live-cluster or GitOps-CR adoption.'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit data *) Bash(cub helm template *) Bash(cub helm install *) Bash(cub helm upgrade *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *) Bash(cub link create *) Bash(helm repo add *) Bash(helm repo update *) Bash(helm repo list) Bash(helm search *) Bash(kustomize build *) Bash(kubectl kustomize *) Bash(mkdir -p /tmp/*) Bash(ls *) Bash(cat *)
+allowed-tools: []
+read-capability-subset: import
 ---
 
 # import
 
-One onboarding ramp for bringing existing Kubernetes configuration under ConfigHub management. Pick the source, render it into Units, then the rest of the skill set takes over (customize via `cub-mutate`, validate via Triggers, deliver via `release-publish`).
+**Authority boundary:** this companion is knowledge/read-only. It may inspect local source metadata and prepare an exact onboarding proposal, but it must not execute a renderer, install, upload, create, promote, publish, or other mutation. The protected render wrapper and external mutation broker are `NOT_INTEGRATED`, so rendering returns `RENDER_SOURCE_POLICY_BLOCK` and onboarding mutations end in `ASK` or `BLOCK`.
 
-## Pick the source
+This skill preserves two onboarding jobs while aligning them to the installed model:
 
-| The user has… | Go to |
-| --- | --- |
-| A Helm chart (`jetstack/cert-manager`, `bitnami/nginx`, a chart repo + version) | **§A Helm** |
-| A local `kustomization.yaml` (`base/` + `overlays/`) | **§B Kustomize** |
+- **Helm:** `HelmSource Space → base Variant Space → deployment Variant Space → OCI Release`.
+- **Kustomize:** rendered stream → base or explicit Variant Space → OCI Release.
 
-ArgoCD `Application` / Flux `HelmRelease` GitOps pipelines, and adopting live-cluster resources, are **not** covered by this skill.
-
-## Positioning: this is onboarding, not the destination
-
-Both paths meet the user where they are and get them into ConfigHub without a day-one rewrite. The end state ConfigHub is built for is **configuration as data** — literal-YAML Units + semantic functions for policy and per-environment customization (see `confighub-core`). The chart / overlay is a **bootstrap input**, not an ongoing parameterization surface. After import:
-
-- Customize with `cub-mutate` functions (`set-container-image`, `set-replicas`, `set-env-var`, the defaults functions), not values files or patches.
-- Spread across environments by cloning Units upstream→downstream, not per-env values/overlays.
-- Re-render (`cub helm upgrade`, re-`kustomize build`) only to pull a deliberate upstream change — a structured, logged event.
-
-Call this trajectory out so the user understands the direction, not just the first command.
-
-Guides: `https://docs.confighub.com/markdown/guide/helm-charts.md` (Helm), `https://docs.confighub.com/markdown/guide/rendered-manifests.md` (DRY rendering model).
+After onboarding, prefer literal configuration-as-data plus ConfigHub functions and upstream/downstream promotion. A chart or overlay remains auditable source material, not hidden runtime state.
 
 ## Shared preflight
 
-1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
-2. Target Space exists (`cub space list`) and the user has write permission. **Environments are Spaces, not slug suffixes** (`confighub-core` topology): render each env into its own `<app>-<env>[-<region>]` Space; the Unit slug is the workload, not the env.
-3. Confirm the verb and flags with `cub <verb> --help` before composing.
+```bash
+cub auth status
+cub helm install --help
+cub helm upgrade --help
+cub variant upload --help
+cub variant create --help
+cub release publish --help
+```
 
-## Granularity
+The reviewed profile is exactly cub client v0.2.11, server v0.2.11, and cub helm add-on 0.1.0 (commits and client binary hash in `compatibility/current-profile.v1.json`). A different profile is `WATCH` or `BLOCK` until its help and semantics are reviewed; v0.2.10/v0.2.11 is explicitly unselected.
 
-Default to **one Kubernetes resource per Unit** (`confighub-core`). Generator output starts coarser, which is fine as an onboarding step:
+Before proposing any write, bind the organization/context, component, release name, chart or overlay source, pinned source revision/version, Variant Space slug, namespace, target, expected Unit set, and proof plan.
 
-- `cub helm install` renders a bundle and auto-splits CRDs into `<release>-crds`. Start there; split further later if ownership/lifecycle/blast-radius diverge.
-- A `kustomize build` is one rendered stream — store as one Unit per overlay to start, then split per workload/resource with `cub unit create` + `cub-mutate` (no re-render needed).
+### Render-source preflight (before any renderer)
 
-**CRDs always stand alone** — apply-order (CRDs established before their CRs at the consumer) and wider blast radius. Slug `<app>-crds`.
+Run only the static `tools/check-render-source` preflight over one approved local source root. It canonicalizes the root, inventories regular-file count/bytes, rejects every symlink rather than following it, rejects duplicate YAML keys, and parses the reviewed Helm/Kustomize source fields without executing either renderer. For Helm it scans template actions throughout the tree (including unpacked vendored subcharts), blocks `lookup` and dynamic `tpl`, and refuses opaque dependency archives. For Kustomize it is version-bound to kustomize v5.8.1 / API module v0.21.1: it resolves `openapi.path`, resources/bases/components, CRDs/configurations, patch/replacement paths, and ConfigMap generator files/envs; it rejects unknown top-level or file-bearing nested fields, ambiguous `patchesStrategicMerge`, Secret generators, plugins, validators, and Helm inflators. Stop on any remote, absolute, escaping, missing, wrong-type, or unsupported reference.
+
+A static pass is only `SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED`. It does not create a trusted source digest or dependency-lock receipt, prove renderer egress is off, inspect a packaged archive, or bound rendered output/resources.
+
+Raw `cub helm template`, `helm template`, `kustomize build`, and `kubectl kustomize` do not enforce that source closure or a rendered-byte/resource ceiling. The future wrapper specified by `compatibility/render-source-policy.v1.json` must run with network off, a read-only source closure, digest-pinned renderer, explicit source/output/document/resource bounds, secret scanning, and a truncation/input receipt. No such wrapper exists in this candidate, so passing static source inspection does not authorize a render.
 
 ---
 
-## §A — Helm chart
+## A. Helm onboarding
 
-### Preflight (additional)
+### What current `cub helm install` actually creates
 
-- `helm` is on PATH (`cub helm` shells out to it).
-- The chart's repo is added (`helm repo list`); if not, `helm repo add <name> <url> --force-update && helm repo update`.
-- A chart **version is pinned**. Never install without `--version` — unpinned installs can't be audited on upgrade.
-- Namespace strategy decided — default to `--namespace <ns>` (below).
-
-### Namespace — default to `--namespace <ns>`
-
-Many charts bake the namespace into rendered data (ConfigMap contents, Service hostnames, RoleBinding subjects like `system:serviceaccount:<ns>:<sa>`). With `--namespace`, the chart renders as `helm install` would and ConfigHub stores the literal result — predictable and debuggable. `--use-placeholder` (renders `namespace: confighubplaceholder`, resolved via `cub link create`) only works cleanly for charts with no internal namespace references — reach for it only with a `vet-placeholders` strategy in mind.
-
-### Install
-
-```bash
-helm search repo <repo>/<chart> --versions     # confirm the version exists
-cub helm install <release> <repo>/<chart> \
-  --space <app>-<env> --namespace <ns> --version <pinned> [--values <file>] [--set k=v]
+```text
+cub helm install <release-name> <chart-ref>
+  ├─ <component>-helm   HelmSource Space (one HelmSource Unit per release)
+  └─ <component>-base   untargeted base Variant Space
+       └─ one Unit per chart template file
 ```
 
-This creates `<release>` (main resources, + Namespace if `--namespace`) and `<release>-crds` (if the chart ships CRDs). `cub helm` does **not** accept `--change-desc` — provenance is recorded as Unit labels (`helmrelease`, `helmchart`, `helmversion` — verify exact keys with `-o json`). For a human note, follow up with a `set-annotation` function carrying `--change-desc`.
+`templates/backend.yaml` becomes Unit `backend`; nested paths are flattened; `crds/foo.yaml` becomes a separate file-derived Unit such as `crds-foo`; subchart files are prefixed. It does **not** create a single `<release>` Unit plus a special `<release>-crds` Unit. Helm hooks are dropped by default because their lifecycle cannot run without Helm; `--include-hooks` retains them only as ordinary resources. `lookup` returns nothing and cluster-dependent charts are out of scope.
 
-### Per-environment — two patterns
+### Render remains blocked
 
-- **Pattern A (per-env values files):** if the user already runs `helm install -f values-<env>.yaml`, preserve it — run one `cub helm install` per env-Space with that env's values. Migrate values into `cub-mutate` functions over time.
-- **Pattern B (single install + clones):** install once into a base Space, then clone per env. Clones keep an `--upstream-unit` link so `cub helm upgrade` on the base propagates via `--upgrade` while preserving per-env edits. **Never edit the base Unit** — edits are clobbered by the next upgrade; customize the clone via `cub-mutate`.
+After source preflight, record the exact local chart digest, vendored dependency digests, values-file digests, and intended renderer digest. Do not invoke `cub helm template` or another Helm renderer from this skill. A remote chart reference or version string alone is not a content pin and may trigger repository/network refresh. Return `RENDER_SOURCE_POLICY_BLOCK` until the protected wrapper exists. A separately supplied render artifact may be inspected as untrusted input, but it is not attributed to these sources without a trusted render receipt.
+
+### Install proposal
 
 ```bash
-cub unit create --space <app>-staging <release> --upstream-unit <app>-base/<release>
-cub unit create --dest-space <app>-staging --space <app>-base   # clone the whole base Space (base + crds)
+cub helm install <release-name> <chart-ref> \
+  --component <component> \
+  --version <pinned-version> \
+  --namespace <namespace> \
+  --values <values-file>
 ```
 
-### Upgrade
+Use only needed flags. Valid installed options include `--component`, `--create-namespace`, `--include-hooks`, `--namespace`, `--prefix`, `--repo`, `--set`, `--skip-crds`, `--values/-f`, `--version`, and `--wait`. There is no `--space` or `--update-crds` on the reviewed command.
 
-- **Pattern A:** `cub helm upgrade <release> <repo>/<chart> --space <app>-<env> --version <new> --values values-<env>.yaml [--update-crds]` per env-Space.
-- **Pattern B:** `cub helm upgrade` the base, then `cub unit update <release> --space <env-space> --upgrade --change-desc "…"` per clone (merge preserves clone edits). Review with `cub unit diff`.
+The base is untargeted. Do not claim the install deployed anything.
 
-`--update-crds` is off by default — set it only when the chart's CRD schemas changed and you want them in.
+### Create deployment variants
 
-### Deliver
+```bash
+cub variant create <variant> <component>-base \
+  --target <target-space>/<target> \
+  --namespace <namespace>
+```
 
-Hand off to `release-publish` for delivery, which bundles the Units into an immutable OCI bundle Release the Target serves for Argo/Flux to pull. When CRDs are present, keep the `<release>-crds` Unit in the bundle so the consumer sees the CRDs first; the GitOps tool (Argo sync waves / Flux `dependsOn`) handles establishment ordering at the cluster. `release-publish` owns the publish.
+The destination slug defaults to `<component>-<variant>`. With an OCI target, the command sets Unit TargetIDs and the new Space's `ReleaseTargetID`. For a target created by `cub cluster up`, current `cub variant create --target` also creates the Argo CD Application unless `--no-argo-app` is explicitly chosen; that is a material side effect and must be in the proposal scope.
+
+For dev, staging, and prod, propose one Variant per environment with its exact namespace/target/gates. Do not re-run Helm install into arbitrary env Spaces.
+
+### Compatibility lane: materially different per-environment values
+
+The shared-base route is correct only when environment differences can be expressed after rendering through namespace substitution and governed ConfigHub mutations. If the user's existing `values-dev.yaml`, `values-staging.yaml`, and `values-prod.yaml` materially change rendered resources and migration is not part of this change, preserve that job through **independent environment components**:
+
+```bash
+cub helm install <release>-<environment> <chart-ref> \
+  --component <component>-<environment> \
+  --version <pinned-version> \
+  --namespace <namespace> \
+  --values values-<environment>.yaml
+
+cub variant create <environment> <component>-<environment>-base \
+  --space-pattern 'template:{{.Labels.Component}}' \
+  --target <target-space>/<target> --namespace <namespace>
+```
+
+The explicit space pattern keeps the deployment Space at `<component>-<environment>`; without it, the independent Component label plus Variant label would default to the duplicate `<component>-<environment>-<environment>`. This is intentionally different from the recommended shared component. Each environment gets its own HelmSource/base and upgrade stream; `cub variant promote` cannot flow one shared base across them. Bind and retain the exact values-file digest, chart digest/version, renderer/add-on version, rendered Unit identities, and environment target in each proposal. Never pretend a values file was absorbed into the ordinary shared Variant when it actually changed the rendered base.
+
+Label this `HELM_VALUES_COMPATIBILITY`, explain the lost shared-promotion benefit, and offer a later migration: establish one common HelmSource/base, express durable environment differences on Variants with ConfigHub functions, diff every resource, then retire the independent components only after equivalence proof.
+
+### Publish proposal
+
+```bash
+cub release publish <component>-<variant>
+```
+
+Hand off to `release-publish` first: it must compute the exact EffectiveReleaseSet and obtain new whole-Space approval. This skill never executes publication.
+
+### Upgrade without losing downstream edits
+
+```bash
+cub helm upgrade <release-name> \
+  --component <component> \
+  --version <new-version>
+```
+
+Upgrade patches the HelmSource, re-renders from it, and reconciles `<component>-base`: changed file Units update, new files create Units, and disappeared files delete Units. That delete behavior is part of the approval subject.
+
+Then preview each downstream Variant:
+
+```bash
+cub variant promote <component>-<variant> --dry-run -o mutations
+```
+
+If the merge is expected, prepare a governed `cub variant promote <component>-<variant>` proposal. Downstream ConfigHub edits are merge inputs; conflicts are `BLOCK`, not permission to overwrite. After promotion, build a fresh `release-publish` ReleaseProposal.
+
+### Helm stop conditions
+
+- chart version/source is unpinned;
+- chart/source/dependency is remote, not vendored, or can refresh over the network;
+- renderer binary digest, source/output/resource ceilings, or trusted render receipt is missing;
+- chart needs live cluster `lookup` or unsupported Helm hook lifecycle;
+- materially different environment values are silently folded into one shared base instead of selecting and naming the compatibility lane;
+- proposed flags are not present in installed help;
+- upgrade would delete or unexpectedly rename file-derived Units;
+- variant promotion conflicts or expands scope;
+- external mutation broker is absent.
 
 ---
 
-## §B — Kustomize overlay
+## B. Kustomize onboarding
 
-There is no `cub kustomize` — render locally with `kustomize` / `kubectl kustomize`, store via `cub unit create`. If the user's "Kustomize" is actually a **Flux `Kustomization` CRD** (managed in-cluster), this skill doesn't cover that GitOps pipeline.
+This skill covers a local `kustomization.yaml`, not a Flux `Kustomization` CRD or an Argo CD `Application` adoption flow.
 
-### Preflight (additional)
+### Kustomize source preflight; render blocked
 
-- `kustomize` or `kubectl kustomize` on PATH. Prefer standalone `kustomize` for full feature coverage.
-- The overlay path actually has a `kustomization.yaml`.
-- Which overlays map to which env-Spaces is decided.
+Inspect `kustomization.yaml` and the enumerated v0.21.1 file-bearing fields as data. The checker resolves every admitted path relative to its Kustomization and inside the canonical root, while unknown fields and unsupported executable/ambiguous forms fail closed. This is conservative static source closure, not a general proof for future Kustomize schemas. `kustomize build` and `kubectl kustomize` remain `RENDER_SOURCE_POLICY_BLOCK` because this companion has no network-off, read-only, byte/resource-capped renderer or trusted render receipt. Rendered Secrets remain out of scope for ConfigHub Units.
 
-### The loop
+### Recommended migration: one base plus ConfigHub Variants
+
+The future governed shape is: a trusted renderer produces a digest-addressed, bounded manifest receipt from the approved local source closure; a separate mutation proposal uploads exactly that artifact with `--granularity per-resource`. Never emit a raw `kustomize build | cub variant upload` pipeline from this skill.
+
+Then prepare `cub variant create` proposals per environment, as in the Helm path, and express durable differences through ConfigHub functions/metadata. `--granularity per-resource` preserves the one-resource-per-Unit doctrine; use `per-file` only when the source file boundary is intentionally the ownership boundary.
+
+Before handing any Kustomize Variant to `release-publish`, prove an existing controller binding for that exact Variant/Target (for example, the Argo Application auto-created by a reviewed `cub variant create --target` flow, or an explicitly governed Flux binding) and bind its source/target identity. A Target and Release alone do not prove that a controller watches the artifact. If the binding is absent or cannot be read, return `CONTROLLER_BINDING_UNPROVEN`; do not describe the upload path as deployable or promise runtime verification.
+
+### Compatibility path: preserve existing overlays first
+
+When each overlay already contains essential differences that cannot be migrated in this change, propose one explicit Variant upload per overlay:
+
+For each overlay, require a separate trusted render receipt and prepare a separate upload proposal bound to its artifact digest, Component/Variant/Space, granularity, TargetID, and expected resource identities. Never combine render and upload in a shell pipeline.
+
+Label this `MIGRATED_WITH_PARITY`, not the preferred steady state. Record the source repository, commit, overlay path, renderer version, and rendered content digest in the proposal.
+
+If `kustomization.yaml` uses a Helm chart inflator, choose deliberately:
+
+- use the Helm Component path when the chart/source lifecycle should remain first-class; or
+- render the complete overlay once and upload the resulting stream when Kustomize composition is the authoritative input.
+
+Do not run both and create duplicate resources.
+
+### Kustomize stop conditions
+
+- renderer fails or requires an unreviewed exec plugin;
+- source closure includes a remote base/resource, symlink escape, unpinned dependency, Helm inflator fetch, or executable generator;
+- protected renderer digest, network-off enforcement, output/resource ceilings, or render receipt is missing (`RENDER_SOURCE_POLICY_BLOCK`);
+- rendered stream contains Secrets or live-cluster status;
+- base/overlay identity collisions are unresolved;
+- upload would replace an existing Variant without an exact diff;
+- the target Variant lacks a verified Argo CD/Flux controller binding (`CONTROLLER_BINDING_UNPROVEN`);
+- external mutation broker is absent.
+
+## Read-only verification after external execution
 
 ```bash
-# 1. Inventory.
-ls overlays/ ; cat overlays/<env>/kustomization.yaml
-
-# 2. Render the overlay for this env.
-mkdir -p /tmp/kustomize-import
-kustomize build overlays/<env> > /tmp/kustomize-import/<app>.yaml     # or: kubectl kustomize overlays/<env>
+cub space get <component>-helm -o json
+cub space get <component>-base -o json
+cub unit list --space <component>-base --select "HeadRevisionNum,ToolchainType,TargetID" -o json
+cub space get <component>-<variant> -o json
+cub unit tree --space <component>-<variant>
 ```
 
-Inspect the output before uploading: strip `status:` / `creationTimestamp` (`yq 'del(.status, .metadata.creationTimestamp)'`), confirm `namespace:` applied to every namespaced resource, and bail to **§A** if it's a Helm-inflator overlay.
+Verify expected file/resource-derived Unit identities, upstream links, namespace transforms, Unit TargetIDs, Space `ReleaseTargetID`, and gates. Then use `release-publish` and `verify-apply` for immutable Release, controller, and runtime proof.
 
-```bash
-# 3. Create the Unit in the env-Space (default: one Unit per overlay; split later).
-cub unit create --space <app>-<env> <app> /tmp/kustomize-import/<app>.yaml \
-  --change-desc "Import <app> <env> overlay from Kustomize at <git-ref / SHA>.
+## GUI handoff
 
-User prompt: <verbatim>
-Clarifications: <e.g. rendered via kustomize v5.4.2 from overlays/<env>, or 'none'>"
-```
-
-Record the source ref (git SHA, overlay path) in `--change-desc` — Units carry no pointer back to the Kustomize tree otherwise.
-
-### Promotion (optional)
-
-For merge-preserving dev→staging→prod, render a base once into a base Space and clone per env with `--upstream-unit <app>-base/<app>`. Pull upstream changes later with `cub unit update --space <app>-<env> <app> <new-rendered.yaml> --change-desc "…"` (merge preserves in-ConfigHub edits) — or `--upgrade` from the upstream Unit. From here, customize via `cub-mutate` functions instead of new overlays.
-
-Then hand off to `release-publish`.
-
----
-
-## Tool boundary
-
-- Allowed: `cub helm install/upgrade/template`, `cub unit create/update`, `cub function …`, `cub link create`, `helm repo add/update/list`, `helm search`, `kustomize build`, `kubectl kustomize`; read-only `cub unit get/list/data/diff/tree`.
-- Not allowed: `helm install` / `kubectl apply` / `kubectl apply -k` (deploys outside ConfigHub), editing a Pattern-B base Unit, adopting live-cluster or GitOps-tool-managed resources (out of scope for this skill).
-
-## Stop conditions
-
-- §A: repo not added and the user won't add it; install without `--version`; request to edit the base Unit (offer the clone instead); slug collides with an existing Unit (did they mean upgrade?).
-- §B: overlay won't `kustomize build` (report the error verbatim, don't "fix" it); Helm-inflator overlay (→ §A).
-
-## Verify chain
-
-- §A: `cub unit list --space <space> --where "Labels.helmrelease = '<release>'"` (base + crds present); `cub unit diff <release> <app>-base/<release> --space <app>-<env>` (clone customizations); after upgrade, `cub revision list <release>` shows the new version.
-- §B: `cub unit get <app> --space <app>-<env> -o yaml | diff - /tmp/kustomize-import/<app>.yaml`; `cub revision list <app>` shows Revision 1 with the Kustomize-source change-desc.
-
-## Evidence
-
-- `cub unit get <slug> --space <space> --web` — the imported Unit in the GUI.
-- `cub revision list <slug> --space <space> --web` — provenance starting at import.
+- `cub component open <component> --variant <variant> --print-url`
+- `cub space open <component>-base --print-url`
+- `cub unit open <unit> --space <component>-<variant> --revisions --print-url`
 
 ## References
 
-- `cub helm install --help` — authoritative flags.
-- `https://docs.confighub.com/markdown/guide/helm-charts.md`, `.../guide/rendered-manifests.md`.
-- `references/cub-cli.md` — CLI discipline; `--change-desc`; `-o mutations`.
-- `references/functions-catalog.md` — post-import customization functions.
-- Companion skills: `confighub-core` (config-as-data doctrine, Space topology, granularity), `cub-mutate` (customize), `target-bind` + `release-publish` (deliver), `triggers-and-applygates` (`vet-placeholders` / `standard-vets`).
+- `compatibility/current-profile.v1.json`
+- `compatibility/no-loss-inventory.v1.json`
+- `confighub-core` — configuration-as-data and Unit granularity.
+- `promote-release` — Variant reconciliation.
+- `target-bind`, `release-publish`, `verify-apply` — exact delivery chain.

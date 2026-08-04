@@ -1,6 +1,8 @@
 # ChangeSets — bulk / multi-Unit changes
 
-A ChangeSet groups related mutations across multiple Units so they can be approved, restored, and merged *as a set*. Use one any time a single logical change spans more than one Unit: a release, a fleet-wide defaults upgrade, a cross-Space promotion, a coordinated secret rotation. The ChangeSet acts as a lock: while a Unit is in a ChangeSet, another ChangeSet can't open against it until the first is closed.
+A ChangeSet groups related mutations across multiple Units so they can be reviewed, restored, and merged *as a set*. Use one any time a single logical change spans more than one Unit: a release, a fleet-wide defaults upgrade, a cross-Space promotion, a coordinated secret rotation. The ChangeSet acts as a lock: while a Unit is in a ChangeSet, another ChangeSet can't open against it until the first is closed. Delivery is now a Component/Variant Space Release, not a per-Unit runtime operation.
+
+**Authority boundary:** all write commands in this reference are governed proposals. The installed companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`), so it may inspect or compose these steps but must not execute them.
 
 Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 
@@ -10,8 +12,8 @@ Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 2. **Open** — bulk-patch the target Units to add them to the ChangeSet. This creates a revision per Unit tagged with the ChangeSet's *start tag*, even if data doesn't change.
 3. **Mutate** — every `cub function do` / `cub unit update` / `cub run` against those Units passes `--changeset <home-space>/<slug>`. Revisions are tagged as part of the ChangeSet.
 4. **Close** — bulk-patch with `--changeset -`. Each Unit's head revision gets the ChangeSet's *end tag*.
-5. **Approve** — reference `ChangeSet:<home-space>/<slug>` as the revision. Approves the end-tag revision per Unit.
-6. **Release** — publish the Space as an immutable OCI bundle pinned to the ChangeSet's end tag: `cub release publish --revision <changeset-end-tag> <space-slug>`. See `skills/release-publish`.
+5. **Native gate assessment** — current server v0.2.11 cannot approve a ChangeSet/Tag/numeric Revision selector. Omitted/`HeadRevisionNum` approval targets the head at execution time without expected-head CAS, so exact-artifact approval remains blocked.
+6. **Review / publish proposal** — compute the destination Space's complete EffectiveReleaseSet and record a new review decision for that whole-Space advisory subject. Execution still requires both provider-side expected-target/manifest CAS and the external broker; neither exists.
 7. **Rollback (optional)** — restore with `--restore "Before:ChangeSet:<home-space>/<slug>"`; every Unit's head reverts to the pre-open state.
 
 ## Open
@@ -26,7 +28,7 @@ cub unit update --patch --space <target-space> \
   --change-desc "Starting <slug> rollout"
 ```
 
-Use a named Filter (`cub filter create ... Unit --where-field "..."`) rather than inlining `--where` — you'll reuse the same Filter across open/mutate/close/approve.
+Use a named Filter (`cub filter create ... Unit --where-field "..."`) rather than inlining `--where` — you'll reuse the same Filter across open/mutate/close/review.
 
 If any of the selected Units are already in another (open) ChangeSet, the open fails. Close the other one first, or narrow the Filter.
 
@@ -57,23 +59,28 @@ The `-` sentinel means "null ChangeSetID." Cub can't distinguish `""` from "flag
 
 After close, every Unit's head revision carries the ChangeSet's end tag. No further mutations need the `--changeset` flag.
 
-## Approve
+## Review and publish
 
-If an `is-approved` / `vet-approvedby` Trigger is installed, the end-tag revision per Unit needs approval before publish. Bulk approve references the ChangeSet:
+If a `vet-approvedby` Trigger is installed, preserve the advertised ChangeSet approval form only as versioned legacy knowledge:
 
 ```bash
+# VERSIONED_LEGACY/BLOCK on server v0.2.11.
 cub unit approve --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --revision ChangeSet:<home-space>/<slug>
 ```
 
-## Release
+The server rejects every nonempty selector except `HeadRevisionNum`. Omitting `--revision` or using `HeadRevisionNum` approves each selected Unit's head inside the execution transaction. There is no expected RevisionID/DataHash precondition, so a head change after review can change what gets approved. Treat this as `APPROVAL_HEAD_RACE_BLOCK`, not exact ChangeSet approval. Native approval also does **not** authorize this companion to run approval, promotion, or publication.
+
+Next compute the destination Space's EffectiveReleaseSet: all Units whose `TargetID` equals `Space.ReleaseTargetID`. The Release command has no ChangeSet/Filter/Unit selector. If the ChangeSet is narrower than that set, disclose the additional Units and obtain a fresh whole-Space approval; never reuse the ChangeSet approval as though it narrowed the Release.
+
+Once every effective revision, ID/hash, target, and gate is bound in the `release-publish` proposal, the current path still returns `RELEASE_EXECUTION_CAS_BLOCK`: the broker alone cannot bind those reads to provider execution. This is the command shape a future expected-target/manifest-CAS endpoint and external broker would govern:
 
 ```bash
-cub release publish --revision <changeset-end-tag> <space-slug>
+cub release publish <target-variant-space>
 ```
 
-Publishing bundles every Unit in `<space-slug>` assigned to that Space's ReleaseTarget, pinned to the Revision carrying the ChangeSet's end tag. Units in the Space that weren't in the ChangeSet are still bundled — at head, since they carry no matching tagged Revision. See `skills/release-publish`.
+The companion returns `BLOCK` because provider CAS and the broker are both missing. After a future provider-CAS-capable, externally authorized execution, capture the Release ID, bundle Digest, OCI ManifestDigest, digest-matching manifest Target annotation, and exact `Revision.Releases` membership receipt; then prove controller/runtime convergence before declaring the rollout complete.
 
 ## Rollback
 
@@ -90,11 +97,9 @@ cub unit update --patch --space <target-space> \
   --restore "Before:ChangeSet:<home-space>/<slug>" \
   --tag <home-space>/rollback-<slug>
 
-# Approve the new restore revisions (no --revision -> head).
-cub unit approve --space <target-space> --filter <home-space>/<filter-slug>
-
-# Publish the Space pinned to the rollback tag the restore just applied.
-cub release publish --revision rollback-<slug> <space-slug>
+# Proposal only: resolve any native gate through an exact-CAS-capable future
+# path, then obtain a distinct whole-Space execution approval.
+cub release publish <target-variant-space>
 ```
 
 `Before:ChangeSet:<...>` resolves per Unit to "the revision that was head right before the ChangeSet opened." Each Unit gets a new head revision carrying the restored data.
@@ -132,15 +137,15 @@ cub revision list --space <target-space> --filter <home-space>/<filter-slug> \
 
 ## When to reach for a ChangeSet
 
-- A change spans more than one Unit and you want to approve / rollback *atomically* (at least in audit terms).
-- A release across many Units — group all revisions so you have one name to roll back or re-publish.
+- A change spans more than one Unit and you want grouped review and set-wise rollback. Do not call current native approval exact or publication atomic across a subset: a Space Release captures its complete EffectiveReleaseSet.
+- A release across many Units — group all revisions so you have one name to roll back or reapply.
 - A bulk upgrade (`cub unit update --upgrade`) applied across a filter — opening a ChangeSet first makes the "before / after" auditable as one set.
 - The user asks for a "rollback" across many Units — a prior ChangeSet (or a Tag you set at known-good time) is what you need to restore before.
 
 ## When not
 
 - Single-Unit mutation. The per-Unit revision history already gives you named restore targets; a ChangeSet adds overhead without payoff.
-- Rolling release where Units must reach the cluster in strict sequence with different approvals — a Release bundles the Space as a set, not a sequence.
+- Rollout where Units need strict sequencing or different release approvals — a ChangeSet groups revisions but does not encode controller order or narrow a Space Release.
 - Ad-hoc experiments in a scratch Space. Lock semantics are a feature when many operators share Units; noise when one person is iterating.
 
 ## Common pitfalls
