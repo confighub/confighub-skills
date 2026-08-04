@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+inventory="$root/compatibility/no-loss-inventory.v1.json"
+
+while test "$#" -gt 0; do
+  case "$1" in
+    --root) test "$#" -ge 2 || exit 2; root=$2; shift 2 ;;
+    --inventory) test "$#" -ge 2 || exit 2; inventory=$2; shift 2 ;;
+    *) printf '%s\n' 'usage: validate-no-loss-deletions [--root <git-worktree>] [--inventory <json>]' >&2; exit 2 ;;
+  esac
+done
+
+fail() {
+  printf 'no-loss deletion dispositions: FAIL: %s\n' "$*" >&2
+  exit 1
+}
+
+for command_name in git jq; do
+  command -v "$command_name" >/dev/null 2>&1 || fail "required command missing: $command_name"
+done
+test -f "$inventory" && jq empty "$inventory" >/dev/null 2>&1 || fail 'inventory is missing or invalid JSON'
+git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail 'root is not a Git worktree'
+
+base=$(jq -r '.candidate_base_commit // empty' "$inventory")
+printf '%s' "$base" | grep -Eq '^[0-9a-f]{40}$' || fail 'candidate base commit is not a full lowercase SHA-1'
+git -C "$root" cat-file -e "$base^{commit}" 2>/dev/null || fail 'candidate base commit is unavailable'
+
+jq -e '
+  (.deleted_surface_dispositions | type == "array" and length > 0) and
+  ([.deleted_surface_dispositions[].path] | length == (unique | length)) and
+  (.disposition_enum as $allowed |
+    all(.deleted_surface_dispositions[];
+      (.path | type == "string" and length > 0 and startswith("/") | not) and
+      (.path | split("/") | index("..") | not) and
+      (.surface_kind | type == "string" and length > 0) and
+      (.disposition as $d | $allowed | index($d) != null) and
+      (.replacement | type == "string" and length > 0) and
+      .history == "PRESERVED_IN_GIT" and
+      (.parity | type == "string" and length > 0) and
+      (.reason | type == "string" and length >= 80))) and
+  any(.deleted_surface_dispositions[];
+    .path == "PLAN.md" and .surface_kind == "stale-operational-plan" and
+    .disposition == "REPLACED_BY" and .parity == "NOT_APPLICABLE_STALE_STATE" and
+    (.replacement | contains("README.md") and contains("current-profile.v1.json") and contains("no-loss-inventory.v1.json"))) and
+  any(.deleted_surface_dispositions[];
+    .path == "hooks/auto-allow.sh" and .surface_kind == "unsafe-authority-mechanism" and
+    .disposition == "REPLACED_BY" and .parity == "INTENTIONALLY_NOT_PRESERVED" and
+    (.replacement | contains("host ASK") and contains("check-installed-permission-state") and contains("NOT_INTEGRATED")))
+' "$inventory" >/dev/null || fail 'typed deleted-surface schema or required retirement semantics are incomplete'
+
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+git -C "$root" diff --diff-filter=D --name-only "$base" -- | LC_ALL=C sort -u >"$tmp_dir/actual"
+jq -r '.deleted_surface_dispositions[].path' "$inventory" | LC_ALL=C sort -u >"$tmp_dir/inventory"
+if ! cmp -s "$tmp_dir/actual" "$tmp_dir/inventory"; then
+  missing=$(comm -23 "$tmp_dir/actual" "$tmp_dir/inventory" | paste -sd, -)
+  extra=$(comm -13 "$tmp_dir/actual" "$tmp_dir/inventory" | paste -sd, -)
+  fail "deleted paths and typed dispositions differ (missing=${missing:-none}; extra=${extra:-none})"
+fi
+
+printf 'no-loss deletion dispositions: PASS (%s deleted durable surfaces have typed history/replacement dispositions)\n' "$(wc -l <"$tmp_dir/actual" | tr -d ' ')"

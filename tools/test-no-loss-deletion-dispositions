@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+validator="$root/tools/validate-no-loss-deletions"
+inventory="$root/compatibility/no-loss-inventory.v1.json"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+"$validator" >/dev/null
+
+jq 'del(.deleted_surface_dispositions[] | select(.path == "PLAN.md"))' "$inventory" >"$tmp_dir/missing-plan.json"
+if "$validator" --inventory "$tmp_dir/missing-plan.json" >/dev/null 2>&1; then
+  printf '%s\n' 'no-loss deletion disposition tests: FAIL missing PLAN.md disposition survived' >&2
+  exit 1
+fi
+
+jq '(.deleted_surface_dispositions[] | select(.path == "hooks/auto-allow.sh") | .parity) = "PRESERVED"' \
+  "$inventory" >"$tmp_dir/false-parity.json"
+if "$validator" --inventory "$tmp_dir/false-parity.json" >/dev/null 2>&1; then
+  printf '%s\n' 'no-loss deletion disposition tests: FAIL unsafe auto-allow parity claim survived' >&2
+  exit 1
+fi
+
+jq '.deleted_surface_dispositions += [{path:"deleted-but-not-real",surface_kind:"fake",disposition:"REPLACED_BY",replacement:"fake",history:"PRESERVED_IN_GIT",parity:"NONE",reason:"This deliberately long fake reason exists only to prove that extra dispositions cannot conceal the actual deleted path set."}]' \
+  "$inventory" >"$tmp_dir/extra.json"
+if "$validator" --inventory "$tmp_dir/extra.json" >/dev/null 2>&1; then
+  printf '%s\n' 'no-loss deletion disposition tests: FAIL extra non-deletion disposition survived' >&2
+  exit 1
+fi
+
+printf '%s\n' 'no-loss deletion disposition tests: PASS (missing, false-parity, and extra entries rejected against Git deletions)'

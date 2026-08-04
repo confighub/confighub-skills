@@ -1,0 +1,79 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "json"
+require "psych"
+
+def fail_parse(message)
+  warn "frontmatter: BLOCK_INVALID_FRONTMATTER: #{message}"
+  exit 1
+end
+
+path = ARGV.shift
+fail_parse("usage: parse-frontmatter <markdown-file>") if path.nil? || !ARGV.empty?
+fail_parse("file not found: #{path}") unless File.file?(path)
+
+bytes = File.binread(path)
+fail_parse("UTF-8 BOM is not permitted") if bytes.start_with?("\xEF\xBB\xBF".b)
+text = bytes.force_encoding(Encoding::UTF_8)
+fail_parse("input is not valid UTF-8") unless text.valid_encoding?
+
+lines = text.lines
+fail_parse("opening delimiter must be the first line") unless lines.first&.sub(/\r?\n\z/, "") == "---"
+closing = nil
+lines.each_index do |index|
+  next if index.zero?
+  if lines[index].sub(/\r?\n\z/, "") == "---"
+    closing = index
+    break
+  end
+end
+fail_parse("closing delimiter is missing") if closing.nil?
+
+yaml_text = lines[1...closing].join
+fail_parse("frontmatter is empty") if yaml_text.strip.empty?
+
+begin
+  stream = Psych.parse_stream(yaml_text)
+rescue Psych::SyntaxError => e
+  fail_parse("YAML syntax error at line #{e.line}, column #{e.column}")
+end
+fail_parse("frontmatter must contain exactly one YAML document") unless stream.children.length == 1
+
+def reject_duplicate_keys(node, path = "$")
+  case node
+  when Psych::Nodes::Mapping
+    seen = {}
+    node.children.each_slice(2) do |key_node, value_node|
+      fail_parse("mapping key at #{path} must be a scalar") unless key_node.is_a?(Psych::Nodes::Scalar)
+      key = key_node.value
+      fail_parse("duplicate key #{key.inspect} at #{path}") if seen.key?(key)
+      seen[key] = true
+      reject_duplicate_keys(value_node, "#{path}.#{key}")
+    end
+  when Psych::Nodes::Sequence
+    node.children.each_with_index { |child, index| reject_duplicate_keys(child, "#{path}[#{index}]") }
+  when Psych::Nodes::Alias
+    fail_parse("YAML aliases are not permitted at #{path}")
+  when Psych::Nodes::Scalar
+    fail_parse("explicit YAML tags are not permitted at #{path}") if node.tag && !node.tag.start_with?("tag:yaml.org,2002:")
+  end
+end
+
+document = stream.children.first
+reject_duplicate_keys(document.root)
+
+begin
+  parsed = Psych.safe_load(
+    yaml_text,
+    permitted_classes: [],
+    permitted_symbols: [],
+    aliases: false,
+    symbolize_names: false
+  )
+rescue Psych::Exception => e
+  fail_parse("unsafe or invalid YAML: #{e.message.lines.first.to_s.strip}")
+end
+fail_parse("frontmatter root must be a mapping") unless parsed.is_a?(Hash)
+
+puts JSON.generate(parsed)

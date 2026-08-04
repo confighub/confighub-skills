@@ -1,0 +1,93 @@
+{
+  "schema_version": "confighub-skills-exact-profile-behavior-cases/v1",
+  "profile_id": "cub-0.2.11_server-0.2.11_helm-0.1.0",
+  "reviewed_client_commit": "683dce12c2f26ad151aa9e5763e60b0ac66172a4",
+  "reviewed_server_commit": "8cb9f6b4925670658850c8c99357f34fb11a51ad",
+  "cases": [
+    {
+      "case_id": "approval-numeric-selector-rejected",
+      "source": "internal/views/unit_special.go",
+      "expected": "BLOCK_NON_HEAD_SELECTOR"
+    },
+    {
+      "case_id": "approval-tag-selector-rejected",
+      "source": "internal/views/unit_special.go",
+      "expected": "BLOCK_NON_HEAD_SELECTOR"
+    },
+    {
+      "case_id": "approval-changeset-selector-rejected",
+      "source": "internal/views/unit_special.go",
+      "expected": "BLOCK_NON_HEAD_SELECTOR"
+    },
+    {
+      "case_id": "approval-head-race-no-expected-cas",
+      "source": "internal/views/unit_special.go",
+      "expected": "APPROVAL_HEAD_RACE_BLOCK"
+    },
+    {
+      "case_id": "unit-update-cas-primitive-not-integrated",
+      "source": "internal/views/unit_update.go:createUpdateFunction; patchWithRetries:RunInTx",
+      "expected": "APPROVED_STATE_CAS_NOT_INTEGRATED"
+    },
+    {
+      "case_id": "publish-no-expected-manifest-or-target-cas",
+      "source": "internal/views/release_core.go",
+      "expected": "RELEASE_EXECUTION_CAS_BLOCK"
+    },
+    {
+      "case_id": "historical-same-count-member-swap",
+      "source": "internal/models/revision.go:Releases",
+      "expected": "REQUIRE_RECEIPT_AND_REVISION_RELEASES"
+    },
+    {
+      "case_id": "historical-deleted-revision",
+      "source": "internal/models/revision.go:Releases",
+      "expected": "HISTORICAL_RELEASE_MANIFEST_UNPROVEN"
+    },
+    {
+      "case_id": "withdrawal-current-membership-drift",
+      "source": "internal/views/release_core.go:checkDestroyGates",
+      "expected": "WITHDRAWAL_MEMBERSHIP_DRIFT_BLOCK"
+    },
+    {
+      "case_id": "release-delete-retention",
+      "source": "internal/views/release_core.go:Delete",
+      "expected": "REQUIRE_RETAINED_RECEIPT_BEFORE_DELETE"
+    },
+    {
+      "case_id": "historical-target-hidden-public-manifest",
+      "source": "internal/models/release.go:Manifest json:-; internal/views/release_core.go:ReleaseOCIManifest",
+      "expected": "REQUIRE_TRUSTED_MANIFEST_TARGET_ATTESTATION"
+    },
+    {
+      "case_id": "release-delete-bypasses-withdrawal-gates",
+      "source": "internal/views/release_core.go:Delete",
+      "expected": "RELEASE_DELETE_WITHOUT_WITHDRAW_OR_GATE_BLOCK"
+    },
+    {
+      "case_id": "worker-run-positional-slug",
+      "source": "public/cmd/cub/worker_run.go:cobra.ExactArgs(1)",
+      "expected": "REQUIRE_EXACTLY_ONE_WORKER_SLUG"
+    },
+    {
+      "case_id": "worker-run-auto-creates-missing-worker",
+      "source": "public/cmd/cub/worker_run.go:apiCreateWorker",
+      "expected": "CLASSIFY_WORKER_RUN_AS_MUTATING"
+    },
+    {
+      "case_id": "worker-logs-unbound-full-file-scan",
+      "source": "public/cmd/cub/worker_logs.go:workerLogsCmdRun,printLastNLines",
+      "expected": "WORKER_LOG_EVIDENCE_BLOCK"
+    },
+    {
+      "case_id": "tag-mapping-mutable-at-publish",
+      "source": "internal/views/unit_special.go; internal/views/release_core.go:GetBundleRevisionsByTag",
+      "expected": "RELEASE_TAG_MAPPING_CAS_BLOCK"
+    },
+    {
+      "case_id": "untagged-publish-auto-tag-side-effect",
+      "source": "internal/views/release_core.go:release-<ReleaseNum>; addReleaseToRevision",
+      "expected": "BIND_AUTO_TAG_SIDE_EFFECT"
+    }
+  ]
+}

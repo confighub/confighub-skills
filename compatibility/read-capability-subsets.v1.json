@@ -1,0 +1,91 @@
+{
+  "schema_version": "confighub-skills-read-capabilities/v1",
+  "candidate_plugin_version": "0.4.0",
+  "status": "ASK_PENDING_TYPED_WRAPPER",
+  "raw_bash_autoallow": "BLOCK",
+  "enforcement": {
+    "current": "NO_PLUGIN_OR_SKILL_BASH_AUTOALLOW",
+    "read_execution": "HOST_PERMISSION_ASK",
+    "typed_final_argv_wrapper": "NOT_INTEGRATED",
+    "mutation_execution": "BLOCK",
+    "external_approval_broker": "NOT_INTEGRATED"
+  },
+  "denied_from_any_future_autoallow": [
+    "credentials-or-secrets",
+    "file-read-or-write-without-bounded-artifact",
+    "plugin-or-exec-loading",
+    "network-source-or-repository-refresh",
+    "controller-hard-refresh",
+    "shell-composition-or-expansion",
+    "unknown-verb-or-flag",
+    "arbitrary-function-get-or-vet",
+    "mutation"
+  ],
+  "notes": [
+    "Claude PreToolUse exposes raw shell text, not final argv. This candidate therefore does not claim a shell parser as an authority boundary.",
+    "Capability subsets constrain which reads a skill may propose. They do not silently authorize execution; every raw command remains an explicit host ASK.",
+    "A future wrapper must receive a skill/capability identity plus structured final argv or typed fields and fail closed on every unrecognized value before any subset can become auto-allowed."
+  ],
+  "skills": [
+    {
+      "skill_id": "app-config",
+      "capabilities": ["context-metadata", "space-unit-metadata", "link-invocation-metadata", "function-catalog-metadata"]
+    },
+    {
+      "skill_id": "confighub-core",
+      "capabilities": ["context-metadata", "organization-metadata", "space-unit-metadata", "target-metadata", "release-metadata", "verified-navigation"]
+    },
+    {
+      "skill_id": "cub-mutate",
+      "capabilities": ["context-metadata", "space-unit-metadata", "revision-metadata-and-diff", "function-catalog-metadata", "invocation-metadata", "changeset-filter-metadata"]
+    },
+    {
+      "skill_id": "cub-query",
+      "capabilities": ["context-metadata", "space-unit-metadata", "revision-metadata-and-diff", "release-metadata", "function-catalog-metadata", "controller-runtime-metadata"]
+    },
+    {
+      "skill_id": "import",
+      "capabilities": ["context-metadata", "component-space-unit-metadata", "release-metadata", "local-render-source-metadata-preflight-without-render-execution"]
+    },
+    {
+      "skill_id": "incident-management",
+      "capabilities": ["context-metadata", "space-unit-metadata", "revision-metadata-and-diff", "changeset-tag-metadata", "release-metadata", "controller-runtime-metadata"]
+    },
+    {
+      "skill_id": "kubernetes-resources",
+      "capabilities": ["context-metadata", "space-unit-metadata", "function-catalog-metadata", "kubernetes-schema-metadata"]
+    },
+    {
+      "skill_id": "promote-release",
+      "capabilities": ["context-metadata", "component-space-unit-metadata", "revision-metadata-and-diff", "changeset-filter-tag-metadata", "target-metadata", "release-metadata", "controller-runtime-metadata"]
+    },
+    {
+      "skill_id": "release-publish",
+      "capabilities": ["context-metadata", "component-space-unit-metadata", "revision-metadata-and-diff", "target-metadata", "tag-metadata", "release-metadata"]
+    },
+    {
+      "skill_id": "rollback-revision",
+      "capabilities": ["context-metadata", "space-unit-metadata", "revision-metadata-and-diff", "changeset-tag-metadata", "release-metadata"]
+    },
+    {
+      "skill_id": "skill-examples-bootstrap",
+      "capabilities": ["context-metadata", "space-unit-metadata", "link-invocation-metadata", "function-catalog-metadata"]
+    },
+    {
+      "skill_id": "target-bind",
+      "capabilities": ["context-metadata", "space-unit-metadata", "target-metadata", "worker-metadata-without-credentials", "release-metadata"]
+    },
+    {
+      "skill_id": "triggers-and-applygates",
+      "capabilities": ["context-metadata", "space-unit-metadata", "revision-governance-metadata", "trigger-filter-metadata", "function-catalog-metadata"]
+    },
+    {
+      "skill_id": "verify-apply",
+      "capabilities": ["context-metadata", "space-unit-metadata", "historical-release-membership", "release-metadata", "controller-runtime-metadata", "versioned-legacy-unit-event-diagnostics"]
+    },
+    {
+      "skill_id": "worker-bootstrap",
+      "capabilities": ["context-metadata", "worker-metadata-without-credentials-or-log-content", "controller-runtime-metadata-without-logs-secrets-or-exec", "function-catalog-metadata"]
+    }
+  ]
+}

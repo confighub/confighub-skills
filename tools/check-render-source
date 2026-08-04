@@ -1,0 +1,427 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "find"
+require "json"
+require "pathname"
+require "psych"
+
+kind = nil
+root_arg = nil
+json_output = false
+until ARGV.empty?
+  case (arg = ARGV.shift)
+  when "--kind" then kind = ARGV.shift
+  when "--root" then root_arg = ARGV.shift
+  when "--json" then json_output = true
+  else
+    warn "usage: check-render-source --kind helm|kustomize --root <local-dir> [--json]"
+    exit 2
+  end
+end
+unless %w[helm kustomize].include?(kind) && root_arg
+  warn "usage: check-render-source --kind helm|kustomize --root <local-dir> [--json]"
+  exit 2
+end
+
+def emit(status, reason, json_output, extra = {})
+  result = { status: status, render_allowed: false, reason: reason }.merge(extra)
+  if json_output
+    puts JSON.generate(result)
+  else
+    puts "render source preflight: #{status}: #{reason}"
+  end
+end
+
+KUSTOMIZE_TOP_LEVEL_FIELDS = %w[
+  apiVersion kind metadata openapi namePrefix nameSuffix namespace commonLabels
+  labels commonAnnotations patchesStrategicMerge patchesJson6902 patches images
+  imageTags replacements replicas vars sortOptions resources components crds bases
+  configMapGenerator secretGenerator helmGlobals helmCharts
+  helmChartInflationGenerator generatorOptions configurations generators transformers
+  validators buildMetadata
+].freeze
+
+def populated?(value)
+  !(value.nil? || (value.respond_to?(:empty?) && value.empty?))
+end
+
+def require_hash(value, context, violations)
+  unless value.is_a?(Hash)
+    violations << "invalid-kustomize-shape:#{context}:expected-map"
+    return false
+  end
+  true
+end
+
+def require_array(value, context, violations)
+  unless value.is_a?(Array)
+    violations << "invalid-kustomize-shape:#{context}:expected-array"
+    return false
+  end
+  true
+end
+
+def reject_unknown_keys(value, allowed, context, violations)
+  return false unless require_hash(value, context, violations)
+
+  value.keys.each do |key|
+    unless key.is_a?(String) && allowed.include?(key)
+      violations << "unsupported-kustomize-field:#{context}:#{key}"
+    end
+  end
+  true
+end
+
+def validate_string_array(value, context, violations)
+  return false unless require_array(value, context, violations)
+
+  value.each_with_index do |entry, index|
+    violations << "invalid-kustomize-shape:#{context}[#{index}]:expected-string" unless entry.is_a?(String)
+  end
+  true
+end
+
+def remote_or_escaping_reference?(value)
+  remote_pattern = %r{\A(?:[a-z][a-z0-9+.-]*://|(?:git|hg)::|git@|github\.com[:/]|gitlab\.com[:/]|bitbucket\.org[:/])}i
+  path = Pathname.new(value)
+  value.empty? || value.include?("\0") || value.include?("\\") || value.match?(remote_pattern) ||
+    path.absolute? || value.split("/").include?("..")
+end
+
+def validate_local_reference(root, kustomization_relative, value, expected, context, violations)
+  unless value.is_a?(String) && !value.empty?
+    violations << "invalid-kustomize-reference:#{context}:expected-nonempty-string"
+    return
+  end
+  if remote_or_escaping_reference?(value)
+    violations << "remote-or-escaping-kustomize-reference:#{context}:#{value}"
+    return
+  end
+
+  candidate = root.join(File.dirname(kustomization_relative), value).cleanpath
+  begin
+    canonical = candidate.realpath
+  rescue Errno::ENOENT, Errno::EACCES, Errno::ENOTDIR
+    violations << "missing-kustomize-reference:#{context}:#{value}"
+    return
+  end
+  unless canonical == root || canonical.to_s.start_with?(root.to_s + File::SEPARATOR)
+    violations << "kustomize-reference-outside-root:#{context}:#{value}"
+    return
+  end
+
+  valid_type = case expected
+               when :file then canonical.file?
+               when :directory then canonical.directory?
+               else canonical.file? || canonical.directory?
+               end
+  violations << "wrong-kustomize-reference-type:#{context}:#{value}:expected-#{expected}" unless valid_type
+end
+
+def validate_selector(value, context, violations)
+  return if value.nil?
+
+  reject_unknown_keys(
+    value,
+    %w[group version kind name namespace annotationSelector labelSelector],
+    context,
+    violations
+  )
+end
+
+def validate_field_options(value, context, violations)
+  return if value.nil?
+
+  reject_unknown_keys(value, %w[delimiter index encoding create], context, violations)
+end
+
+def validate_generator_options(value, context, violations)
+  return if value.nil?
+
+  reject_unknown_keys(value, %w[labels annotations disableNameSuffixHash immutable], context, violations)
+end
+
+def validate_generator(root, relative, value, context, violations)
+  return unless reject_unknown_keys(
+    value,
+    %w[namespace name behavior literals files envs env options],
+    context,
+    violations
+  )
+
+  validate_generator_options(value["options"], "#{context}.options", violations)
+  %w[literals].each do |field|
+    validate_string_array(value[field], "#{context}.#{field}", violations) if value.key?(field)
+  end
+  if value.key?("files") && validate_string_array(value["files"], "#{context}.files", violations)
+    value["files"].each_with_index do |source, index|
+      next unless source.is_a?(String)
+
+      separators = source.count("=")
+      if separators > 1 || source.start_with?("=") || source.end_with?("=")
+        violations << "invalid-kustomize-file-source:#{context}.files[#{index}]:#{source}"
+        next
+      end
+      file_path = separators == 1 ? source.split("=", 2).last : source
+      validate_local_reference(root, relative, file_path, :file_or_directory, "#{context}.files[#{index}]", violations)
+    end
+  end
+  if value.key?("envs") && validate_string_array(value["envs"], "#{context}.envs", violations)
+    value["envs"].each_with_index do |path, index|
+      validate_local_reference(root, relative, path, :file, "#{context}.envs[#{index}]", violations) if path.is_a?(String)
+    end
+  end
+  validate_local_reference(root, relative, value["env"], :file, "#{context}.env", violations) if value.key?("env")
+end
+
+def collect_duplicate_yaml_keys(node, relative, violations, path = "$")
+  case node
+  when Psych::Nodes::Mapping
+    seen = {}
+    node.children.each_slice(2) do |key_node, value_node|
+      unless key_node.is_a?(Psych::Nodes::Scalar)
+        violations << "non-scalar-yaml-key:#{relative}:#{path}"
+        next
+      end
+      key = key_node.value
+      violations << "duplicate-yaml-key:#{relative}:#{path}.#{key}" if seen.key?(key)
+      seen[key] = true
+      collect_duplicate_yaml_keys(value_node, relative, violations, "#{path}.#{key}")
+    end
+  when Psych::Nodes::Sequence
+    node.children.each_with_index do |child, index|
+      collect_duplicate_yaml_keys(child, relative, violations, "#{path}[#{index}]")
+    end
+  end
+end
+
+begin
+  root = Pathname.new(root_arg).realpath
+rescue Errno::ENOENT, Errno::EACCES => e
+  emit("RENDER_SOURCE_POLICY_BLOCK", "source root cannot be resolved: #{e.message}", json_output)
+  exit 1
+end
+unless root.directory?
+  emit("RENDER_SOURCE_POLICY_BLOCK", "source root is not a directory", json_output)
+  exit 1
+end
+
+max_source_bytes = 10_485_760
+max_file_bytes = 1_048_576
+files = []
+total_bytes = 0
+violations = []
+Find.find(root.to_s) do |path_string|
+  path = Pathname.new(path_string)
+  next if path == root
+  relative = path.relative_path_from(root).to_s
+  if path.symlink?
+    violations << "symlink-not-in-source-closure:#{relative}"
+    Find.prune if path.directory?
+    next
+  end
+  next if path.directory?
+  unless path.file?
+    violations << "non-regular-source:#{relative}"
+    next
+  end
+  size = path.size
+  total_bytes += size
+  violations << "source-file-too-large:#{relative}" if size > max_file_bytes
+  files << [path, relative]
+end
+violations << "source-closure-too-large" if total_bytes > max_source_bytes
+
+yaml_files = files.select do |(_, relative)|
+  basename = File.basename(relative)
+  if kind == "helm"
+    ["Chart.yaml", "Chart.lock"].include?(basename)
+  else
+    ["kustomization.yaml", "kustomization.yml", "Kustomization"].include?(basename)
+  end
+end
+yaml_documents = {}
+yaml_files.each do |path, relative|
+  begin
+    content = File.binread(path)
+    stream = Psych.parse_stream(content)
+    raise ArgumentError, "multiple YAML documents are not permitted" unless stream.children.length == 1
+    collect_duplicate_yaml_keys(stream.children.first.root, relative, violations)
+    document = Psych.safe_load(content, permitted_classes: [], permitted_symbols: [], aliases: false)
+    yaml_documents[relative] = [document]
+  rescue Psych::Exception, ArgumentError => e
+    violations << "invalid-or-unsafe-yaml:#{relative}:#{e.class}"
+  end
+end
+
+if kind == "helm"
+  chart_path = root.join("Chart.yaml")
+  if !chart_path.file?
+    violations << "missing-Chart.yaml"
+  end
+  chart_documents = yaml_documents.select { |relative, _| File.basename(relative) == "Chart.yaml" }
+  chart_documents.each do |relative, docs|
+    chart = docs&.first
+    if !chart.is_a?(Hash)
+      violations << "invalid-Chart.yaml-root:#{relative}"
+    else
+      dependencies = chart["dependencies"] || []
+      if !dependencies.is_a?(Array)
+        violations << "invalid-helm-dependencies:#{relative}"
+      elsif dependencies.any?
+        chart_root = root.join(File.dirname(relative))
+        violations << "missing-Chart.lock:#{relative}" unless chart_root.join("Chart.lock").file?
+        dependencies.each_with_index do |dependency, index|
+          unless dependency.is_a?(Hash) && dependency["name"].is_a?(String) && dependency["version"].is_a?(String)
+            violations << "unpinned-helm-dependency:#{relative}:#{index}"
+            next
+          end
+          repository = dependency["repository"]
+          violations << "remote-or-refreshable-helm-dependency:#{dependency['name']}" if repository && !repository.to_s.empty?
+          vendored = chart_root.join("charts", dependency["name"])
+          archive_glob = chart_root.join("charts", "#{dependency['name']}-*.tgz").to_s
+          violations << "packaged-helm-dependency-not-inspectable:#{dependency['name']}" unless Dir.glob(archive_glob).empty?
+          violations << "unvendored-helm-dependency:#{dependency['name']}" unless vendored.directory?
+        end
+      end
+    end
+  end
+  files.each do |path, relative|
+    content = File.binread(path)
+    cursor = 0
+    while (start_index = content.index("{{", cursor))
+      end_index = content.index("}}", start_index + 2)
+      unless end_index
+        violations << "unterminated-helm-template-action:#{relative}"
+        break
+      end
+      action = content.byteslice(start_index + 2, end_index - start_index - 2)
+      violations << "live-cluster-lookup:#{relative}" if action.match?(/\blookup\b/m)
+      violations << "dynamic-template-eval:#{relative}" if action.match?(/\btpl\b/m)
+      cursor = end_index + 2
+    end
+  end
+else
+  kustomizations = yaml_documents.select do |relative, _|
+    ["kustomization.yaml", "kustomization.yml", "Kustomization"].include?(File.basename(relative))
+  end
+  violations << "missing-kustomization" if kustomizations.empty?
+  kustomizations.each do |relative, docs|
+    document = docs&.first
+    unless document.is_a?(Hash)
+      violations << "invalid-kustomization-root:#{relative}"
+      next
+    end
+    reject_unknown_keys(document, KUSTOMIZE_TOP_LEVEL_FIELDS, relative, violations)
+
+    api_version = document["apiVersion"]
+    kustomize_kind = document["kind"]
+    valid_identity =
+      (api_version.nil? && kustomize_kind.nil?) ||
+      (api_version == "kustomize.config.k8s.io/v1beta1" && [nil, "Kustomization"].include?(kustomize_kind)) ||
+      (api_version == "kustomize.config.k8s.io/v1alpha1" && kustomize_kind == "Component")
+    violations << "unsupported-kustomize-schema:#{relative}:#{api_version}:#{kustomize_kind}" unless valid_identity
+
+    if document.key?("metadata")
+      reject_unknown_keys(document["metadata"], %w[name namespace labels annotations], "#{relative}:metadata", violations)
+    end
+    if document.key?("openapi") && require_hash(document["openapi"], "#{relative}:openapi", violations)
+      document["openapi"].keys.each do |key|
+        violations << "unsupported-kustomize-field:#{relative}:openapi.#{key}" unless %w[path version].include?(key)
+      end
+      validate_local_reference(root, relative, document["openapi"]["path"], :file, "#{relative}:openapi.path", violations) if document["openapi"].key?("path")
+    end
+
+    %w[generators transformers validators].each do |field|
+      violations << "plugin-exec-field:#{relative}:#{field}" if populated?(document[field])
+    end
+    %w[helmGlobals helmCharts helmChartInflationGenerator].each do |field|
+      violations << "helm-inflator-exec-or-fetch-field:#{relative}:#{field}" if populated?(document[field])
+    end
+    violations << "secret-generator:#{relative}" if populated?(document["secretGenerator"])
+    violations << "unsupported-ambiguous-kustomize-field:#{relative}:patchesStrategicMerge" if populated?(document["patchesStrategicMerge"])
+
+    {
+      "resources" => :file_or_directory,
+      "bases" => :directory,
+      "components" => :directory,
+      "crds" => :file,
+      "configurations" => :file
+    }.each do |field, expected|
+      next unless document.key?(field)
+      next unless validate_string_array(document[field], "#{relative}:#{field}", violations)
+
+      document[field].each_with_index do |value, index|
+        validate_local_reference(root, relative, value, expected, "#{relative}:#{field}[#{index}]", violations) if value.is_a?(String)
+      end
+    end
+
+    %w[patches patchesJson6902].each do |field|
+      next unless document.key?(field)
+      next unless require_array(document[field], "#{relative}:#{field}", violations)
+
+      document[field].each_with_index do |patch, index|
+        context = "#{relative}:#{field}[#{index}]"
+        next unless reject_unknown_keys(patch, %w[path patch target options], context, violations)
+
+        validate_selector(patch["target"], "#{context}.target", violations)
+        reject_unknown_keys(patch["options"], %w[allowNameChange allowKindChange], "#{context}.options", violations) if patch.key?("options")
+        has_path = populated?(patch["path"])
+        has_inline = populated?(patch["patch"])
+        violations << "invalid-kustomize-patch-source:#{context}" unless has_path ^ has_inline
+        validate_local_reference(root, relative, patch["path"], :file, "#{context}.path", violations) if has_path
+      end
+    end
+
+    if document.key?("replacements") && require_array(document["replacements"], "#{relative}:replacements", violations)
+      document["replacements"].each_with_index do |replacement, index|
+        context = "#{relative}:replacements[#{index}]"
+        next unless reject_unknown_keys(replacement, %w[path source targets sourceValue], context, violations)
+
+        validate_local_reference(root, relative, replacement["path"], :file, "#{context}.path", violations) if populated?(replacement["path"])
+        if replacement.key?("source") && require_hash(replacement["source"], "#{context}.source", violations)
+          reject_unknown_keys(replacement["source"], %w[group version kind name namespace fieldPath options], "#{context}.source", violations)
+          validate_field_options(replacement["source"]["options"], "#{context}.source.options", violations)
+        end
+        if replacement.key?("targets") && require_array(replacement["targets"], "#{context}.targets", violations)
+          replacement["targets"].each_with_index do |target, target_index|
+            target_context = "#{context}.targets[#{target_index}]"
+            next unless reject_unknown_keys(target, %w[select reject fieldPaths options], target_context, violations)
+            validate_selector(target["select"], "#{target_context}.select", violations)
+            if target.key?("reject") && require_array(target["reject"], "#{target_context}.reject", violations)
+              target["reject"].each_with_index do |selector, selector_index|
+                validate_selector(selector, "#{target_context}.reject[#{selector_index}]", violations)
+              end
+            end
+            validate_field_options(target["options"], "#{target_context}.options", violations)
+          end
+        end
+      end
+    end
+
+    if document.key?("configMapGenerator") && require_array(document["configMapGenerator"], "#{relative}:configMapGenerator", violations)
+      document["configMapGenerator"].each_with_index do |generator, index|
+        validate_generator(root, relative, generator, "#{relative}:configMapGenerator[#{index}]", violations)
+      end
+    end
+    validate_generator_options(document["generatorOptions"], "#{relative}:generatorOptions", violations) if document.key?("generatorOptions")
+  end
+end
+
+violations = violations.uniq.sort
+if violations.any?
+  emit("RENDER_SOURCE_POLICY_BLOCK", violations.join("; "), json_output, kind: kind, canonical_root: root.to_s, source_bytes: total_bytes, file_count: files.length, violations: violations)
+  exit 1
+end
+
+emit(
+  "SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED",
+  "local source closure passed static checks; protected renderer/network/output bounds/receipt are not integrated",
+  json_output,
+  kind: kind,
+  canonical_root: root.to_s,
+  source_bytes: total_bytes,
+  file_count: files.length,
+  violations: []
+)

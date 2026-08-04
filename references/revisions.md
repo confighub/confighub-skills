@@ -1,6 +1,8 @@
 # Revisions
 
-Every Unit-data mutation produces a `Revision`. Revisions are the durable, immutable record of each change to a Unit, and the primary audit artifact in ConfigHub. Understanding what's in a Revision lets skills answer "what changed, why, by whom, when, and with what gates/approvals" from a single query surface.
+**Authority boundary:** revision reads and diffs are evidence. Any command that creates a new Revision, restores a head, approves a revision, or publishes its data is a governed proposal only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`). Native ConfigHub revision approval is policy evidence, not authorization for the companion to execute.
+
+Every Unit-data mutation produces a `Revision`. A Revision's **configuration snapshot** (`Data` plus `DataHash`) is immutable. The row as a whole is not: approvals, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
 
 Authoritative definition: `Revision` struct in the public SDK at `https://github.com/confighub/sdk` (`core/openapi/goclient-new/models.gen.go`).
 
@@ -47,33 +49,34 @@ The `Description` field is what makes revision history self-explaining later —
 
 `MutationSources` is what lets you answer "which function set this field?" — each entry is keyed by resource identity and path, and names the function + an index into the revision's function-invocation sequence. When you ran `set-container-resources-defaults` on `hello-app` in the skill-examples bootstrap, the resulting revision's `MutationSources` recorded that `resources.requests` was set by that function with a specific value.
 
-### Validation state (frozen at this revision)
+### Validation state (revision-scoped, but mutable)
 
 | Field | Meaning |
 |---|---|
 | `ApplyGates` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Publish is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
 | `ApplyWarnings` | Same shape but for Triggers with `Warn=true` — they surface concerns without blocking publish. |
 
-Gates and warnings are snapshotted per revision. If you fix the data in a later revision, the new revision's `ApplyGates` will reflect the new state; the old revision still shows what was blocked at the time.
+Gates and warnings are scoped to a Revision's data, but resolution can update them after the Revision is created. A later read shows current recorded gate state, not necessarily the state at an earlier approval or publish attempt. A later data fix normally produces a new Revision with its own state.
 
-### Governance state (frozen at this revision)
+### Governance state (accruing)
 
 | Field | Meaning |
 |---|---|
-| `ApprovedBy` | List of User UUIDs who approved this revision (via `cub unit approve` or the corresponding API). Used by `vet-approvedby` to gate publish on approver count. |
+| `ApprovedBy` | List of User UUIDs currently recorded as approving this revision. It can accrue after creation. In server v0.2.11, `cub unit approve` accepts only omitted `--revision` or `HeadRevisionNum`; both approve whichever head is current inside the execution transaction, without an expected RevisionID/DataHash precondition. |
 
 ### Lifecycle
 
 | Field | Meaning |
 |---|---|
-| `LiveAt` | Timestamp when this revision was published to its Target. Zero-time (`0001-01-01T00:00:00Z`) if the revision was never published. Combined with `LastAppliedRevisionNum` on the Unit, lets you reconstruct the publish history. |
+| `LiveAt` | Bridge-era runtime timestamp. Current v0.2.11 Space Release publication does **not** stamp `LiveAt`, so it cannot establish current OCI Release membership or publication time. Use the Release record, `Revision.Releases`, and the governed publication receipt. |
 
 ### Grouping
 
 | Field | Meaning |
 |---|---|
 | `ChangeSetID` | Optional UUID that groups multiple revisions across multiple Units into a single logical change set — e.g., "release v1.4.0 touched these 12 Units". Apply by `ChangeSet:<slug>` references this. |
-| `Tags` | `map[string]string` of TagID → label. Set via `cub unit tag <tag-slug> --unit <unit>`. Tagged revisions are first-class `--revision` / `--restore` targets. |
+| `Tags` | `map[string]string` of TagID → label. Tags can be added after Revision creation. Tagged revisions are first-class restore targets and may be used by Release publication. |
+| `Releases` | Set/map of ReleaseIDs that have bundled this Revision. Publication adds linkage after Revision creation. It is the server-side reconstruction source for historical membership while the Revision survives; a durable publication receipt must preserve the same UnitID/RevisionID/RevisionNum/DataHash manifest because later deletion can make reconstruction incomplete. |
 
 ## What appears in `cub revision list`
 

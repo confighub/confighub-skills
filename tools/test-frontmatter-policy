@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+parser="$root/tools/parse-frontmatter"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+write_fixture() {
+  local name=$1
+  shift
+  printf '%s\n' "$@" >"$tmp_dir/$name.md"
+}
+
+write_fixture valid '---' 'name: example' 'description: "quoted: value"' 'phase: act' 'allowed-tools: []' 'read-capability-subset: example' '---' '# body'
+"$parser" "$tmp_dir/valid.md" | jq -e '.name == "example" and .["allowed-tools"] == [] and .description == "quoted: value"' >/dev/null
+
+write_fixture duplicate '---' 'name: example' 'allowed-tools: []' 'allowed-tools: [Bash]' '---' '# body'
+write_fixture quoted_array '---' 'name: example' 'allowed-tools: "[]"' '---' '# body'
+write_fixture multiline_tool '---' 'name: example' 'allowed-tools:' '  - Bash(cub *)' '---' '# body'
+write_fixture alias '---' 'name: &name example' 'description: *name' 'allowed-tools: []' '---' '# body'
+write_fixture tagged '---' 'name: !ruby/object:OpenStruct {}' 'allowed-tools: []' '---' '# body'
+write_fixture no_close '---' 'name: example' 'allowed-tools: []' '# body'
+write_fixture two_documents '---' 'name: example' '---' 'name: second' '---' '# body'
+
+for name in duplicate alias tagged no_close; do
+  if "$parser" "$tmp_dir/$name.md" >/dev/null 2>&1; then
+    printf 'frontmatter policy test: FAIL accepted %s\n' "$name" >&2
+    exit 1
+  fi
+done
+
+# The parser returns the real YAML type; policy validation must reject these
+# representations instead of trusting a matching line of text.
+test "$("$parser" "$tmp_dir/quoted_array.md" | jq -r '.["allowed-tools"] | type')" = string
+test "$("$parser" "$tmp_dir/multiline_tool.md" | jq -r '.["allowed-tools"] | type')" = array
+if "$parser" "$tmp_dir/quoted_array.md" | jq -e '.["allowed-tools"] == []' >/dev/null; then
+  printf '%s\n' 'frontmatter policy test: FAIL quoted string masqueraded as no-tools array' >&2
+  exit 1
+fi
+if "$parser" "$tmp_dir/multiline_tool.md" | jq -e '.["allowed-tools"] == []' >/dev/null; then
+  printf '%s\n' 'frontmatter policy test: FAIL nonempty multiline tool list was accepted' >&2
+  exit 1
+fi
+if "$parser" "$tmp_dir/two_documents.md" | jq -e 'has("allowed-tools")' >/dev/null 2>&1; then
+  printf '%s\n' 'frontmatter policy test: FAIL delimiter confusion exposed a policy field' >&2
+  exit 1
+fi
+
+printf '%s\n' 'frontmatter parser adversarial tests: PASS (full YAML, duplicate/alias/tag/delimiter/type cases)'

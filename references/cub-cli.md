@@ -32,7 +32,7 @@ Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `wo
 
 ## Where-clauses and filters
 
-Quick sketch here; the full filter vocabulary, named-Filter entities, and common operational recipes (`unpublished-changes`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md` — reach for that when building queries.
+Quick sketch here; the full filter vocabulary, named-Filter entities, and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md`. Release/controller/runtime proof is not a Unit Filter.
 
 Three distinct flags. Get them mixed up and cub either rejects the command or silently returns the wrong rows.
 
@@ -111,7 +111,7 @@ Selects destination Spaces when the filter is being bulk-created. Rarely needed;
 
 ### Attribute vocabulary for `--where` / `--where-field`
 
-Entity metadata attributes are entity-specific. Common ones on Units: `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`, `UnappliedChanges`, `ApprovedBy`, `ApplyGates`. Common ones on Triggers: `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, `Disabled`. Confirm with the entity's `--help` and `cub <entity> get -o json` when composing a new query.
+Entity metadata attributes are entity-specific. Common current Unit fields include `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`, `ApprovedBy`, and `ApplyGates`. `LiveRevisionNum` is retained legacy bridge-era state, not current runtime proof; `UnappliedChanges` is not a field. Common Trigger fields include `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, and `Disabled`. Confirm with help and structured reads before composing a new query.
 
 **`ResourceType` is not a `--where` / `--where-field` attribute.** It's a resource-level pseudo-attribute under `--where-data` as `ConfigHub.ResourceType`, or the dedicated `--resource-type` flag on `cub filter create` Unit filters:
 
@@ -138,24 +138,25 @@ Filters are also first-class entities (`cub filter create …`) that can be refe
 
 **`--filter` takes at most one argument per command.** Stacking `--filter a --filter b` is not a conjunction — the second one either errors or wins, depending on the command. To combine a named Filter with additional predicates, use `--filter <slug> --where "<extra-expr>"`. If you need two named Filters ANDed together, create a third Filter whose `--where-field` expresses the intersection, or rephrase one as an inline `--where` clause. Also remember that when `--space <specific-space>` is already set, a "this app's Units" filter is often redundant — the Space itself scopes the selection (per `skills/confighub-core`).
 
-## A Unit's four "what's in it" views
+## A Unit's desired view and versioned-legacy bridge views
 
-Four related but distinct blobs a Unit can expose. Confusing them leads to wrong diffs and wrong decisions during drift / verification / rollback.
+ConfigHub v0.2.11 has sunset bridge/per-Unit delivery. `Data` remains current desired configuration. The other three commands are preserved for historical diagnosis only and must not be used as current Release/controller/runtime proof.
 
 | View            | Command                                   | What it is                                                                                                                                                                                                                                         | When to read it                                                                                                                                                                                                        |
 | --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data**        | `cub unit data <slug> --space <s>`        | The current head revision's declared configuration — the YAML ConfigHub would bundle in a Release.                                                                                                                                                               | Authoring, reviewing a pending change, comparing to LiveData to assess drift.                                                                                                                                          |
-| **LiveData**    | `cub unit livedata <slug> --space <s>`    | The cluster's current resources, cleaned up the same way the Worker cleans during refresh / import (status stripped, controller-managed fields elided per `ignoredFieldManagers`). **This is what a `cub unit refresh` would write back to Data.** | Comparing to Data for drift: same shape as Data, apples-to-apples.                                                                                                                                                     |
-| **LiveState**   | `cub unit livestate <slug> --space <s>`   | The cluster's resources with nothing elided — full `.status`, `.metadata.managedFields`, controller-written fields, everything.                                                                                                                    | Debugging the workload itself (is a controller reporting an error? is status wedged? what managers own which fields?). Not for drift diffs against Data — too noisy.                                                   |
-| **BridgeState** | `cub unit bridgestate <slug> --space <s>` | A bridge-implementation blob whose contents vary by bridge. | Bridge-specific diagnosis. Not a health check for Worker or Target connectivity. |
+| **Data**        | `cub unit data <slug> --space <s>`        | Current head Revision's declared configuration. | Authoring and desired-state review. |
+| **LiveData**    | `cub unit livedata <slug> --space <s>`    | `VERSIONED_LEGACY`: retained/elided data from the former bridge path, when present. | Historical bridge diagnosis only. |
+| **LiveState**   | `cub unit livestate <slug> --space <s>`   | `VERSIONED_LEGACY`: retained unelided former bridge state, when present. | Historical bridge diagnosis only. |
+| **BridgeState** | `cub unit bridgestate <slug> --space <s>` | `VERSIONED_LEGACY`: bridge-implementation blob, when present. | Historical bridge diagnosis only. |
 
-> **OCI / ConfigHub delivery caveat.** The OCI and ConfigHub bridges are *server workers* that perform no remote read — on refresh they echo the published `Data` back as `LiveData` / `LiveState`. So for an OCI Target these "live" views reflect what ConfigHub published, **not** the running cluster. The actual cluster state is converged and observed via ArgoCD / Flux / `kubectl` (read-only), outside ConfigHub. The cluster-read descriptions in the rows above apply only to external cluster-reading bridges, which aren't part of the OCI/ConfigHub delivery model.
+> **Current OCI Release rule.** Legacy LiveData/LiveState/BridgeState are not the running cluster and do not prove a current Space Release. Bind immutable Release/ManifestDigest, controller source, and runtime `confighub.com/origin` plus health through `verify-apply`. Bridge/per-Unit and direct ConfigHub-provider delivery are `VERSIONED_LEGACY/BLOCK`.
 
 Rules of thumb:
 
-- **Drift diff = Data vs LiveData.** Stripping status / controller fields on both sides avoids false positives.
-- **Cluster debug = LiveState.** When you need to see what Kubernetes actually reports, including `.status` and managedFields.
-- **Ownership check = BridgeState.** Mostly when answering "did ConfigHub's bridge create / register / track this?"
+- **Desired config = Data.** Compare heads/revisions inside ConfigHub.
+- **Published config = exact Release plus selected RevisionIDs/DataHashes.** `LastAppliedRevisionNum` records the Revision captured by publication, not controller convergence.
+- **Cluster debug = controller reads plus kubectl.** Bind those reads to ManifestDigest and `confighub.com/origin`.
+- **Legacy bridge history = LiveData/LiveState/BridgeState.** Label it historical; never upgrade it into current proof.
 
 ## Output flags
 
@@ -165,7 +166,7 @@ Rules of thumb:
 - `-o name` — slugs only (one per line). Space-resident entities print as `<space-slug>/<slug>`.
 - `-o jq=<expr>` / `-o yq=<expr>` — post-process inside cub. Prefer this over piping to external `jq`/`yq` — one fewer process, one fewer shell-quoting hazard.
 - `-o custom-columns=<spec>` — column projection on list commands (same as `--columns`).
-- `-o mutations` — diff of the configuration mutations a mutating command just produced. Works on `cub unit update`, `cub unit refresh`, `cub function do|set`, `cub run`, with or without `--dry-run`.
+- `-o mutations` — diff of the configuration mutations a mutating command just produced. Works on `cub unit update`, `cub function do|set`, `cub run`, with or without `--dry-run`.
 - `-o wide` — all default columns on list commands.
 
 Other:
@@ -182,7 +183,7 @@ Deprecated but still functional (they print a migration hint when used):
 
 ### `cub get` / `cub list` return an extended envelope — select with `-o jq=<expr>`
 
-`cub <entity> get` and `cub <entity> list` wrap the requested entity alongside related entities in one JSON envelope. `cub unit get` returns an object with top-level keys like `Unit`, `Space`, `Target`, `BridgeWorker`, `UnitStatus`, `LatestUnitEvent`. `cub space get` has `Space`, `TriggerFilter`, `Triggers`, `TargetCountByToolchainType`, `TotalUnitCount`, etc. Lists wrap each row in the same shape.
+`cub <entity> get` and `cub <entity> list` wrap the requested entity alongside related entities in one JSON envelope. `cub unit get` may still expose top-level legacy siblings such as `BridgeWorker`, `UnitStatus`, and `LatestUnitEvent`; their presence does not restore bridge execution or prove current runtime. `cub space get` includes `Space`, `TriggerFilter`, `Triggers`, target counts, and Unit counts. Lists wrap each row in the same shape.
 
 Always **`-o json`** (or `-o jq=<expr>`) first when you don't already know the field layout — the default human output and the `-o json` structure diverge in naming (the display label "Where Trigger" does not correspond to a `WhereTrigger` JSON key, for instance).
 
@@ -259,51 +260,44 @@ The `--show` flag applies only to function commands and selects which sub-payloa
 
 ## Showing mutation diffs
 
-Any command that mutates configuration data (`cub unit update` / `cub unit update --patch`, `cub unit refresh`, `cub function do|set|exec`, `cub run`) accepts `-o mutations`, which prints a diff of the configuration change the command just produced. Include it on mutating calls by default — it's the cheapest way to verify the mutation did what you intended and gives the user something concrete to see in session output. Works with or without `--dry-run`. The diff is the same one surfaced in the Unit's revision history afterward.
+Commands that mutate configuration data (`cub unit update` / `cub unit update --patch`, `cub function do|set|exec`, `cub run`) accept `-o mutations`, which makes an externally authorized execution return its configuration diff. Include it in governed proposals by default. `--dry-run -o mutations` is a read-only preview where supported; a non-dry run remains blocked until the broker exists, and only a fresh revision read proves what persisted.
 
 ## Review links in the GUI
 
-Prefer `cub unit get --web`, `cub revision list --web`, and similar `--web` flags over hand-built GUI URLs. Those flags open the authoritative page — the canonical place for a user to review state, revisions, approvals, and gates.
+Use the current navigation commands rather than constructing URLs: `cub space open <space> --print-url`, `cub unit open <unit> --space <space> --print-url`, and `cub component open <component> --variant <variant> --print-url`. A navigation URL is not proof until the organization and object identity are verified.
 
 ## Read-only diagnosis tools
 
-- `kubectl get`, `kubectl describe`, `kubectl logs` — permitted for diagnosis.
+- `kubectl get` and `kubectl describe` — permitted metadata reads through host `ASK`. Raw `kubectl logs` is not bounded evidence merely because it has `--tail`/`--since`: it still lacks an output-byte cap and secret redaction. Worker-log diagnosis returns `WORKER_LOG_EVIDENCE_BLOCK` until the protected identity-bound wrapper exists; never follow or request all lines.
 - `argocd app get`, `argocd app diff` — permitted for delivery verification.
 - `flux get`, `flux stats` — permitted for delivery verification.
 
-Do **not** use any of these to mutate. Mutations always go through `cub`.
+Do **not** use any of these to mutate. This companion prepares `cub` mutation proposals, but execution requires the external approval broker; none is integrated in the reviewed profile.
 
-## Permission sets for `allowed-tools` frontmatter
+## Permission boundary for `allowed-tools` frontmatter
 
-Skills split `cub` permissions by read vs write. Read-only skills get only the **Read set**; mutating skills get Read + Write. Delete verbs are deliberately omitted — they belong to a separate opt-in `cleanup` skill with explicit confirmation.
+Version 0.4.0 grants **zero raw Bash autoallow**. Every skill declares `allowed-tools: []`. Read-only evidence commands retain their UX through the host's ordinary permission prompt (`ASK`); they are proposal knowledge, not silently trusted execution. Do not reintroduce Bash patterns until a wrapper receives a skill/capability identity and structured final argv or typed fields.
 
-### Read set (read-only cub + help on every subcommand)
+### Per-skill read-capability subsets
 
-```
-Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker logs *) Bash(cub worker status *)
-```
+The machine-readable subsets are in `compatibility/read-capability-subsets.v1.json`. Each skill names its subset in frontmatter, but no subset currently grants a tool. The settings example has an empty allow array and `hooks/hooks.json` has no Bash `PreToolUse` hook.
 
-Why the wildcards are safe:
+Why enumeration matters:
 
-- `Bash(cub * --help)` matches help on any subcommand — help is never mutating.
-- `Bash(cub * get)` / `Bash(cub * get *)` cover every entity's read verb (`cub unit get`, `cub space get`, `cub context get`, `cub trigger get`, `cub filter get`, `cub target get`, `cub worker get`, `cub revision get`, `cub link get`, …). `get` is universally read-only across cub entities.
-- `Bash(cub * list)` / `Bash(cub * list *)` cover every entity's list verb. `list` is universally read-only.
-- `Bash(cub * list-* *)` picks up multi-word list variants like `cub worker list-function`, `cub worker list-status`.
-- The five `cub unit <verb>` entries (`diff`, `tree`, `bridgestate`, `livedata`, `livestate`) and the two `cub worker <verb>` entries (`logs`, `status`) are read-only verbs that don't fit the `get`/`list` shape.
-- `cub function explain` is read-only but doesn't match the wildcards above (it's not `list` or `get`), so it's listed explicitly.
-- `cub function vet|get` are read-only but haven't yet been added to all of the skill permissions lists.
-
-### Write set (add these to the Read set for mutating skills)
-
-```
-Bash(cub space create *) Bash(cub space update *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub trigger create *) Bash(cub trigger update *) Bash(cub filter create *) Bash(cub filter update *) Bash(cub target create *) Bash(cub target update *) Bash(cub worker create *) Bash(cub worker update *) Bash(cub link create *) Bash(cub link update *) Bash(cub function *) Bash(cub run *)
-```
+- Raw shell matching cannot see final argv after shell expansion. Prefix/regex patterns are not an authority boundary, even for apparently safe `get`, `list`, or `--help` commands.
+- Credentials/secrets, unbounded file reads/writes, plugins/exec, network-source/refresh flags, controller hard refresh, unknown flags, arbitrary `function get|vet`, and every mutation are excluded from any future autoallow.
+- A raw read may still be proposed when it is in the skill's subset, but the host prompts. Data-bearing reads must stop if they could expose a Secret; a future wrapper must inspect typed resource/object identity before execution.
+- GUI navigation remains `--print-url` plus object/org verification; it is also host-ASK.
 
 ### Known ambiguity
 
-`cub function do` and `cub run` can invoke either getter/validator functions (read) or mutating functions (write). The function name appears after `--`, which shell-glob patterns past the double-dash can't reliably match. Both verbs live in the Write set only. Read-only skills must do queries with `cub function get` or `cub function vet`, or `cub unit list --where-data`, `cub unit get`, `cub revision list`, etc. `cub function set|do --dry-run` is also read-only, but has the difficulty previously mentioned with glob patterns.
+`cub function do` and `cub run` can invoke mutating functions. Even `cub function get|vet` is not safe as an arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output and validators may have side-effect flags. Skills may name only reviewed functions relevant to their job, execution remains host-ASK, and an unknown function/flag is `BLOCK` pending the typed registry/wrapper.
 
 ### Do not grant
 
 - `Bash(cub * delete *)` — destructive; put it in a dedicated skill with explicit flow control.
 - `Bash(cub *)` — too broad. Skills should declare exactly what they need.
+- Any create/update/set-target/approve/promote/publish/install/upgrade/tag/cancel pattern.
+- `kubectl exec|apply|create|rollout`, `argocd app sync`, `flux reconcile`, broad `yq`, shell redirection, pipelines, command substitution, or compound shell commands.
+
+The old `hooks/auto-allow.sh` regex/prefix boundary was removed. It permitted credential, secret, file, plugin, refresh, and shell-expansion cases and falsely denied legitimate quoted predicates. The validator now proves that no skill, hook, or settings file can emit silent Bash allow; semantic execution remains blocked pending a final-argv wrapper rather than patched with more regex.

@@ -1,104 +1,193 @@
 ---
 name: release-publish
-description: 'Manage immutable OCI Release bundles for a Space''s ReleaseTarget — cub release publish <space-slug> bundles the Units in that Space assigned to the Space''s ReleaseTarget (its ReleaseTargetID, set with cub space create/update --release-target), optionally pinned to a tagged revision via --revision, into a point-in-time OCI artifact; cub release withdraw removes one by its global ID. Phrases: publish a release of this space, cut a release, pin a release to tag v1.2.0, bundle the units into an OCI artifact, list / get a release, withdraw release <id>, unpublish / tear down the OCI bundle.'
+description: 'Prepare advisory, inspect, withdraw, or delete whole-Space OCI Release subjects. Use for apply/deploy/publish, pending/ChangeSet changes, preview, tagged selection, get/list, cancel legacy, withdraw, or delete. Discloses EffectiveReleaseSet and provider-CAS gaps; stops before writes. Not data edits/rollback.'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub unit diff *) Bash(cub release publish *) Bash(cub release withdraw *)
+allowed-tools: []
+read-capability-subset: release-publish
 ---
 
 # release-publish
 
-Create and remove **Releases**. A Release bundles the Units in a Space that are assigned to that Space's **ReleaseTarget** (its `ReleaseTargetID`), captured at a point in time, and serves that snapshot as an **immutable OCI bundle**. `cub release publish <space-slug>` creates one; `cub release withdraw <release-id>` removes one. A Release's bundled content is read-only once published — to change what it serves, publish a new Release.
+**Authority boundary:** this companion is knowledge/read-only. It may inspect Releases and produce a fully enumerated but advisory `ReleaseProposal` or `WithdrawalProposal`; it must not publish, withdraw, approve, tag, retarget, or perform any other mutation. The external mutation broker is `NOT_INTEGRATED`, so otherwise valid writes end in `ASK` for exact scope and `BLOCK` for execution.
 
-Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` to verify the token; if it fails, ask the user to run `cub auth login`). Confirm verbs and flags with `cub release <verb> --help` before composing — never invent flags.
+This skill preserves ordinary-language apply/deploy jobs while using the only current delivery contract: **Component → Variant Space → immutable OCI Release → Argo CD/Flux pull → runtime**. The retired `cub-apply` trigger families route here; they are retained explicitly in `compatibility/no-loss-inventory.v1.json`.
 
-## When to use
+## Current Release contract
 
-- "Publish a release", "cut a release of this Space", "bundle the Units assigned to this Space's ReleaseTarget as an immutable artifact".
-- "Pin the release to tag v1.2.0" / "release the revisions tagged X" — the `--revision` tagged-snapshot flow.
-- "List releases", "get / show release `<id>`", "which release has digest …".
-- "Withdraw release `<id>`", "unpublish / tear down that OCI bundle".
+`cub release publish <space-slug>`:
 
-## Do not load for
+- reads `Space.ReleaseTargetID` and requires that Target to use ProviderType `OCI`;
+- bundles the **EffectiveReleaseSet**: every Unit in that Space whose `Unit.TargetID == Space.ReleaseTargetID`;
+- captures each effective Unit at head unless `--revision <tag-slug>` is supplied, in which case the server selects the highest Revision currently carrying that mutable TagID;
+- checks ApplyGates; and
+- creates one immutable Release with a ConfigHub `ReleaseID`, bundle `Digest`, OCI `ManifestDigest`, `UnitCount`, and `Published=true`.
 
-- Promoting a release env-to-env, fleet-wide, or standing up variant Spaces — that is the `cub variant` / ChangeSet flow in `promote-release`. (Different sense of "release.")
-- Rolling back by moving a Unit to a new Revision based on the rollback Revision — `rollback-revision`.
+It has no Unit, Filter, ChangeSet, cross-Space selector, or dry-run flag. A ChangeSet groups/reviews/restores revisions but does not narrow publication. Current v0.2.11 delivery has no bridge/per-Unit deploy path; that knowledge is `VERSIONED_LEGACY/BLOCK` only.
 
-## What a Release is (and is not)
+## Preserve the job without hiding a scope change
 
-- It bundles **only the Units assigned to the Space's ReleaseTarget**. That ReleaseTarget may live in a **different Space** than the bundled Units.
-- It is **immutable and point-in-time**: it freezes a chosen revision of each bundled Unit into one artifact you reference later by `ReleaseID` / `Digest`, independent of any later edits to those Units.
-- By default each bundled Unit is captured at its **head Revision**. With `--revision <tag>`, each Unit is pinned to the highest-numbered Revision carrying that Tag, falling back to head for any Unit with no matching tagged Revision.
-- It carries no `--change-desc`: a Release is not versioned Unit data, so the publish/withdraw verbs take no change description (like Space/Target/Filter creates). Capture intent in the Tag you publish from and in what you tell the user.
+| Prior intent | Current disposition |
+| --- | --- |
+| apply one Unit / Unit list / Filter | compare the requested set with the whole EffectiveReleaseSet; `ASK` for the newly disclosed scope or propose a dedicated Variant Space |
+| apply every pending Unit | identify pending heads, then disclose every effective Unit captured, including unchanged heads |
+| apply a ChangeSet | verify its closed revisions, then propose the complete destination Space Release |
+| dry-run apply | emit the read-only `ReleaseProposal`; never call it a server dry-run |
+| apply a specific revision | use a complete revision Tag only after every effective Unit resolves to an exact tagged RevisionID/DataHash |
+| cancel an in-flight Unit apply | `VERSIONED_LEGACY`; immutable Release publication has no equivalent cancellation job |
+| direct ConfigHub/bridge delivery | `VERSIONED_LEGACY/BLOCK`; the reviewed current Release path accepts OCI only |
 
-## Preflight gates
+Never convert a narrow approval into a broader publish. Say: “Your request selected **N** Units; the supported Release command would capture **M** Units in Space **S**. That is a different approval subject.” If the user accepts, rebuild from fresh reads. Acceptance still does not authorize execution.
 
-Before publishing, confirm:
+## Build a fully enumerated advisory ReleaseProposal (read-only)
 
-1. `cub auth status` succeeds.
-2. The bundled Space exists and you can read its Units: `cub unit list --space <space-slug>`.
-3. The bundled Space has a **ReleaseTarget** set (its `ReleaseTargetID`) — `publish` resolves the consuming Target from it server-side, so with none set there is nothing to publish against. `cub space get <space-slug>` shows a **Release URL** row when the ReleaseTarget is an OCI provider; `cub space get <space-slug> -o json` exposes `ReleaseTargetID` directly. If unset, set it with `cub space update <space-slug> --release-target <target-space>/<target-slug>` (that's Space config, outside this skill) before publishing.
-4. That ReleaseTarget has Units assigned to it in the bundled Space: `cub unit list --space <space-slug> --where "TargetID = '<release-target-id>'"` (or the looser `TargetID IS NOT NULL`) confirms there are Units to bundle. **Zero assigned Units → an empty/meaningless Release; stop** and route Target binding to `target-bind`.
-5. If using `--revision <tag>`: the Tag slug resolves **in the bundled Units' Space** (`<space-slug>`, not the Target's Space). Confirm the Tag exists (`cub tag get <tag> --space <space-slug>`) and that the Units you care about actually carry a Revision with it (`cub revision list <unit-slug> --space <space-slug> --tag <tag>`); any Unit with no matching tagged Revision silently falls back to head.
-6. Source readiness is the caller's call — pinning to a tag captures exactly that tagged state; publishing at head captures whatever head is **now**, including unapplied edits. If head has drift you don't want frozen, tag first (see `promote-release`) and publish `--revision`.
-
-If any gate fails, stop and tell the user what's missing.
-
-## Tool boundary
-
-- Mutations: `cub release publish` (create a bundle) and `cub release withdraw` (remove one) — the only two write verbs this skill owns.
-- Read-only: `cub release get/list`, `cub space get` (to confirm the Space's ReleaseTarget), `cub target get`, `cub unit list`, `cub revision list`, `cub tag get`, `cub unit diff` for preflight and verification.
-- Not allowed here: `cub variant *` / ChangeSet promotion (→ `promote-release`), setting the Space's ReleaseTarget (`cub space create/update --release-target` — Space config), any `cub * delete`, mutating `kubectl`/`argocd`/`flux`. Tagging revisions to publish from is done in `promote-release`, not here.
-
-## Publish
+### 1. Bind identity and profile
 
 ```bash
-# Bundle each assigned Unit at its head Revision.
-cub release publish <space-slug>
-
-# Bundle each assigned Unit at the Revision tagged "v1.2.0" (tag resolved in <space-slug>).
-cub release publish --revision v1.2.0 <space-slug>
+cub auth status
+cub release publish --help
+cub space get <variant-space> -o json
 ```
 
-- **Only positional arg** `<space-slug>` — the Space whose assigned Units are bundled; this is also the Release's Space (a Space ID is also accepted). The consuming Target is **not** passed here: `publish` resolves it from the Space's `ReleaseTargetID` server-side, so the Space must already have a ReleaseTarget set. To change which Target a Space releases to, set `cub space update <space-slug> --release-target …` before publishing — you cannot override it on the publish command.
-- `--revision <tag>` — optional; pins each bundled Unit to the highest-numbered Revision carrying that Tag (Tag resolved in `<space-slug>`), falling back to head for any Unit without a matching tagged Revision.
-- On success the output shows the `ID` (the ReleaseID), `Digest`, `Manifest Digest`, `Organization ID`, `Created At`, and `Space` (plus a `Tag` row when you published with `--revision`). Record the `ReleaseID` and `Digest` — those are how the Release is referenced and withdrawn later. The consuming Target is **not** echoed on the Release; it lives on the Space as `ReleaseTargetID`.
+Record context/organization, `SpaceID`, slug, Component/Variant labels, `ReleaseTargetID`, and the exact profile in `compatibility/current-profile.v1.json`. A different client/server/add-on tuple is `WATCH` or `BLOCK`, never assumed compatible.
 
-## Withdraw
-
-`cub release withdraw` is **destroy-class**: it removes the immutable bundle, and is gated the same way tearing down live resources is. Treat it like a teardown, not an undo.
+### 2. Resolve the Release Target
 
 ```bash
-# Located by global Release ID — no --space needed.
-cub release withdraw 61f26b06-3c34-4363-8b9d-7d0a7c2b5f1c
+cub target get <release-target-id> --space <target-space> -o json
 ```
 
-- The Release is found by its **org-unique ID regardless of Space**, so `--space` is not required (it lives in its bundled Units' Space, which need not be your default). Confirm what you're about to remove first: `cub release get --space <space> <release-id>` (or `cub release list --space '*' --where "ReleaseID = '<id>'"`).
-- **DestroyGate block:** if any Unit in the bundle has an outstanding **Destroy Gate**, withdrawal is blocked until the gate clears — that gate exists precisely to stop a teardown of live resources. Do **not** clear a prod Destroy Gate to force a withdraw without the user's explicit say-so; surface the gate and stop (`confighub-core` covers gate semantics).
+Bind TargetID, owning Space, slug, ProviderType, and worker identity. ProviderType must be `OCI`. Missing/ambiguous/non-OCI is `BLOCK`.
+
+### 3. Compute the EffectiveReleaseSet
+
+```bash
+cub unit list --space <variant-space> \
+  --select "TargetID,HeadRevisionNum,ApplyGates,ToolchainType,DestroyGates" -o json
+```
+
+Select only Units whose `TargetID` exactly equals `Space.ReleaseTargetID`. Record excluded Units too. For every effective Unit at head:
+
+```bash
+cub revision get --space <variant-space> -o json <unit-slug> <head-revision-num>
+```
+
+Bind `UnitID`, slug, TargetID, head/selected RevisionNum, `RevisionID`, `DataHash`, ToolchainType, ApplyGates, and DestroyGates. A non-empty ApplyGate is `BLOCK` until satisfied through a separately governed policy/approval path.
+
+### 4. Optional tagged Release
+
+```bash
+cub tag get --space <variant-space> <tag-slug> -o json
+cub revision list --space <variant-space> --tag <tag-slug> -o json <unit-slug>
+```
+
+For each effective Unit choose the highest matching Revision, then read and bind the full expected `TagID → UnitID/RevisionID/RevisionNum/DataHash` mapping. A Tag is mutable metadata on Revision rows: it can be removed from one Revision and added to another. Publication resolves the highest matching Revision **at execution**, so even a complete pre-read is not an immutable content pin. Installed v0.2.11 client help says a missing tag falls back to head; reviewed server source errors. Until exact installed-server behavior is live-tested, require **complete tag coverage**. Any missing/ambiguous tag is `BLOCK`, and any inability to atomically compare the expected tag mapping is `RELEASE_TAG_MAPPING_CAS_BLOCK`.
+
+### 5. Emit the approval subject
+
+The advisory proposal contains:
+
+- context/organization and exact compatibility profile;
+- SpaceID/slug/Component/Variant;
+- ReleaseTargetID, Target identity, ProviderType, and worker identity;
+- ordered EffectiveReleaseSet with every UnitID/slug/TargetID/head/selected RevisionNum/RevisionID/DataHash/toolchain/gate;
+- excluded Units and the user's originally requested subset;
+- optional TagID/slug, complete-coverage proof, and expected per-Unit TagID-to-RevisionID/RevisionNum/DataHash mapping;
+- when no `--revision` is proposed, the material side effect that the server creates `release-<ReleaseNum>` and adds its TagID to every bundled Revision;
+- exact proposed command, controller/runtime proof plan, and proposal digest.
+
+Any change to identity, target, membership, head/revision/hash, TagID mapping, gate, profile, command, auto-tag side effect, or proof plan invalidates review and requires a new proposal.
+
+### 6. Name the execution-CAS gap
+
+A fresh pre-read does not bind the eventual server operation. `cub release publish <space>` re-resolves `Space.ReleaseTargetID`, matching Unit membership, heads or the current TagID-to-RevisionID/DataHash mapping, and gates during publication; the API accepts no expected Space version, TargetID, expected tag mapping, ordered UnitID/RevisionID/DataHash manifest, or proposal digest. `--revision <tag>` is therefore a mutable selector, not a content pin. An external approval broker by itself cannot repair this provider-atomic gap.
+
+Therefore the ReleaseProposal is advisory, not an executable authoritative subject. Classify current execution `RELEASE_EXECUTION_CAS_BLOCK`. A future path must either add server-side expected-target/expected-manifest preconditions or execute a digest-pinned catalog artifact that the provider verifies atomically. Until then, even a human-approved proposal may have changed effect by execution time.
+
+## Native head approval is separate—and not exact
+
+Server v0.2.11 rejects numeric, Tag, ChangeSet, RevisionID, `LiveRevisionNum`, and `LastAppliedRevisionNum` approval selectors even though CLI help advertises them. Only omitted `--revision` and `--revision HeadRevisionNum` are accepted; both approve whichever head is current inside the execution transaction. There is no expected RevisionID/DataHash CAS. Native approval may satisfy `vet-approvedby`, but a pre-read cannot prove that the reviewed head was the head approved. Return `APPROVAL_HEAD_RACE_BLOCK` for an authoritative exact-revision claim. Native approval is also not authorization for this companion to approve or publish.
+
+## Publication command shape (never execute here)
+
+```bash
+cub release publish <variant-space>
+
+cub release publish --revision <tag-slug> <variant-space>
+```
+
+Neither form removes the execution race. The untagged form re-resolves heads and also creates a `release-<ReleaseNum>` Tag attached to every bundled Revision. The tagged form re-resolves a mutable Tag mapping and chooses the highest Revision currently carrying the Tag. Bind the applicable side effects and expected mapping, then return `BLOCK` because neither provider CAS nor an external broker is integrated. Do not turn chat confirmation, a local file/flag, or native Unit approval into permission.
+
+## Read existing Releases
+
+Prefer immutable selectors:
+
+```bash
+cub release get --space <variant-space> <release-id>
+cub release get --space <variant-space> --oci-reference sha256:<manifest-digest>
+cub release get --space <variant-space> --bundle-digest sha256:<bundle-digest>
+cub release list --space '*' --where "Digest = 'sha256:<bundle-digest>'" -o json
+```
+
+`--oci-reference latest` is weaker discovery only. Keep `Digest` (bundle) and `ManifestDigest` (OCI manifest) distinct. The public Release resource has no `TargetID`, and `cub release get/list` do not expose the server's stored OCI `Manifest`. The server-generated manifest committed by `ManifestDigest` does contain `annotations["com.confighub.target.id"]`, but proving the historical Target therefore requires a trusted publication receipt that captures that manifest/annotation or a digest-addressed registry read through a reviewed catalog action. `Space.ReleaseTargetID` shows only the Space's **current** binding and must not be misreported as proof of the Target used by an older Release. Without the manifest attestation, return `HISTORICAL_RELEASE_TARGET_UNPROVEN`.
+
+After separately operated publication, immediately capture a governed receipt containing the actual ReleaseID/Digest/ManifestDigest, the digest-matching OCI manifest and its `com.confighub.target.id` annotation, and exact UnitID/RevisionID/RevisionNum/DataHash membership recovered from `Revision.Releases`. A pre-publish Target read is not a substitute for the post-publish manifest target because publish lacks expected-target CAS. Route that receipt to `verify-apply`. A successful publish is not controller or runtime convergence, and Release `UnitCount` is not a manifest.
+
+## WithdrawalProposal (destroy-class, never execute here)
+
+Withdrawal takes an immutable-content Release out of service but retains its record with `Published=false`; deletion permanently removes the Release row and stored bundle. Locate and bind the exact global ReleaseID first, including SpaceID, Digest, ManifestDigest, `Published`, UnitCount, the attested historical Target, the historical member manifest, and current DestroyGates:
+
+```bash
+cub release list --space '*' --where "ReleaseID = '<release-id>'" -o json
+cub release get --space <actual-space> <release-id> -o json
+cub revision list --space <actual-space> \
+  --where "Releases ? '<release-id>'" \
+  --select "RevisionID,RevisionNum,DataHash,Releases" -o json
+```
+
+`Releases` is a UUID-keyed map; the `?` predicate tests exact key membership. Reconstruct the original members by selecting only Revisions whose `Releases` map contains the ReleaseID. Compare their exact UnitID/RevisionID/RevisionNum/DataHash set with the governed publication receipt. A same `UnitCount` is insufficient: a retargeted member can be replaced by another Unit without changing the count. Missing/deleted Revision rows or a missing receipt are an explicit historical-manifest proof gap.
+
+Before emitting any withdrawal proposal, verify the destructive verb and flags from the installed client in the same session:
+
+```bash
+cub release withdraw --help
+```
+
+Only after that check, the governed proposal is:
+
+```bash
+cub release withdraw <release-id>
+```
+
+The CLI resolves the Release's actual Space by globally unique ID. The v0.2.11 server checks DestroyGates on the **current** set of Units whose TargetID matches the Space's current ReleaseTargetID, not necessarily the original Release members. Compare the original receipt/`Revision.Releases` manifest with that current gate set. If an original member was retargeted away, a new member was retargeted in, the Target changed, or either set is incomplete, return `WITHDRAWAL_MEMBERSHIP_DRIFT_BLOCK`; do not claim the server checked the original Release. Never clear a gate as an implicit sub-step. Bind exact identity, availability impact, consumers, rollback/republish plan, command, and proof plan. With the broker absent, return `BLOCK`.
+
+After external execution, verify the retained record has the same immutable IDs/digests and `Published=false`; do not expect not-found. For permanent deletion, verify `cub release delete --help` in the same session before emitting the separately reviewed destroy-class shape `cub release delete <release-id>`. Exact v0.2.11 source hard-deletes directly: it does **not** call withdrawal first and does **not** run withdrawal's DestroyGate check. Therefore require a verified `Published=false` withdrawal receipt, a prior export of the digest-matching OCI manifest/Target annotation plus exact historical member manifest and digests, explicit retention authorization, consumer proof, and a not-found/blob-unavailable postcondition. A still-published Release is `RELEASE_DELETE_STILL_PUBLISHED_BLOCK`; a gate pre-read is not provider-enforced delete CAS. Never describe deletion as withdrawal or rely on surviving Revision linkage as the only audit record.
 
 ## Stop conditions
 
-- The bundled Space has **no ReleaseTarget** set (`ReleaseTargetID` unset) → `publish` has no Target to resolve; set it with `cub space update --release-target` (Space config) first, don't guess one.
-- The Space's ReleaseTarget has **no assigned Units** in the bundled Space → nothing to bundle; route to `target-bind`.
-- `--revision <tag>` resolves to no tagged Revision on the Units that matter → confirm head-fallback is intended, or tag first.
-- Withdraw without the user's explicit confirmation of **which** Release (by ID/Digest) and that they accept it's destroy-class — confirm, don't guess.
-- Withdraw blocked by a Destroy Gate → surface the gate; never clear a prod gate to force it.
-- The user actually wants env promotion or rollback → hand off (`promote-release`, `rollback-revision`).
+- narrower intent differs from the EffectiveReleaseSet;
+- missing/changed ReleaseTargetID, Unit membership, head/revision/hash, TagID mapping, auto-tag side effect, or gate state;
+- non-OCI Target or any bridge/per-Unit deploy request presented as current;
+- incomplete tag coverage or unresolved client/server tag semantics;
+- absent provider-atomic target/membership/revision/tag-mapping CAS;
+- historical Release receipt/member reconstruction is missing, deleted, or disagrees with current UnitCount;
+- historical Target is inferred from current Space state rather than attested by the digest-matching OCI manifest;
+- withdrawal original/current membership differs, consumer impact is unknown, or a DestroyGate is present;
+- deletion is still published, lacks a prior withdrawal receipt/retained manifest evidence, or relies on a DestroyGate check the delete provider does not perform;
+- missing external broker authorization; or
+- controller/runtime evidence cannot bind to the immutable Release.
 
-## Verify chain
+## GUI handoff
 
-- **After publish:** `cub release get --space <space-slug> <release-id>` shows the new Release with its `Digest` / `Manifest Digest` and `Space` (plus a `Tag` row when you published with `--revision`), and `cub release list --space <space-slug>` lists it. The consuming Target isn't recorded on the Release — to confirm which Target the Space released to, use `cub space get <space-slug>`.
-- **After withdraw:** `cub release get --space <space> <release-id>` returns not-found, and the Release no longer appears in `cub release list --space <space>` (or the org-wide `--space '*' --where "ReleaseID = '<id>'"`).
+- `cub component open <component> --variant <variant> --print-url`
+- `cub space open <variant-space> --print-url`
+- `cub unit open <unit> --space <variant-space> --revisions --print-url`
 
-## Evidence
-
-- `cub release get --space <space> <release-id> --web` — the Release entity (digest, Space, Tag) the user can open.
-- `cub release list --space <space> --web` — Releases in the Space.
+Navigation URLs do not replace organization/object-ID verification.
 
 ## References
 
-- `cub release --help`, `cub release publish --help`, `cub release withdraw --help`, `cub release get/list --help` — authoritative flags and args.
-- `cub space create --help`, `cub space update --help` — the `--release-target` flag that sets the Space's `ReleaseTargetID` (what `publish` resolves the consuming Target from).
-- `references/revisions.md` — Revision model and `Tag:<name>` semantics behind `--revision`.
-- `references/cub-cli.md` — `--where` vs `--filter`, `--select`, `-o json/jq`, org-wide `--space '*'` search.
-- Companion skills: `confighub-core` (Targets, OCI delivery, Delete/Destroy Gates), `target-bind` (assigning Units to a Target before publishing), `promote-release` (env/variant promotion).
-- `https://docs.confighub.com/markdown/index.md`.
+- `compatibility/current-profile.v1.json` — exact static profile and known gaps.
+- `compatibility/no-loss-inventory.v1.json` — current and replaced triggers/capabilities/evals.
+- `references/changesets.md` — grouping/restore and native approval separation.
+- `target-bind` — ReleaseTargetID and exact Unit membership.
+- `verify-apply` — Release/controller/runtime proof.

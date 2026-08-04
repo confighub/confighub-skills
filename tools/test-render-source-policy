@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+checker="$root/tools/check-render-source"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+assert_block() {
+  local kind=$1
+  local case_name=$2
+  local expected_reason=$3
+  if "$checker" --kind "$kind" --root "$tmp_dir/$case_name" --json >"$tmp_dir/$case_name.json" 2>/dev/null; then
+    printf 'render-source tests: FAIL accepted %s\n' "$case_name" >&2
+    exit 1
+  fi
+  jq -e --arg reason "$expected_reason" '
+    .status == "RENDER_SOURCE_POLICY_BLOCK" and
+    .render_allowed == false and
+    any(.violations[]; contains($reason))
+  ' "$tmp_dir/$case_name.json" >/dev/null
+}
+
+mkdir -p "$tmp_dir/helm/templates" "$tmp_dir/kustomize/base" "$tmp_dir/kustomize/patches" "$tmp_dir/kustomize/data"
+printf '%s\n' 'apiVersion: v2' 'name: local' 'version: 1.0.0' >"$tmp_dir/helm/Chart.yaml"
+printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' '  name: local' >"$tmp_dir/helm/templates/cm.yaml"
+"$checker" --kind helm --root "$tmp_dir/helm" --json |
+  jq -e '.status == "SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED" and .render_allowed == false' >/dev/null
+
+printf '%s\n' \
+  'apiVersion: kustomize.config.k8s.io/v1beta1' \
+  'kind: Kustomization' \
+  'resources:' '  - base/cm.yaml' \
+  'patches:' '  - path: patches/cm.yaml' \
+  'configMapGenerator:' '  - name: local' '    files: [data/message.txt]' '    envs: [data/local.env]' \
+  'openapi:' '  path: data/openapi.json' \
+  'crds: [data/crd.yaml]' \
+  'configurations: [data/transformer.yaml]' \
+  'replacements:' '  - path: data/replacement.yaml' \
+  >"$tmp_dir/kustomize/kustomization.yaml"
+printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata: {name: local}' >"$tmp_dir/kustomize/base/cm.yaml"
+printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata: {name: local}' >"$tmp_dir/kustomize/patches/cm.yaml"
+printf '%s\n' 'hello' >"$tmp_dir/kustomize/data/message.txt"
+printf '%s\n' 'MODE=local' >"$tmp_dir/kustomize/data/local.env"
+printf '%s\n' '{}' >"$tmp_dir/kustomize/data/openapi.json"
+printf '%s\n' 'apiVersion: apiextensions.k8s.io/v1' 'kind: CustomResourceDefinition' >"$tmp_dir/kustomize/data/crd.yaml"
+printf '%s\n' 'nameReference: []' >"$tmp_dir/kustomize/data/transformer.yaml"
+printf '%s\n' 'sourceValue: local' 'targets: []' >"$tmp_dir/kustomize/data/replacement.yaml"
+"$checker" --kind kustomize --root "$tmp_dir/kustomize" --json |
+  jq -e '.status == "SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED" and .render_allowed == false' >/dev/null
+
+mkdir -p "$tmp_dir/remote" "$tmp_dir/plugin" "$tmp_dir/patch-escape" "$tmp_dir/generator-escape" \
+  "$tmp_dir/openapi-escape" "$tmp_dir/unknown-top" "$tmp_dir/unknown-nested" "$tmp_dir/absolute" \
+  "$tmp_dir/strategic" "$tmp_dir/duplicate-yaml" "$tmp_dir/helm-multiline/templates" \
+  "$tmp_dir/helm-tpl/templates" "$tmp_dir/helm-subchart/charts/dep/templates" "$tmp_dir/helm-archive/charts"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'resources:' \
+  '  - https://github.com/acme/repo//base?ref=main' >"$tmp_dir/remote/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'generators:' \
+  '  - exec-generator.yaml' >"$tmp_dir/plugin/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'patches:' \
+  '  - path: ../outside.yaml' >"$tmp_dir/patch-escape/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'configMapGenerator:' \
+  '  - name: escaped' '    files: [payload=../outside.txt]' '    envs: ["https://example.invalid/env"]' \
+  >"$tmp_dir/generator-escape/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'openapi:' \
+  '  path: ../outside.json' >"$tmp_dir/openapi-escape/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' \
+  'futureFileSource: ../outside.yaml' >"$tmp_dir/unknown-top/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'configMapGenerator:' \
+  '  - name: unknown' '    futureFileSource: ../outside.txt' >"$tmp_dir/unknown-nested/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'crds:' \
+  '  - /tmp/outside.yaml' >"$tmp_dir/absolute/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'patchesStrategicMerge:' \
+  '  - inline-or-file.yaml' >"$tmp_dir/strategic/kustomization.yaml"
+printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'resources: []' \
+  'resources: [../outside.yaml]' >"$tmp_dir/duplicate-yaml/kustomization.yaml"
+
+printf '%s\n' 'apiVersion: v2' 'name: multiline' 'version: 1.0.0' >"$tmp_dir/helm-multiline/Chart.yaml"
+printf '%s\n' '{{' ' lookup "v1" "ConfigMap" "default" "x"' '}}' >"$tmp_dir/helm-multiline/templates/cm.yaml"
+printf '%s\n' 'apiVersion: v2' 'name: tpl' 'version: 1.0.0' >"$tmp_dir/helm-tpl/Chart.yaml"
+printf '%s\n' '{{ tpl .Values.dynamic . }}' >"$tmp_dir/helm-tpl/templates/cm.yaml"
+printf '%s\n' 'apiVersion: v2' 'name: parent' 'version: 1.0.0' >"$tmp_dir/helm-subchart/Chart.yaml"
+printf '%s\n' 'apiVersion: v2' 'name: dep' 'version: 1.0.0' >"$tmp_dir/helm-subchart/charts/dep/Chart.yaml"
+printf '%s\n' '{{ (lookup "v1" "Secret" "default" "x") }}' >"$tmp_dir/helm-subchart/charts/dep/templates/secret.yaml"
+printf '%s\n' 'apiVersion: v2' 'name: archive' 'version: 1.0.0' 'dependencies:' \
+  '  - name: dep' '    version: 1.0.0' >"$tmp_dir/helm-archive/Chart.yaml"
+printf '%s\n' 'dependencies: []' 'digest: sha256:placeholder' 'generated: 2026-01-01T00:00:00Z' >"$tmp_dir/helm-archive/Chart.lock"
+printf '%s\n' 'opaque archive bytes' >"$tmp_dir/helm-archive/charts/dep-1.0.0.tgz"
+
+assert_block kustomize remote remote-or-escaping-kustomize-reference
+assert_block kustomize plugin plugin-exec-field
+assert_block kustomize patch-escape remote-or-escaping-kustomize-reference
+assert_block kustomize generator-escape remote-or-escaping-kustomize-reference
+assert_block kustomize openapi-escape remote-or-escaping-kustomize-reference
+assert_block kustomize unknown-top unsupported-kustomize-field
+assert_block kustomize unknown-nested unsupported-kustomize-field
+assert_block kustomize absolute remote-or-escaping-kustomize-reference
+assert_block kustomize strategic unsupported-ambiguous-kustomize-field
+assert_block kustomize duplicate-yaml duplicate-yaml-key
+assert_block helm helm-multiline live-cluster-lookup
+assert_block helm helm-tpl dynamic-template-eval
+assert_block helm helm-subchart live-cluster-lookup
+assert_block helm helm-archive packaged-helm-dependency-not-inspectable
+
+ln -s ../helm "$tmp_dir/kustomize/escape"
+assert_block kustomize kustomize symlink-not-in-source-closure
+
+printf '%s\n' 'render-source adversarial tests: PASS (render remains blocked; reviewed Kustomize file fields are source-closed; escape/remote/plugin/unknown/symlink and Helm multiline lookup/tpl are blocked)'

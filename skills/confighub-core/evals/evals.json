@@ -1,18 +1,19 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "skill_name": "confighub-core",
   "evals": [
     {
       "id": 1,
       "name": "new-user-tour",
       "prompt": "I'm new to ConfigHub. Can you give me a quick tour of how it works and what I should know to start using it for Kubernetes?",
-      "expected_output": "Explains the config-as-data model in a paragraph or two using plain language, names the primary entities (Space, Unit, Revision, Function, Trigger, Filter, Link, Target, Worker, ApplyGate) with one-liners, surfaces the key invariants (--change-desc on Unit mutations, -o mutations for inline diffs, mutations go through cub, one Space per app-per-env, one resource per Unit), and routes to a concrete next step — usually skill-examples-bootstrap. Does not try to do a task.",
+      "expected_output": "Explains config-as-data and the primary entities in plain language, including the current Component/Variant/Space Release model, OCI ReleaseTargetID, and controller/runtime separation. Surfaces one Space per app/env, one resource per Unit, governed --change-desc/-o mutations proposals, and the knowledge/read-only authority boundary. Routes to a concrete preserved next job without executing it.",
       "files": []
     },
     {
       "id": 2,
       "name": "confusing-target-vs-worker",
       "prompt": "What's the difference between a Target and a Worker in ConfigHub? I keep mixing them up.",
-      "expected_output": "Distinguishes cleanly: a Worker is a running process that executes operations (apply/refresh/import) against the real world; a Target is a binding that points at where a Unit should land (e.g., a specific Kubernetes cluster+namespace) and optionally references a Worker. Notes one Target per ToolchainType per Space. Routes to worker-bootstrap or target-bind depending on which the user needs.",
+      "expected_output": "Distinguishes the current model: an OCI Target is the Space Release binding named by Space.ReleaseTargetID; matching Unit TargetIDs define release membership. A server-worker entity backs built-in OCI publication without an external process; an external worker hosts custom functions. Labels direct ConfigHub-provider delivery VERSIONED_LEGACY/BLOCK and routes correctly.",
       "files": []
     },
     {
@@ -40,7 +41,7 @@
       "id": 6,
       "name": "suffix-naming-migration",
       "prompt": "I already have a Space called `web` with Units named `web-dev`, `web-staging`, `web-prod`. Is that OK or should I restructure?",
-      "expected_output": "Flags suffix-naming as an anti-pattern that collapses Target separation, ApplyGate scoping, and clone-based promotion. Proposes migrating to per-env Spaces (web-dev, web-staging, web-prod) via cub unit create --dest-space. Pushes back constructively, not just 'you're doing it wrong'.",
+      "expected_output": "Flags suffix-naming as an anti-pattern that collapses ReleaseTargetID, ApplyGate, and Variant promotion boundaries. Proposes a Component/base plus per-env Variant migration using current variant create semantics, with exact scope and no execution. Pushes back constructively.",
       "files": []
     },
     {
@@ -54,7 +55,7 @@
       "id": 8,
       "name": "protect-prod-space",
       "prompt": "How do I stop someone from accidentally deleting our prod Space and destroying the live resources?",
-      "expected_output": "Explains Delete Gates (any entity, block delete) vs Destroy Gates (Units only, block destroy of live resources). Shows cub space update --delete-gate and cub unit update --delete-gate/--destroy-gate with a descriptive gate name, and the '-' sentinel to remove. Recommends gating prod-bound entities at create time.",
+      "expected_output": "Explains Delete Gates vs Unit Destroy Gates, confirms exact current flags with help, and prepares a governed proposal with descriptive gate names. It does not execute protection changes or treat a chat confirmation as authority; BLOCKs pending the broker.",
       "files": []
     }
   ]

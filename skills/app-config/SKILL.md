@@ -1,11 +1,16 @@
 ---
 name: app-config
-description: 'Turn an app config file (.env, .properties, .yaml, .json, .toml, .ini, text) into a versioned AppConfig Unit and render it to a Kubernetes ConfigMap via an Upsert link + render-configmap Invocation (no worker/Target). For: use my .env with ConfigHub, ConfigMap like configMapGenerator, envFrom injection. Not for raw ConfigMap authoring (use confighub-core).'
+description: 'Turn .env, properties, YAML, JSON, TOML, INI, or text into an AppConfig Unit and rendered ConfigMap via Upsert + render-configmap. Use for "use my .env", configMapGenerator-like config, envFrom, and mutable-vs-immutable ConfigMaps. Not for raw ConfigMap YAML (confighub-core).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit data *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *) Bash(cub invocation create *) Bash(cub link create *) Bash(cub link update *) Bash(cub trigger create *) Bash(kubectl get *) Bash(kubectl describe *)
+allowed-tools: []
+read-capability-subset: app-config
 ---
 
 # app-config
+
+**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute create, update, approve, promote, publish, withdraw, install, or delete operations. The external mutation broker is `NOT_INTEGRATED`, so every mutation path ends in `ASK` or `BLOCK`.
+
+For any function or Unit update, the reviewed expected Unit state must ultimately bind the server's transactional `HeadRevisionNum` plus `DataHash`/`ContentHash` checks. No protected action/receipt carries that approved state today, so execution is `APPROVED_STATE_CAS_NOT_INTEGRATED` even though the provider primitive exists.
 
 Turn a user's application configuration file — `.env`, `.properties`, `.yaml`, `.json`, `.toml`, `.ini`, or plain text — into a versioned ConfigHub Unit, then render it into a Kubernetes `ConfigMap` via an **Upsert link** carrying a `render-configmap` Invocation. No server worker and no Target are needed — rendering is a normal ConfigHub function that runs during link resolution.
 
@@ -131,7 +136,7 @@ cub link create --space <space> --wait - <configmap-slug> <config-slug> \
   --transform-invocation <space>/render-<fmt>-immutable
 ```
 
-The render runs during link resolution — no publish of the AppConfig Unit, no worker, no Target. Inspect the result:
+The render runs during link resolution — no runtime publication of the AppConfig Unit, worker, or Target is involved. Inspect the result:
 
 ```bash
 cub unit data --space <space> <configmap-slug>     # the rendered ConfigMap
@@ -200,11 +205,12 @@ spec:
                 name: confighubplaceholder
 ```
 
-The ConfigMap and workload Units are published as an OCI bundle Release by `release-publish` like any other Unit; this skill stops once the render pipeline is wired and the rendered ConfigMap is present.
+After externally authorized wiring, delivery uses a whole-Space `release-publish` proposal. This skill stops at the exact AppConfig/render/link/workload proposal and read-only postcondition plan.
 
 ## Tool boundary
 
-- Allowed: `cub unit create/update`, `cub function do` / `cub function vet` (`set-*-path` / `vet-jsonschema`), `cub invocation create`, `cub link create/update`, `cub trigger create` (prune-configmaps), read-only `cub unit data/livedata/diff/get/list`, read-only `kubectl get/describe` on the resulting ConfigMap.
+- Host-ASK: read-only Unit/function/controller/runtime inspection in this skill's declared capability subset; no raw Bash is auto-allowed.
+- Proposal-only: Unit/function/Invocation/Link/Trigger writes; bind exact inputs and use `--change-desc` where supported.
 - Not allowed: `kubectl create/edit configmap` (bypasses ConfigHub), raw `ConfigMap` YAML in an `AppConfig/*` Unit (wrong toolchain), multiple schemas in one Unit (`configSchema` is one per Unit), rendering `Secret`s this way (use a SecretStore).
 
 ## Stop conditions
@@ -218,13 +224,13 @@ The ConfigMap and workload Units are published as an OCI bundle Release by `rele
 
 1. `cub unit data --space <space> <configmap-slug>` — the rendered `ConfigMap` resource is present (immutable: hashed-name entries; mutable: one stable-named ConfigMap).
 2. After a value change upstream: `cub unit data <configmap-slug>` reflects it (auto-update re-rendered).
-3. After the ConfigMap + workload Units are published via `release-publish`: `kubectl get configmap -n <ns>` shows the hashed name (immutable) or stable name (mutable); mutable-mode pod template `confighub.com/Hash` matches the ConfigMap's hash.
+3. After an externally authorized Space Release and controller sync: `kubectl get configmap -n <ns>` shows the hashed name (immutable) or stable name (mutable); mutable-mode pod template `confighub.com/Hash` matches the ConfigMap's hash. Bind this runtime read to the Release/manifest through `verify-apply`.
 
 ## Evidence
 
-- `cub unit get --space <space> <config-slug> --web` — the AppConfig Unit in the GUI.
-- `cub unit data --space <space> <configmap-slug> --web` — rendered ConfigMap.
-- `cub revision list --space <space> <config-slug> --web` — provenance of every config change.
+- `cub space open <space> --print-url` — AppConfig Space.
+- `cub unit open <config-slug> --space <space> --print-url` — AppConfig Unit.
+- `cub unit open <configmap-slug> --space <space> --revisions --print-url` — rendered ConfigMap provenance.
 
 ## References
 
@@ -232,4 +238,4 @@ The ConfigMap and workload Units are published as an OCI bundle Release by `rele
 - `references/cub-cli.md` — `--change-desc` / `-o mutations` / four Unit views.
 - `references/yaml-patterns.md` — `confighubplaceholder` + Needs/Provides receivers.
 - `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema` / `render-configmap` / `prune-configmaps`.
-- Companion skills: `confighub-core` (raw-ConfigMap authoring; Links / Needs-Provides doctrine), `cub-mutate` (bulk AppConfig edits), `release-publish` (publish the ConfigMap + workload Units as an OCI bundle Release).
+- Companion skills: `confighub-core` (raw-ConfigMap authoring; Links / Needs-Provides doctrine), `cub-mutate` (bulk AppConfig edits), `release-publish` (whole-Space OCI Release proposal), `verify-apply` (post-release checks).

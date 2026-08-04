@@ -29,7 +29,7 @@ Attribute names are **case-sensitive PascalCase** as in JSON encoding (`Slug`, `
 
 All entities: `CreatedAt`, `UpdatedAt`, `DisplayName`, `Slug`, ID fields.
 
-Unit-specific: `HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`, `ApprovedBy`, `ApplyGates`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`.
+Unit-specific: `HeadRevisionNum`, `LastAppliedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ApprovedBy`, `ApplyGates`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. `LiveRevisionNum` is retained bridge-era state and is not current runtime proof.
 
 Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRevisionNum` on a Unit that has an upstream.
 
@@ -150,16 +150,16 @@ cub filter create --space <space> <slug> <From> --where-field "<expr>"
 
 ### Operational Unit-filter recipes
 
-The go-to filters for operating a ConfigHub-backed fleet. Create them once in a shared Space (e.g., `platform`) and reuse across apps.
+These filters describe ConfigHub revision/policy state. They do **not** prove a current Space Release, controller sync, or runtime convergence. Filter creation is proposal-only while the external broker is absent.
 
 ```bash
-# Unit has changes staged to publish but not yet published.
-cub filter create --space "$space" unpublished-changes Unit \
-  --where-field "HeadRevisionNum > LiveRevisionNum AND TargetID IS NOT NULL"
+# Unit head differs from the revision most recently captured by publication.
+cub filter create --space "$space" unreleased-head Unit \
+  --where-field "HeadRevisionNum != LastAppliedRevisionNum AND TargetID IS NOT NULL"
 
-# Pending changes lacking required approvers.
+# Current Unit revision has no recorded native approver.
 cub filter create --space "$space" not-approved Unit \
-  --where-field "HeadRevisionNum > LiveRevisionNum AND LEN(ApprovedBy) = 0"
+  --where-field "LEN(ApprovedBy) = 0"
 
 # Blocked by one or more ApplyGates.
 cub filter create --space "$space" has-apply-gates Unit \
@@ -173,6 +173,10 @@ cub filter create --space "$space" needs-upgrade Unit \
 cub filter create --space "$space" has-upstream Unit \
   --where-field "UpstreamRevisionNum > 0"
 ```
+
+The Release EffectiveReleaseSet cannot be inferred from these generic Filters. Read the Space's exact `ReleaseTargetID`, list Units with TargetID selected, and compare equality. `cub release publish` accepts no Filter.
+
+`VERSIONED_LEGACY`: the old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and `unapplied-changes` (`HeadRevisionNum > LiveRevisionNum`) recipes are retained in the no-loss inventory as historical Unit-runtime views. Do not use them for Release/controller/runtime proof.
 
 ### Using a named Filter
 
@@ -206,7 +210,7 @@ The full Revision data model — fields, per-path `MutationSources`, `ApplyGates
 
 ## Getter functions for content extraction
 
-For questions `--where-data` can't answer cleanly, reach for getter functions. Note: these run via `cub function do` which lives in the **Write** permission set (see `references/cub-cli.md` — the `function do` verb can invoke mutating functions, so it isn't reliably pattern-gateable to getters only).
+For questions `--where-data` cannot answer cleanly, a specifically reviewed getter function may help. Do not treat `cub function get` as a safe arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output. Name the exact function and flags, ensure it belongs to the active skill's capability subset, and leave execution at host `ASK`; unknown functions are `BLOCK` pending the typed registry/wrapper. Never substitute `function do` or `run`, which can mutate.
 
 ```bash
 # Current image for every Deployment across all spaces.

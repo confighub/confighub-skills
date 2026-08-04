@@ -1,0 +1,276 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+config_dir="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}"
+project_dir=$PWD
+trace_file=""
+expected_installed_digest=""
+json_output=false
+managed_settings=()
+managed_settings_count=0
+
+usage() {
+  printf '%s\n' 'usage: check-installed-permission-state [--config-dir <dir>] [--project-dir <dir>] [--managed-settings <file>]... [--expected-installed-digest <sha256>] [--trace <claude-stream-jsonl>] [--json]'
+}
+
+while test "$#" -gt 0; do
+  case "$1" in
+    --config-dir) test "$#" -ge 2 || { usage >&2; exit 2; }; config_dir=$2; shift 2 ;;
+    --project-dir) test "$#" -ge 2 || { usage >&2; exit 2; }; project_dir=$2; shift 2 ;;
+    --managed-settings)
+      test "$#" -ge 2 || { usage >&2; exit 2; }
+      managed_settings[$managed_settings_count]=$2
+      managed_settings_count=$((managed_settings_count + 1))
+      shift 2
+      ;;
+    --expected-installed-digest) test "$#" -ge 2 || { usage >&2; exit 2; }; expected_installed_digest=$2; shift 2 ;;
+    --trace) test "$#" -ge 2 || { usage >&2; exit 2; }; trace_file=$2; shift 2 ;;
+    --json) json_output=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
+
+for command_name in jq rg shasum; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    printf 'installed permission state: ERROR missing %s\n' "$command_name" >&2
+    exit 2
+  }
+done
+if test -n "$expected_installed_digest" && ! printf '%s' "$expected_installed_digest" | rg -q '^[0-9a-f]{64}$'; then
+  printf '%s\n' 'installed permission state: ERROR expected digest must be lowercase SHA-256' >&2
+  exit 2
+fi
+
+# Order is user -> project -> local -> managed. Managed policy is intentionally
+# last and cannot be weakened by repository-local configuration.
+settings_paths=(
+  "$config_dir/settings.json"
+  "$project_dir/.claude/settings.json"
+  "$project_dir/.claude/settings.local.json"
+  "$config_dir/managed-settings.json"
+  "/Library/Application Support/ClaudeCode/managed-settings.json"
+  "/etc/claude-code/managed-settings.json"
+)
+settings_layers=(user project local managed-config managed-macos managed-linux)
+if test "$managed_settings_count" -gt 0; then
+  for ((index = 0; index < managed_settings_count; index += 1)); do
+    settings_paths+=("${managed_settings[$index]}")
+    settings_layers+=(managed-explicit)
+  done
+fi
+
+registry="$config_dir/plugins/installed_plugins.json"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+: >"$tmp_dir/settings.jsonl"
+: >"$tmp_dir/plugins.jsonl"
+: >"$tmp_dir/errors"
+
+for index in "${!settings_paths[@]}"; do
+  settings_file=${settings_paths[$index]}
+  layer=${settings_layers[$index]}
+  test -e "$settings_file" || continue
+  if test ! -f "$settings_file" || ! jq empty "$settings_file" >/dev/null 2>&1; then
+    printf 'invalid settings file: %s\n' "$settings_file" >>"$tmp_dir/errors"
+    continue
+  fi
+  if ! jq -e '
+    ((.permissions.defaultMode? // null) | . == null or type == "string") and
+    ((.permissions.allow? // []) | type == "array" and all(.[]; type == "string")) and
+    ((.permissions.deny? // []) | type == "array" and all(.[]; type == "string")) and
+    ((.permissions.ask? // []) | type == "array" and all(.[]; type == "string")) and
+    ((.skipAutoPermissionPrompt? // false) | type == "boolean") and
+    ((.enabledPlugins? // {}) | type == "object" and all(.[]; type == "boolean"))
+  ' "$settings_file" >/dev/null; then
+    printf 'invalid permission/plugin field types: %s\n' "$settings_file" >>"$tmp_dir/errors"
+    continue
+  fi
+  settings_sha=$(shasum -a 256 "$settings_file" | awk '{print $1}')
+  jq -c \
+    --arg layer "$layer" \
+    --arg path "$settings_file" \
+    --arg sha256 "$settings_sha" \
+    '{layer:$layer,path:$path,sha256:$sha256,
+      default_mode:(.permissions.defaultMode // null),
+      allow:(.permissions.allow // []),deny:(.permissions.deny // []),ask:(.permissions.ask // []),
+      skip_auto_permission_prompt:(.skipAutoPermissionPrompt // false),
+      enabled_plugins:(.enabledPlugins // {})}' "$settings_file" >>"$tmp_dir/settings.jsonl"
+done
+
+if test -e "$registry" && { test ! -f "$registry" || ! jq empty "$registry" >/dev/null 2>&1; }; then
+  printf '%s\n' 'invalid installed_plugins.json' >>"$tmp_dir/errors"
+fi
+
+settings=$(jq -s '.' "$tmp_dir/settings.jsonl")
+effective=$(printf '%s' "$settings" | jq '
+  {
+    default_mode:([.[] | .default_mode | select(. != null)] | last // null),
+    allow:([.[].allow[]]), deny:([.[].deny[]]), ask:([.[].ask[]]),
+    skip_auto_permission_prompt:any(.[]; .skip_auto_permission_prompt == true)
+  }
+')
+
+installed_tree_digest() {
+  local install_path=$1
+  local output=$2
+  if find "$install_path" -type l -print -quit | rg -q .; then
+    return 3
+  fi
+  (
+    cd "$install_path" || exit 1
+    find . -type f -print | sed 's|^./||' | LC_ALL=C sort
+  ) >"$tmp_dir/installed.paths"
+  : >"$tmp_dir/installed.lines"
+  while IFS= read -r path; do
+    test -n "$path" || continue
+    case "$path" in *$'\n'*) return 2 ;; esac
+    mode=100644
+    test -x "$install_path/$path" && mode=100755
+    sha=$(shasum -a 256 "$install_path/$path" | awk '{print $1}')
+    printf '%s %s  %s\n' "$mode" "$sha" "$path" >>"$tmp_dir/installed.lines"
+  done <"$tmp_dir/installed.paths"
+  shasum -a 256 "$tmp_dir/installed.lines" | awk '{print $1}' >"$output"
+}
+
+if test -f "$registry" && jq empty "$registry" >/dev/null 2>&1; then
+  jq -r '
+    (.plugins // {}) | to_entries[] |
+    select(.key | startswith("confighub-skills@")) |
+    .key as $plugin | .value[]? |
+    [$plugin, (.version // "unknown"), (.installPath // ""), (.gitCommitSha // "")] | @tsv
+  ' "$registry" >"$tmp_dir/installed.tsv"
+
+  while IFS=$'\t' read -r plugin_id version install_path git_commit_sha; do
+    test -n "$plugin_id" || continue
+    enabled_state=implicit
+    enabled_source=default-implicit
+    for index in "${!settings_paths[@]}"; do
+      settings_file=${settings_paths[$index]}
+      if test -f "$settings_file" && jq -e --arg plugin "$plugin_id" '((.enabledPlugins // {}) | has($plugin))' "$settings_file" >/dev/null 2>&1; then
+        enabled_state=$(jq -r --arg plugin "$plugin_id" '.enabledPlugins[$plugin] | tostring' "$settings_file")
+        enabled_source=$settings_file
+      fi
+    done
+
+    unsafe=false
+    installed_digest=""
+    digest_state=NOT_COMPUTED
+    : >"$tmp_dir/reasons"
+    if test -z "$install_path" || test ! -d "$install_path"; then
+      unsafe=true
+      printf '%s\n' install-path-missing >>"$tmp_dir/reasons"
+      digest_state=INSTALL_PATH_MISSING
+    else
+      if installed_tree_digest "$install_path" "$tmp_dir/installed.digest"; then
+        installed_digest=$(<"$tmp_dir/installed.digest")
+        digest_state=UNBOUND
+        if test -n "$expected_installed_digest"; then
+          if test "$installed_digest" = "$expected_installed_digest"; then
+            digest_state=EXTERNAL_DIGEST_MATCH
+          else
+            digest_state=EXTERNAL_DIGEST_MISMATCH
+          fi
+        fi
+      else
+        unsafe=true
+        digest_state=BLOCK_SYMLINK_OR_UNSAFE_PATH
+        printf '%s\n' installed-tree-symlink-or-unsafe-path >>"$tmp_dir/reasons"
+      fi
+
+      while IFS= read -r frontmatter_file; do
+        if ! frontmatter=$("$root/tools/parse-frontmatter" "$frontmatter_file" 2>/dev/null); then
+          unsafe=true
+          printf 'invalid-frontmatter:%s\n' "${frontmatter_file#"$install_path/"}" >>"$tmp_dir/reasons"
+          continue
+        fi
+        if ! printf '%s' "$frontmatter" | jq -e '.["allowed-tools"] | type == "array" and length == 0' >/dev/null; then
+          unsafe=true
+          printf 'nonempty-or-invalid-allowed-tools:%s\n' "${frontmatter_file#"$install_path/"}" >>"$tmp_dir/reasons"
+        fi
+      done < <(find "$install_path/skills" "$install_path/commands" -type f \( -name SKILL.md -o -name '*.md' \) 2>/dev/null | LC_ALL=C sort)
+
+      if rg -q "permissionDecision[\"'[:space:]:]+allow|permissionDecisionReason" "$install_path/hooks" 2>/dev/null; then
+        unsafe=true
+        printf '%s\n' pretooluse-permission-allow-hook >>"$tmp_dir/reasons"
+      fi
+      if test -f "$install_path/hooks/hooks.json" &&
+        jq -e '((.hooks.PreToolUse // []) | length) > 0' "$install_path/hooks/hooks.json" >/dev/null 2>&1; then
+        unsafe=true
+        printf '%s\n' pretooluse-hook-present >>"$tmp_dir/reasons"
+      fi
+    fi
+
+    active=true
+    test "$enabled_state" = false && active=false
+    reasons=$(jq -Rsc 'split("\n") | map(select(length > 0))' "$tmp_dir/reasons")
+    jq -nc \
+      --arg plugin_id "$plugin_id" --arg version "$version" --arg install_path "$install_path" \
+      --arg git_commit_sha "$git_commit_sha" --arg installed_digest "$installed_digest" \
+      --arg digest_state "$digest_state" --arg enabled_state "$enabled_state" --arg enabled_source "$enabled_source" \
+      --argjson active "$active" --argjson unsafe_autoallow "$unsafe" --argjson reasons "$reasons" \
+      '{plugin_id:$plugin_id,version:$version,install_path:$install_path,registry_git_commit_sha:(if $git_commit_sha=="" then null else $git_commit_sha end),installed_tree_sha256:(if $installed_digest=="" then null else $installed_digest end),digest_binding:$digest_state,enabled_state:$enabled_state,enabled_source:$enabled_source,active_or_implicitly_active:$active,unsafe_autoallow:$unsafe_autoallow,reasons:$reasons}' \
+      >>"$tmp_dir/plugins.jsonl"
+  done <"$tmp_dir/installed.tsv"
+fi
+
+plugins=$(jq -s '.' "$tmp_dir/plugins.jsonl")
+trace='{"status":"NOT_PROVIDED","permission_mode":null,"permission_denials":0}'
+if test -n "$trace_file"; then
+  if parsed_trace=$("$root/tools/parse-claude-stream-json" "$trace_file" 2>/dev/null); then
+    trace=$parsed_trace
+  else
+    if printf '%s' "$parsed_trace" | jq -e '
+      (.status == "BLOCK_TRACE_SCHEMA_INVALID" or .status == "BLOCK_TRACE_BEHAVIOR_REJECTED") and
+      (.reason | type) == "string"
+    ' >/dev/null 2>&1; then
+      trace=$parsed_trace
+    else
+      trace='{"status":"BLOCK_TRACE_SCHEMA_INVALID","permission_mode":null,"permission_denials":0,"reason":"parser returned no typed result"}'
+    fi
+    if test "$(printf '%s' "$trace" | jq -r '.status')" = BLOCK_TRACE_SCHEMA_INVALID; then
+      printf '%s\n' 'permission trace missing or invalid Claude stream-json JSONL' >>"$tmp_dir/errors"
+    fi
+  fi
+fi
+
+: >"$tmp_dir/block-reasons"
+test ! -s "$tmp_dir/errors" || printf '%s\n' PERMISSION_STATE_UNREADABLE >>"$tmp_dir/block-reasons"
+mode=$(printf '%s' "$effective" | jq -r '.default_mode // "unset"')
+case "$mode" in auto|bypassPermissions|acceptEdits) printf 'UNSAFE_DEFAULT_PERMISSION_MODE:%s\n' "$mode" >>"$tmp_dir/block-reasons" ;; esac
+test "$(printf '%s' "$effective" | jq '.allow | length')" -eq 0 || printf '%s\n' PERMISSION_ALLOW_RULES_PRESENT >>"$tmp_dir/block-reasons"
+test "$(printf '%s' "$effective" | jq -r '.skip_auto_permission_prompt')" = false || printf '%s\n' SKIP_AUTO_PERMISSION_PROMPT_ENABLED >>"$tmp_dir/block-reasons"
+test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .unsafe_autoallow)] | length')" -eq 0 || printf '%s\n' ENABLED_AUTOALLOW_PLUGIN >>"$tmp_dir/block-reasons"
+test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .digest_binding == "UNBOUND")] | length')" -eq 0 || printf '%s\n' INSTALLED_PLUGIN_DIGEST_UNBOUND >>"$tmp_dir/block-reasons"
+test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .digest_binding == "EXTERNAL_DIGEST_MISMATCH")] | length')" -eq 0 || printf '%s\n' INSTALLED_PLUGIN_DIGEST_MISMATCH >>"$tmp_dir/block-reasons"
+trace_mode=$(printf '%s' "$trace" | jq -r '.permission_mode // "unset"')
+case "$trace_mode" in auto|bypassPermissions|acceptEdits) printf 'UNSAFE_TRACE_PERMISSION_MODE:%s\n' "$trace_mode" >>"$tmp_dir/block-reasons" ;; esac
+test "$(printf '%s' "$trace" | jq -r '.status')" != BLOCK_TRACE_SCHEMA_INVALID || printf '%s\n' TRACE_SCHEMA_INVALID >>"$tmp_dir/block-reasons"
+test "$(printf '%s' "$trace" | jq -r '.status')" != BLOCK_TRACE_BEHAVIOR_REJECTED || printf '%s\n' TRACE_BEHAVIOR_REJECTED >>"$tmp_dir/block-reasons"
+
+# Even a clean default-mode trace does not prove final argv is denied: Claude
+# exposes raw shell text to hooks and no typed effect proxy is integrated.
+printf '%s\n' DETERMINISTIC_FINAL_ARGV_DENY_NOT_INTEGRATED >>"$tmp_dir/block-reasons"
+
+block_reasons=$(sort -u "$tmp_dir/block-reasons" | jq -Rsc 'split("\n") | map(select(length > 0))')
+state_error=$(jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else join("; ") end' "$tmp_dir/errors")
+status=BLOCK_ACTIVATION_PERMISSION_BOUNDARY
+exit_code=1
+
+result=$(jq -nc \
+  --arg status "$status" --arg config_dir "$config_dir" --arg project_dir "$project_dir" \
+  --argjson state_error "$state_error" --argjson settings "$settings" --argjson effective "$effective" \
+  --argjson trace "$trace" --argjson plugins "$plugins" --argjson block_reasons "$block_reasons" \
+  '{status:$status,read_only:true,activation_allowed:false,config_dir:$config_dir,project_dir:$project_dir,state_error:$state_error,settings_layers:$settings,effective_permissions:$effective,trace:$trace,plugins:$plugins,block_reasons:$block_reasons}')
+
+if $json_output; then
+  printf '%s\n' "$result"
+else
+  printf 'installed permission state: %s\n' "$status"
+  printf '%s\n' "$result" | jq -r '.settings_layers[] | "- settings[\(.layer)] \(.path): mode=\(.default_mode // "unset") allow=\(.allow|length) deny=\(.deny|length) ask=\(.ask|length) sha256=\(.sha256)"'
+  printf '%s\n' "$result" | jq -r '.plugins[] | "- \(.plugin_id) \(.version): enabled=\(.enabled_state), digest=\(.digest_binding), unsafe_autoallow=\(.unsafe_autoallow), path=\(.install_path)"'
+  printf '%s\n' "$result" | jq -r '.block_reasons[] | "- BLOCK: \(.)"'
+fi
+
+exit "$exit_code"

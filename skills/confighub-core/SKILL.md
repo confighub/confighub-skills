@@ -1,11 +1,14 @@
 ---
 name: confighub-core
-description: 'Foundational ConfigHub skill — load first for orientation and doctrine. Covers core vocabulary (Unit, Space, Target, Worker, Trigger, Filter, Link), Space layout per environment/region, config-as-data authoring (literal YAML, no Helm/Kustomize templates, one resource per Unit), delete/destroy gates, and routing a task to the right skill. Route obvious tasks directly (image bump -> cub-mutate; find Units -> cub-query).'
+description: 'ConfigHub orientation and routing: vocabulary, Component/Variant/Release, Space layout, literal config-as-data, one resource per Unit, and delete/destroy gates. Use for tours, entity questions, topology, granularity, or broad help. Route obvious image edits to cub-mutate and searches to cub-query.'
 phase: cross-cutting
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub worker logs *) Bash(cub worker status *) Bash(cub space create *) Bash(cub space update *) Bash(cub unit create *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *) Bash(cub link create *) Bash(cub link update *) Bash(kubectl create *) Bash(kubectl explain *) Bash(kubectl get *) Bash(kubectl describe *)
+allowed-tools: []
+read-capability-subset: confighub-core
 ---
 
 # confighub-core
+
+**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute create, update, approve, promote, publish, withdraw, install, or delete operations. The external mutation broker is `NOT_INTEGRATED`, so every mutation path ends in `ASK` or `BLOCK`.
 
 The foundational skill. Explains ConfigHub's model in plain language, carries the load-bearing doctrine (config-as-data authoring, Space topology, one resource per Unit), covers delete/destroy gates, and routes concrete tasks to the right dedicated skill.
 
@@ -27,7 +30,7 @@ Load this first when the intent is broad. Hand off as soon as the task is concre
 
 ## Confirm before you compose
 
-Never compose `cub` commands from memory. Confirm the verb and its flags with `cub <verb> --help` (or `CONFIGHUB_AGENT=1 cub <verb> --help`) before running — never invent flags or function names. `cub --help` is whitelisted, so this is free.
+Never compose `cub` commands from memory. Confirm the verb and flags with `cub <verb> --help` (or `CONFIGHUB_AGENT=1 cub <verb> --help`) before a read or mutation proposal. Help is read-only; confirmation does not grant mutation authority.
 
 ## The model in one minute
 
@@ -40,8 +43,8 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **Trigger** — a function (usually a validator) wired to fire automatically on `Mutation` or `PostClone`. A failing validator attaches an **ApplyGate**.
 - **Filter** — a saved query. Filters over Units power bulk ops; Filters over Triggers attach to a Space via `TriggerFilterID`.
 - **Link** — a relationship between Units whose resources reference each other (a Deployment's `serviceAccountName` → a ServiceAccount Unit). Enables cross-Unit integrity and needs/provides.
-- **Target** — a deployable binding: where a Unit's config lands when applied. ProviderType **`OCI`** (publishes the Unit's data to ConfigHub's built-in OCI registry for ArgoCD or Flux to pull) or **`ConfigHub`** (applies ConfigHub-native `ConfigHub/YAML` config). References a server worker. Typically **one OCI Target per Space** — the OCI transport accepts Units of any toolchain.
-- **Worker** — executes target operations. The OCI and ConfigHub bridges are **server workers** hosted inside the ConfigHub server, so **no process needs to run** to use a Target (`cub worker create --is-server-worker`). Run an *external* worker only to host custom worker functions.
+- **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one **OCI** Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. Earlier ProviderType `ConfigHub` delivery is `VERSIONED_LEGACY/BLOCK`.
+- **Worker** — backs Target or custom-function operations. Built-in OCI Release delivery uses a **server-worker entity**, so no external process runs. Run an external worker only to host custom worker functions.
 - **ApplyGate** — a block on apply from a failing Trigger or an approval requirement. Fix the data or the rule; never bypass.
 
 ### Operational invariants
@@ -113,7 +116,7 @@ This enables cross-Space queries slug-parsing can't: `cub unit list --space "*" 
 
 ### Workers and Targets
 
-OCI and ConfigHub Targets are served by **server workers** — no process to run. Create one server worker (`cub worker create --is-server-worker`, often in `default`) and reference it cross-Space (`<space>/server-worker`); give each Space its own OCI Target bound to it. Delivery to a cluster from an OCI Target is done by ArgoCD/Flux pulling the published artifact — configured outside ConfigHub. You only run an external worker to host custom worker functions. See `worker-bootstrap` and `target-bind`.
+Current Space Release delivery uses an **OCI Target** backed by a server-worker entity; no external worker process runs for that built-in path. The deployment Space's `ReleaseTargetID` names the OCI Target, and the Release includes Units whose TargetID matches it. Argo CD or Flux pulls the OCI manifest and converges the cluster outside ConfigHub. External workers remain available for custom functions. Earlier bridge/per-Unit and direct ConfigHub-provider delivery are preserved as `VERSIONED_LEGACY/BLOCK`, not current Release paths. See `worker-bootstrap`, `target-bind`, and `release-publish`.
 
 ### Promotion
 
@@ -130,7 +133,7 @@ The `upstream-unit` link makes `--upgrade` propagate while preserving per-Space 
 ConfigHub makes bulk and cross-Space operations easy — which is also how you accidentally delete a prod Space or destroy live resources. Gates are the opt-in protection (`https://docs.confighub.com/markdown/guide/protecting.md`).
 
 - **Delete Gates** — on any entity. Block `cub <entity> delete` until removed.
-- **Destroy Gates** — **Units only**. Block `cub unit destroy` (which removes the live cluster resources). Orthogonal to Delete Gates.
+- **Destroy Gates** — **Units only**. Protect a Unit's destructive lifecycle operation. Orthogonal to Delete Gates; verify the active CLI before any destructive proposal.
 
 ```bash
 # Unit — protect prod data and its live resources.
@@ -155,7 +158,8 @@ The gate **name carries the why** — prefer specific (`used-until-dec25`, `team
 | A playground Space to tinker with | `skill-examples-bootstrap` |
 | Setting up a worker (server worker for delivery; external for custom functions) | `worker-bootstrap` |
 | Creating a Target / binding a Unit to one | `target-bind` |
-| Publishing / withdrawing a Space's Units as an immutable OCI bundle Release | `release-publish` |
+| Applying/deploying a Unit or set (prepare an exact whole-Space OCI Release proposal) | `release-publish` |
+| Post-apply verification, troubleshooting, close-out | `verify-apply` |
 | Onboarding existing Helm / Kustomize config | `import` |
 | Promoting a release env-to-env or fleet-wide; variants | `promote-release` |
 | Rolling back by moving head | `rollback-revision` |
@@ -190,7 +194,7 @@ Clarifications: <one line per resolved ambiguity, or "none">
 
 ## Evidence
 
-- `cub unit get --web`, `cub space get --web`, `cub revision list --web` — open entity pages in the GUI.
+- `cub unit open <unit> --space <space> --print-url`, `cub space open <space> --print-url`, `cub component open <component> --print-url` — verified GUI handoffs.
 - Docs: `https://docs.confighub.com/markdown/index.md`; SDK: `https://github.com/confighub/sdk`.
 
 ## References

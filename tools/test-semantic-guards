@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+validator="$root/tools/validate-semantic-contracts"
+contract="$root/compatibility/semantic-contracts.v1.json"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+candidate="$tmp_dir/candidate"
+candidate_contract="$candidate/compatibility/semantic-contracts.v1.json"
+mkdir -p "$candidate/compatibility"
+cp "$contract" "$candidate_contract"
+cp -R "$root/skills" "$candidate/skills"
+
+reset_contract() {
+  cp "$contract" "$candidate_contract"
+}
+
+renew_copied_hash() {
+  local skill_id=$1
+  local field=$2
+  local file_path=$3
+  local digest
+  digest=$(shasum -a 256 "$candidate/$file_path" | awk '{print $1}')
+  jq --arg skill_id "$skill_id" --arg field "$field" --arg digest "$digest" '
+    (.skills[] | select(.skill_id == $skill_id) | .[$field]) = $digest
+  ' "$candidate_contract" >"$tmp_dir/contract.next"
+  mv "$tmp_dir/contract.next" "$candidate_contract"
+}
+
+assert_semantic_failure() {
+  local label=$1
+  local expected_reason=$2
+  local output
+  if output=$("$validator" "$candidate" 2>&1); then
+    printf 'semantic guard metamorphic test: FAIL %s survived\n' "$label" >&2
+    exit 1
+  fi
+  if ! printf '%s\n' "$output" | grep -Fq -- "$expected_reason"; then
+    printf 'semantic guard metamorphic test: FAIL %s stopped at wrong guard: %s\n' "$label" "$output" >&2
+    exit 1
+  fi
+}
+
+"$validator" "$candidate" >/dev/null
+byte_floor_mutations=0
+anchor_mutations=0
+eval_mutations=0
+
+while IFS=$'\t' read -r skill_id skill_path eval_path; do
+  skill_backup="$tmp_dir/$skill_id.skill-backup"
+  cp "$candidate/$skill_path" "$skill_backup"
+
+  reset_contract
+  printf '%s\n' '---' "name: $skill_id" 'allowed-tools: []' '---' "# $skill_id" >"$candidate/$skill_path"
+  renew_copied_hash "$skill_id" skill_sha256 "$skill_path"
+  assert_semantic_failure "wholesale body deletion for $skill_id" "skill body was truncated for $skill_id"
+  cp "$skill_backup" "$candidate/$skill_path"
+  byte_floor_mutations=$((byte_floor_mutations + 1))
+
+  reset_contract
+  first_anchor=$(jq -r --arg skill_id "$skill_id" '.skills[] | select(.skill_id == $skill_id) | .required_skill_anchors[0]' "$contract")
+  ruby - "$candidate/$skill_path" "$first_anchor" <<'RUBY'
+path, anchor = ARGV
+body = File.binread(path)
+replacement = "x" * anchor.bytesize
+raise "anchor not found" unless body.gsub!(anchor, replacement)
+File.binwrite(path, body)
+RUBY
+  renew_copied_hash "$skill_id" skill_sha256 "$skill_path"
+  assert_semantic_failure "anchor deletion for $skill_id" "skill anchor disappeared for $skill_id: $first_anchor"
+  cp "$skill_backup" "$candidate/$skill_path"
+  anchor_mutations=$((anchor_mutations + 1))
+
+  eval_backup="$tmp_dir/$skill_id.eval-backup"
+  cp "$candidate/$eval_path" "$eval_backup"
+  reset_contract
+  eval_anchor_floor=$(jq -r --arg skill_id "$skill_id" '.skills[] | select(.skill_id == $skill_id) | .required_eval_anchors | join(" ")' "$contract")
+  jq --arg replacement "ok $eval_anchor_floor" \
+    'if .evals then .evals[0].expected_output = $replacement else .prompts[0].expected_output = $replacement end' \
+    "$eval_backup" >"$candidate/$eval_path"
+  renew_copied_hash "$skill_id" eval_sha256 "$eval_path"
+  assert_semantic_failure "trivial expected output for $skill_id" "eval expected_output was deleted or trivialized for $skill_id"
+  cp "$eval_backup" "$candidate/$eval_path"
+  eval_mutations=$((eval_mutations + 1))
+done < <(jq -r '.skills[] | [.skill_id,.skill_path,.eval_path] | @tsv' "$contract")
+
+reset_contract
+"$validator" "$candidate" >/dev/null
+printf 'semantic guard metamorphic tests: PASS (%d byte-floor deletions + %d anchor deletions + %d trivial expected outputs reached their intended guards after copied-hash renewal)\n' \
+  "$byte_floor_mutations" "$anchor_mutations" "$eval_mutations"

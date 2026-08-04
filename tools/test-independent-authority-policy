@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+
+# Hard-coded behavioral policy checks. This test is intentionally independent
+# of the generated fingerprint and artifact manifests it is policing.
+"$root/tools/test-release-artifact-gate" >/dev/null
+
+test -f "$root/skills/cub-apply/SKILL.md"
+frontmatter=$("$root/tools/parse-frontmatter" "$root/skills/cub-apply/SKILL.md")
+printf '%s' "$frontmatter" | jq -e '.name == "cub-apply" and .["allowed-tools"] == [] and .["compatibility-stub"] == true' >/dev/null
+for skill in cub-mutate rollback-revision promote-release; do
+  rg -q 'APPROVED_STATE_CAS_NOT_INTEGRATED' "$root/skills/$skill/SKILL.md"
+done
+! rg -q '^[[:space:]]*cub worker logs([[:space:]]|$)' "$root/skills/worker-bootstrap/SKILL.md"
+rg -q 'WORKER_LOG_EVIDENCE_BLOCK' "$root/skills/worker-bootstrap/SKILL.md"
+rg -q 'RENDER_SOURCE_POLICY_BLOCK' "$root/skills/import/SKILL.md"
+
+printf '%s\n' 'independent authority policy tests: PASS (non-generated policy assertions + adversarial subprocess suites)'

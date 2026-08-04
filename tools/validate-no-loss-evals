@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+inventory="$root/compatibility/no-loss-inventory.v1.json"
+while test "$#" -gt 0; do
+  case "$1" in
+    --root) test "$#" -ge 2 || exit 2; root=$2; shift 2 ;;
+    --inventory) test "$#" -ge 2 || exit 2; inventory=$2; shift 2 ;;
+    *) printf '%s\n' 'usage: validate-no-loss-evals [--root <git-worktree>] [--inventory <json>]' >&2; exit 2 ;;
+  esac
+done
+
+fail() {
+  printf 'no-loss eval dispositions: FAIL: %s\n' "$*" >&2
+  exit 1
+}
+
+test -f "$inventory" && jq empty "$inventory" >/dev/null 2>&1 || fail 'inventory is missing or invalid JSON'
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+: >"$tmp_dir/current"
+while IFS= read -r skill; do
+  eval_file="$root/skills/$skill/evals/evals.json"
+  test -f "$eval_file" || fail "missing current eval file for $skill"
+  jq -r --arg skill "$skill" '(.evals // .prompts)[] | [$skill,.name] | @tsv' "$eval_file" >>"$tmp_dir/current"
+done < <(jq -r '.skills[].skill_id' "$inventory")
+LC_ALL=C sort -u "$tmp_dir/current" -o "$tmp_dir/current"
+jq -r '.skills[] as $skill | $skill.eval_dispositions[] | [$skill.skill_id,(.current_eval // .eval_id)] | @tsv' \
+  "$inventory" | LC_ALL=C sort -u >"$tmp_dir/inventory-current"
+cmp -s "$tmp_dir/current" "$tmp_dir/inventory-current" || fail 'skill-qualified current eval coverage differs'
+
+baseline=$(jq -r '.baseline.repository_commit // empty' "$inventory")
+git -C "$root" cat-file -e "$baseline^{commit}" 2>/dev/null || fail 'baseline commit is unavailable'
+: >"$tmp_dir/baseline"
+while IFS= read -r skill; do
+  mapped_skill=$skill
+  if ! jq -e --arg skill "$skill" 'any(.skills[]; .skill_id == $skill)' "$inventory" >/dev/null; then
+    mapped_skill=$(jq -r --arg skill "$skill" '.retired_skill_dispositions[] | select(.skill_id == $skill) | .replacement' "$inventory")
+  fi
+  test -n "$mapped_skill" && test "$mapped_skill" != null || fail "baseline skill has no typed replacement: $skill"
+  git -C "$root" show "$baseline:skills/$skill/evals/evals.json" |
+    jq -r --arg skill "$mapped_skill" '(.evals // .prompts)[] | [$skill,.name] | @tsv' >>"$tmp_dir/baseline"
+done < <(git -C "$root" ls-tree -d --name-only "$baseline:skills")
+LC_ALL=C sort -u "$tmp_dir/baseline" -o "$tmp_dir/baseline"
+jq -r '.skills[] as $skill | $skill.eval_dispositions[] | [$skill.skill_id,.eval_id] | @tsv' \
+  "$inventory" | LC_ALL=C sort -u >"$tmp_dir/inventory-all"
+comm -23 "$tmp_dir/baseline" "$tmp_dir/inventory-all" >"$tmp_dir/missing"
+test ! -s "$tmp_dir/missing" || fail 'skill-qualified baseline eval coverage is incomplete'
+
+printf 'no-loss eval dispositions: PASS (%s current and %s baseline skill-qualified cases)\n' \
+  "$(wc -l <"$tmp_dir/current" | tr -d ' ')" "$(wc -l <"$tmp_dir/baseline" | tr -d ' ')"

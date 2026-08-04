@@ -1,0 +1,62 @@
+{
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "skill_name": "verify-apply",
+  "evals": [
+    {
+      "id": 1,
+      "name": "happy-path-post-apply",
+      "prompt": "I just applied the checkout unit in myapp-prod. Did it actually deploy?",
+      "expected_output": "Translates the old 'applied unit' wording to the current Space Release model, asks for/discovers the Variant Space, and prefers an immutable ReleaseID/ManifestDigest over latest. Distinguishes bundle Digest from ManifestDigest, binds the controller to the manifest, checks runtime health plus confighub.com/origin, names any proof gap, and never mutates.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "stuck-apply-imagepullbackoff",
+      "prompt": "I applied hello-app 10 minutes ago and it's still not done. Is it stuck?",
+      "expected_output": "Reads the exact Release and controller source first; if the controller has the ManifestDigest, drills into the cluster read-only to identify ImagePullBackOff/CrashLoopBackOff. Names the broken layer precisely and verifies confighub.com/origin. Does not call the Release itself 'stuck', restart/sync, or mutate; routes an exact proposal to cub-mutate/release-publish.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "apply-failed-bad-schema",
+      "prompt": "My apply failed. What went wrong?",
+      "expected_output": "Uses current Release failure triage: if no Release exists, inspects Space.ReleaseTargetID, OCI provider, EffectiveReleaseSet, exact selected revisions, tag coverage, and ApplyGates. If a Release exists, continues to controller/runtime proof. Does not use retired UnitStatus/UnitEvent apply results as primary current proof and does not mutate.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "three-way-agreement-check",
+      "prompt": "After the deploy I did to myapp-staging, I want to confirm ConfigHub, Argo, and the cluster all agree on the checkout unit.",
+      "expected_output": "Builds an evidence table binding ConfigHub ReleaseID/bundle Digest/ManifestDigest and exact Unit revisions, Argo's consumed manifest source, and cluster health plus confighub.com/origin. Uses read-only `cub function get`, not function do. Explains that origin lacks Release identity, so both controller digest and runtime provenance are required. Reports exact divergence and does not mutate.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "close-out-converged-release",
+      "prompt": "The myapp-prod deploy I just did is passing every check. Close it out and show me the revision history to share.",
+      "expected_output": "Closes PASS only after the named immutable-content Release, digest-matching OCI manifest Target annotation, governed publication receipt/Revision.Releases historical member manifest, controller ManifestDigest, runtime origin, and health agree. Keeps current EffectiveReleaseSet separate, reports ReleaseID, historical TargetID, both digests, exact gaps, revision/change history, and verified navigation commands. Remains read-only; even an optional tag would be a separate governed proposal.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "bulk-post-apply-triage",
+      "prompt": "We just applied all the staging units and most of them look okay, but I want to know if any didn't finish.",
+      "expected_output": "Reads the exact staging Release and reconstructs its historical UnitID/RevisionID/RevisionNum/DataHash manifest from the governed receipt plus Revision.Releases. Compares UnitCount only as a cross-check and shows current EffectiveReleaseSet separately. Checks controller/runtime resources represented by the historical set and does not use retired apply-not-completed/UnitStatus as current proof. Does not mutate.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "historical-release-same-count-member-swap",
+      "prompt": "Release r-123 says UnitCount 2. We retargeted one old Unit away and a new Unit in, so the current release set is also 2. Prove what r-123 actually contained.",
+      "expected_output": "Rejects UnitCount/current EffectiveReleaseSet as historical proof. Requires the publication receipt and reconstructs only Revisions whose Revision.Releases map contains r-123, producing exact UnitID/RevisionID/RevisionNum/DataHash membership. Names the same-count member swap and returns BLOCK if receipt/reconstruction disagree or are incomplete.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "historical-release-deleted-revision-gap",
+      "prompt": "An old Release still exists, but one Unit and its revisions were deleted. Can we certify the original manifest from Release UnitCount and today's Units?",
+      "expected_output": "Says no. Uses a retained governed publication receipt if available and cross-checks surviving Revision.Releases links, but never substitutes current Units or UnitCount for the deleted historical member. Returns HISTORICAL_RELEASE_MANIFEST_UNPROVEN when the receipt is missing/incomplete and explains the retention requirement.",
+      "files": []
+    }
+  ]
+}

@@ -1,11 +1,14 @@
 ---
 name: cub-mutate
-description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit. Use for "update the image", "bump the replicas", "change the env var", "set the annotation", "run the defaults", "edit this unit", or a bulk edit across many units. Not for creating a brand-new Unit (use confighub-core).'
+description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit. Use for "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or a bulk edit across many units. Not for creating a brand-new Unit (use confighub-core).'
 phase: act
-allowed-tools: Bash(cub --help) Bash(cub * --help) Bash(CONFIGHUB_AGENT=1 cub --help) Bash(CONFIGHUB_AGENT=1 cub * --help) Bash(cub * get) Bash(cub * get *) Bash(cub * list) Bash(cub * list *) Bash(cub * list-* *) Bash(cub function explain *) Bash(CONFIGHUB_AGENT=1 cub function explain *) Bash(cub unit diff *) Bash(cub unit tree *) Bash(cub unit bridgestate *) Bash(cub unit livedata *) Bash(cub unit livestate *) Bash(cub unit update *) Bash(cub function *) Bash(cub run *) Bash(cub unit tag *) Bash(cub tag create *) Bash(cub changeset create *) Bash(cub changeset update *) Bash(cub filter create *) Bash(cub link create *) Bash(cub link update *)
+allowed-tools: []
+read-capability-subset: cub-mutate
 ---
 
 # cub-mutate
+
+**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute create, update, approve, promote, publish, withdraw, install, or delete operations. The external mutation broker is `NOT_INTEGRATED`, so every mutation path ends in `ASK` or `BLOCK`.
 
 The get / modify / write-back loop for ConfigHub Units.
 
@@ -16,7 +19,7 @@ The get / modify / write-back loop for ConfigHub Units.
 ## When to use
 
 - Any single-field change: image, replicas, env var, port, annotation, label, resource requests/limits, probe, security context, hostname.
-- Running the defaults functions against one or many Units.
+- Applying the defaults functions to one or many Units.
 - Bulk changes across multiple Units via `--where` / `--where-data` — usually inside a ChangeSet (see below).
 - Restoring a Unit to a prior revision (or a ChangeSet's pre-open state).
 - Patching metadata (labels, annotations) on one or many Units.
@@ -113,7 +116,7 @@ Clarifications: <condensed — one line per resolved ambiguity, or "none">
 
 For bulk `cub run` / `cub function set` across many Units: phrase the summary so it reads sensibly at the per-unit granularity (the same description is recorded in every affected Unit's head revision).
 
-### 5. Run
+### 5. Emit the exact mutation proposal
 
 ```bash
 cub function set \
@@ -125,11 +128,13 @@ cub function set \
   <function-name> [function args]
 ```
 
-`-o mutations` prints a diff of the configuration change, so you and the user can see exactly what landed. Include it on mutating calls by default — it's the same diff that will show up in the Unit's revision history, surfaced inline so you don't have to chase it with `cub unit diff` afterward.
+`-o mutations` makes an externally authorized execution return the resulting diff. Include it in the proposed command, but do not claim anything landed before the broker executes and a fresh revision read verifies it.
+
+**Approved-state CAS boundary.** The v0.2.11 server does have a transactional Unit primitive: `createUpdateFunction` can compare caller-supplied `HeadRevisionNum` plus `DataHash`/`ContentHash` with the current Unit inside `RunInTx`, and raw patch bodies can carry those fields. The current companion does not have a protected, digest-pinned catalog action that carries the reviewed per-Unit values through final requests and receipts; stock restore/function/run/update convenience commands do not prove that binding. Therefore every authoritative Unit mutation returns `APPROVED_STATE_CAS_NOT_INTEGRATED`. This is an integration gap, not a claim that ConfigHub lacks CAS.
 
 `--dry-run` will return what the modified data would look like, but without persisting the change. It can be used with `-o mutations`.
 
-For multi-Unit runs, add `--wait` so you see completion.
+For a multi-Unit proposal, include `--wait` so the external executor can return completion evidence.
 
 ### 6. Whole-unit replacement (fallback)
 
@@ -153,9 +158,9 @@ cub unit update --space <space> <slug> --restore <rev-num-or-tag> \
 
 Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisionNum`, `LastAppliedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, `Before:ChangeSet:<name>` (pre-open state), a revision UUID.
 
-## Running a saved Invocation
+## Proposing a saved Invocation execution
 
-An [Invocation](https://docs.confighub.com/markdown/background/entities/invocation.md) is a saved function call (function name + arguments). Run a **mutating** one with:
+An [Invocation](https://docs.confighub.com/markdown/background/entities/invocation.md) is a saved function call (function name + arguments). Prepare a **mutating** Invocation proposal with:
 
 ```bash
 cub invocation invoke set <slug> \
@@ -167,7 +172,7 @@ cub invocation invoke set <slug> \
 
 `cub invocation invoke` is verb-scoped like `cub function get/set/vet`: `set` runs only mutating Invocations, `get` only non-mutating, `vet` only validating — so the verb both picks the right Invocation kind and scopes agent permissions to the operation class. For mutations, always use `set`. It reuses the same flags as `cub function set` (`--space`, `--where`/`--unit`/`--filter`, `--changeset`, `--dry-run`, `-o mutations`, `--change-desc`).
 
-- **Fully-bound Invocation** (no parameters): run via `cub invocation invoke set <slug>` with no `--param`, or `cub function set --invocation <slug>`.
+- **Fully-bound Invocation** (no parameters): propose `cub invocation invoke set <slug>` with no `--param`, or `cub function set --invocation <slug>`.
 - **Parameterized Invocation**: declares its own parameters; supply each with `--param name=value`. Values are validated (required present, no unknown names) and coerced to the declared type. A parameterized Invocation cannot be referenced by a Trigger (no caller to supply values).
 
 Author a parameterized Invocation with `cub invocation create`, declaring parameters with `--parameter name[:datatype[:required]]` and referencing them from templated argument values via `{{ .Params.<name> }}`:
@@ -186,7 +191,13 @@ Any time a logical change touches more than one Unit (a release, a defaults roll
 
 - **Lock.** While a Unit is in an open ChangeSet, another ChangeSet can't open against it — protects you from concurrent releases stepping on each other.
 - **Atomic rollback.** A single `--restore Before:ChangeSet:<name>` against the Filter rewinds every affected Unit to its pre-open state.
-- **Grouped approval.** `--revision ChangeSet:<name>` approves the end-tag revision per Unit as one set — and the end tag is a meaningful name to pin a publish to, rather than the `release-<ReleaseNum>` Tag publish creates by default.
+- **Grouped review, not exact native approval.** The CLI-advertised non-head
+  ChangeSet approval selector is retained as `non-head-unit-approval` in the
+  no-loss inventory, not reproduced as selectable guidance here. Server
+  v0.2.11 rejects non-head selectors. Omitted/`HeadRevisionNum` approval has
+  no expected RevisionID/DataHash CAS, so it cannot prove the reviewed
+  ChangeSet heads were the heads approved at execution time. A ChangeSet also
+  does not select or narrow a Space Release.
 - **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces.
 
 Lifecycle:
@@ -215,24 +226,22 @@ cub unit update --patch --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset -
 
-# 5. Approve as a set.
-cub unit approve --space <target-space> \
-  --filter <home-space>/<filter-slug> \
-  --revision ChangeSet:<home-space>/<slug>
-
-# Hand off to release-publish to ship it.
+# 5. Hand fresh state to release-publish. It computes the complete EffectiveReleaseSet,
+# separates native revision approval from execution authorization, and emits the
+# whole-Space Release proposal. This companion executes none of these writes.
 ```
 
 **Don't** use a ChangeSet for single-Unit edits (overhead without payoff) or for rolling per-Unit releases that need different approvals per Unit. See `references/changesets.md` for rollback via `Before:ChangeSet:<...>`, the merge / rebase pattern around a restored ChangeSet, and listing revisions by ChangeSet membership.
 
-Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --where-field "…"`) over inlined `--where` so the same selection flows through open / mutate / close / approve. See `references/filters-and-queries.md`.
+Use a **named Filter** (`cub filter create --space <home-space> <slug> Unit --where-field "…"`) over inlined `--where` so the same selection flows through open / mutate / close and the reviewed release proposal. See `references/filters-and-queries.md`.
 
-The `release-publish` skill goes into publishing the OCI bundle Release in more detail.
+The `release-publish` skill maps apply/deploy intent to the exact current Space Release contract.
 
 ## Tool boundary
 
-- Allowed: `cub unit / function / run / revision` — always with `--change-desc` when mutating.
-- Not allowed: `kubectl apply/edit/patch/delete`, `argocd app sync` as a mutation, editing YAML outside ConfigHub and re-uploading wholesale without a function-composed path when one exists.
+- Host-ASK: read-only Unit/function/revision inspection in this skill's declared capability subset; no raw Bash is auto-allowed.
+- Proposal-only: Unit/function/run/ChangeSet writes; include `--change-desc` on configuration-data mutations. Exact native revision approval remains `APPROVAL_HEAD_RACE_BLOCK`; mutation execution remains `APPROVED_STATE_CAS_NOT_INTEGRATED` until a protected action binds the server's existing per-Unit CAS fields to the reviewed artifact and receipt.
+- Not allowed: executing writes without the external broker, `kubectl apply/edit/patch/delete`, controller mutation, or wholesale out-of-band replacement when a function-composed path exists.
 
 ## Stop conditions
 
@@ -249,8 +258,8 @@ The `release-publish` skill goes into publishing the OCI bundle Release in more 
 
 ## Evidence
 
-- `cub unit get <slug> --space <space> --web` — opens the Unit's current state.
-- `cub revision list <slug> --space <space> --web` — shows the revision history and the `--change-desc` recorded for each.
+- `cub space open <space> --print-url` — Space review.
+- `cub unit open <slug> --space <space> --revisions --print-url` — Unit history and `--change-desc`.
 
 ## References
 

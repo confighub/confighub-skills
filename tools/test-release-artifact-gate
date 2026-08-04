@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+candidate="$tmp_dir/candidate"
+mkdir -p "$candidate"
+rsync -a --exclude .git "$root/" "$candidate/"
+
+"$candidate/tools/generate-release-artifact-manifest" >"$candidate/compatibility/release-artifact-manifest.v1.json"
+"$candidate/tools/verify-release-artifact-manifest" --json >"$tmp_dir/local.json"
+jq -e '.status == "LOCAL_DRIFT_MATCH" and .authority == "DRIFT_ONLY_SELF_RENEWABLE" and .release_authorized == false' "$tmp_dir/local.json" >/dev/null
+
+git -C "$candidate" init -q
+git -C "$candidate" config user.name 'Artifact Test Author'
+git -C "$candidate" config user.email 'author@example.invalid'
+git -C "$candidate" add .
+git -C "$candidate" commit -qm baseline
+baseline_commit=$(git -C "$candidate" rev-parse HEAD)
+baseline_package=$(jq -r '.plugin_package.content_tree_sha256' "$candidate/compatibility/release-artifact-manifest.v1.json")
+
+if "$candidate/tools/verify-release-artifact-manifest" --release --json >"$tmp_dir/missing.json" 2>/dev/null; then
+  printf '%s\n' 'release binding test: FAIL release accepted without external evidence' >&2
+  exit 1
+fi
+jq -e '.status == "BLOCK_EXTERNAL_RELEASE_EVIDENCE_REQUIRED"' "$tmp_dir/missing.json" >/dev/null
+
+# Demonstrate why local drift hashes are not trust: an editor can change a
+# skill and renew both local manifests. External package binding still catches
+# the changed artifact.
+printf '%s\n' '# locally renewed change' >>"$candidate/skills/app-config/SKILL.md"
+"$candidate/tools/generate-release-artifact-manifest" >"$candidate/compatibility/release-artifact-manifest.v1.json"
+"$candidate/tools/verify-release-artifact-manifest" --json | jq -e '.status == "LOCAL_DRIFT_MATCH"' >/dev/null
+git -C "$candidate" add .
+git -C "$candidate" commit -qm renewed
+renewed_commit=$(git -C "$candidate" rev-parse HEAD)
+renewed_package=$(jq -r '.plugin_package.content_tree_sha256' "$candidate/compatibility/release-artifact-manifest.v1.json")
+author=$(git -C "$candidate" show -s --format=%ae HEAD)
+
+jq -n \
+  --arg commit "$renewed_commit" --arg package "$renewed_package" --arg author "$author" \
+  '{schema_version:"confighub-skills-external-review/v1",provider:"github",repository:"confighubai/confighub-skills",protected_branch:"main",ruleset_url:"https://github.com/confighubai/confighub-skills/settings/rules/123",decision:"APPROVED",subject:{commit_sha:$commit,package_sha256:$package,commit_author_identity:$author},review:{review_id:"R1",review_url:"https://github.com/confighubai/confighub-skills/pull/123#pullrequestreview-456",reviewer_identity:"codeowner@example.invalid",reviewer_role:"CODEOWNER"}}' >"$tmp_dir/review.json"
+
+if "$candidate/tools/verify-release-artifact-manifest" --release \
+  --expected-commit "$renewed_commit" --expected-package-digest "$baseline_package" \
+  --review-attestation "$tmp_dir/review.json" --json >"$tmp_dir/digest-mismatch.json" 2>/dev/null; then
+  printf '%s\n' 'release binding test: FAIL renewed local manifest defeated external package digest' >&2
+  exit 1
+fi
+jq -e '.status == "BLOCK_EXTERNAL_PACKAGE_DIGEST_MISMATCH"' "$tmp_dir/digest-mismatch.json" >/dev/null
+
+# Even correctly bound, distinct CODEOWNER-shaped JSON is not authenticated by
+# a local program and therefore cannot authorize release.
+if "$candidate/tools/verify-release-artifact-manifest" --release \
+  --expected-commit "$renewed_commit" --expected-package-digest "$renewed_package" \
+  --review-attestation "$tmp_dir/review.json" --json >"$tmp_dir/authenticity.json" 2>/dev/null; then
+  printf '%s\n' 'release binding test: FAIL local attestation granted release authority' >&2
+  exit 1
+fi
+jq -e '.status == "BLOCK_EXTERNAL_REVIEW_AUTHENTICITY_UNVERIFIED" and .release_authorized == false' "$tmp_dir/authenticity.json" >/dev/null
+
+jq --arg author "$author" '.review.reviewer_identity = $author' "$tmp_dir/review.json" >"$tmp_dir/self-review.json"
+if "$candidate/tools/verify-release-artifact-manifest" --release \
+  --expected-commit "$renewed_commit" --expected-package-digest "$renewed_package" \
+  --review-attestation "$tmp_dir/self-review.json" --json >"$tmp_dir/self-review-result.json" 2>/dev/null; then
+  printf '%s\n' 'release binding test: FAIL author self-review was accepted' >&2
+  exit 1
+fi
+jq -e '.status == "BLOCK_EXTERNAL_REVIEW_EVIDENCE_INVALID"' "$tmp_dir/self-review-result.json" >/dev/null
+
+assert_review_invalid() {
+  local case_name=$1
+  local attestation=$2
+  if "$candidate/tools/verify-release-artifact-manifest" --release \
+    --expected-commit "$renewed_commit" --expected-package-digest "$renewed_package" \
+    --review-attestation "$attestation" --json >"$tmp_dir/$case_name-result.json" 2>/dev/null; then
+    printf 'release binding test: FAIL accepted %s review binding\n' "$case_name" >&2
+    exit 1
+  fi
+  if ! jq -e '.status == "BLOCK_EXTERNAL_REVIEW_EVIDENCE_INVALID"' "$tmp_dir/$case_name-result.json" >/dev/null; then
+    printf 'release binding test: FAIL %s returned unexpected status: ' "$case_name" >&2
+    jq -c . "$tmp_dir/$case_name-result.json" >&2
+    exit 1
+  fi
+}
+
+jq '.repository = "attacker/fork"' "$tmp_dir/review.json" >"$tmp_dir/wrong-repository.json"
+jq '.protected_branch = "unprotected"' "$tmp_dir/review.json" >"$tmp_dir/wrong-branch.json"
+jq '.ruleset_url = "https://example.invalid/rules/123"' "$tmp_dir/review.json" >"$tmp_dir/wrong-ruleset-host.json"
+jq '.review.review_url = "https://example.invalid/reviews/456"' "$tmp_dir/review.json" >"$tmp_dir/wrong-review-host.json"
+jq '.unexpected = true' "$tmp_dir/review.json" >"$tmp_dir/extra-property.json"
+for case_name in wrong-repository wrong-branch wrong-ruleset-host wrong-review-host extra-property; do
+  assert_review_invalid "$case_name" "$tmp_dir/$case_name.json"
+done
+
+jq '.properties.repository.const = "attacker/fork"' \
+  "$candidate/compatibility/release-review-attestation.schema.json" >"$tmp_dir/tampered-schema.json"
+mv "$tmp_dir/tampered-schema.json" "$candidate/compatibility/release-review-attestation.schema.json"
+"$candidate/tools/generate-release-artifact-manifest" >"$candidate/compatibility/release-artifact-manifest.v1.json"
+if "$candidate/tools/verify-release-artifact-manifest" --json >"$tmp_dir/schema-tamper-result.json" 2>/dev/null; then
+  printf '%s\n' 'release binding test: FAIL accepted a locally altered review schema' >&2
+  exit 1
+fi
+jq -e '
+  .status == "BLOCK_LOCAL_DRIFT_MISMATCH" and
+  (.reason | contains("closed repository/branch/URL contract"))
+' "$tmp_dir/schema-tamper-result.json" >/dev/null
+
+test "$baseline_commit" != "$renewed_commit"
+printf '%s\n' 'release binding adversarial tests: PASS (closed schema/repo/branch/GitHub URLs, exact external digest, distinct CODEOWNER, and trusted verifier remain mandatory/BLOCK)'

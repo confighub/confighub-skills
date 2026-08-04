@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+# Resolved from this script's repository root.
+# shellcheck disable=SC1091
+source "$root/tools/release-artifact-lib.sh"
+
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
+release_source_paths "$root" >"$tmp_dir/source.paths"
+release_package_paths "$root" >"$tmp_dir/package.paths"
+release_canonical_lines "$root" "$tmp_dir/source.paths" "$tmp_dir/source.lines"
+release_canonical_lines "$root" "$tmp_dir/package.paths" "$tmp_dir/package.lines"
+
+jq -n \
+  --arg schema_version 'confighub-skills-local-drift-manifest/v2' \
+  --arg candidate_plugin_version '0.4.0' \
+  --arg algorithm 'sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)' \
+  --arg source_path_set_sha256 "$(release_file_sha256 "$tmp_dir/source.paths")" \
+  --arg source_tree_sha256 "$(release_file_sha256 "$tmp_dir/source.lines")" \
+  --argjson source_file_count "$(wc -l <"$tmp_dir/source.paths" | tr -d ' ')" \
+  --arg package_path_set_sha256 "$(release_file_sha256 "$tmp_dir/package.paths")" \
+  --arg package_tree_sha256 "$(release_file_sha256 "$tmp_dir/package.lines")" \
+  --argjson package_file_count "$(wc -l <"$tmp_dir/package.paths" | tr -d ' ')" \
+  '{
+    schema_version:$schema_version,
+    candidate_plugin_version:$candidate_plugin_version,
+    algorithm:$algorithm,
+    self_exclusion:"compatibility/release-artifact-manifest.v1.json",
+    source_tree:{file_count:$source_file_count,path_set_sha256:$source_path_set_sha256,content_tree_sha256:$source_tree_sha256},
+    plugin_package:{roots:[".claude-plugin","commands","compatibility","hooks","references","skills"],file_count:$package_file_count,path_set_sha256:$package_path_set_sha256,content_tree_sha256:$package_tree_sha256},
+    authority:{classification:"LOCAL_DRIFT_SENTINEL_ONLY",self_renewable:true,trust_evidence:false,release_approval:false},
+    release_binding:{requires_external_protected_commit:true,requires_external_package_digest:true,requires_distinct_codeowner_review:true,external_authenticity_verifier:"NOT_INTEGRATED"}
+  }'

@@ -1,0 +1,486 @@
+{
+  "schema_version": "confighub-skills-no-loss/v1",
+  "baseline": {
+    "repository_commit": "855f734",
+    "plugin_version": "0.3.0",
+    "skill_count": 15,
+    "eval_case_count": 62
+  },
+  "candidate_plugin_version": "0.4.0",
+  "candidate_base_commit": "de74ac357b88e4a39b22b2afb6a6ff232d91ded5",
+  "compatibility_profile": "compatibility/current-profile.v1.json",
+  "global_authority_blocks": [
+    {
+      "block_id": "approved-unit-state-cas-integration",
+      "status": "BLOCK",
+      "applies_to": ["unit-restore", "unit-update", "unit-patch", "function-or-run-mutation", "variant-promotion"],
+      "reason": "ConfigHub's transactional HeadRevisionNum plus DataHash/ContentHash checks exist, but no protected digest-pinned action binds the approved per-Unit values through final execution and receipt.",
+      "result": "APPROVED_STATE_CAS_NOT_INTEGRATED"
+    }
+  ],
+  "disposition_enum": [
+    "PRESERVED",
+    "MIGRATED_WITH_PARITY",
+    "REPLACED_BY",
+    "VERSIONED_LEGACY",
+    "BLOCKED_PENDING_BROKER",
+    "BLOCKED_PENDING_PROVIDER_CAS",
+    "BLOCKED_PENDING_EVIDENCE_PROXY"
+  ],
+  "deleted_surface_dispositions": [
+    {
+      "path": "PLAN.md",
+      "surface_kind": "stale-operational-plan",
+      "disposition": "REPLACED_BY",
+      "replacement": "README.md + compatibility/current-profile.v1.json + compatibility/no-loss-inventory.v1.json",
+      "history": "PRESERVED_IN_GIT",
+      "parity": "NOT_APPLICABLE_STALE_STATE",
+      "reason": "The unversioned plan described superseded in-flight work. Current status and typed remaining gaps live in versioned product and compatibility documents; the original bytes remain recoverable from Git history."
+    },
+    {
+      "path": "hooks/auto-allow.sh",
+      "surface_kind": "unsafe-authority-mechanism",
+      "disposition": "REPLACED_BY",
+      "replacement": "host ASK + compatibility/read-capability-subsets.v1.json + tools/check-installed-permission-state; deterministic final-argv wrapper remains BLOCK/NOT_INTEGRATED",
+      "history": "PRESERVED_IN_GIT",
+      "parity": "INTENTIONALLY_NOT_PRESERVED",
+      "reason": "The raw-shell regex hook silently granted authority without final-argv semantics and admitted credential, file, plugin, network, expansion, and unknown-flag cases. Current reads remain host-ASK; authoritative execution stays blocked until the explicitly tracked typed wrapper exists."
+    }
+  ],
+  "retired_skill_dispositions": [
+    {
+      "skill_id": "cub-apply",
+      "disposition": "REPLACED_BY",
+      "replacement": "release-publish",
+      "reason": "Upstream renamed the current Space Release surface. All prior apply/deploy trigger families, capabilities, and evals remain typed on release-publish; a no-tools direct Skill identity stub remains for 0.4.x; bridge/per-Unit execution remains versioned legacy."
+    }
+  ],
+  "compatibility_aliases": [
+    {
+      "alias": "/confighub-skills:cub-apply",
+      "kind": "slash-command",
+      "disposition": "REPLACED_BY",
+      "replacement": "release-publish",
+      "sunset": "after-0.4.x",
+      "observable_path": "commands/cub-apply.md"
+    },
+    {
+      "alias": "cub-apply",
+      "kind": "skill-identity-stub",
+      "disposition": "REPLACED_BY",
+      "replacement": "release-publish",
+      "sunset": "after-0.4.x",
+      "observable_path": "skills/cub-apply/SKILL.md"
+    }
+  ],
+  "upstream_change_dispositions": [
+    {
+      "change_id": "de74ac3-release-publish-addition",
+      "disposition": "PRESERVED",
+      "resolution": "Keep release-publish as the current canonical Release skill, including all six upstream evals, then add the prior apply/deploy scope tests."
+    },
+    {
+      "change_id": "de74ac3-verify-apply-deletion",
+      "disposition": "PRESERVED",
+      "resolution": "Restore verify-apply as the distinct Release-to-controller-to-runtime proof skill with all six baseline evals."
+    }
+  ],
+  "global_legacy_jobs": [
+    {
+      "capability_id": "unit-runtime-apply-single",
+      "disposition": "REPLACED_BY",
+      "replacement": "release-publish/space-release-proposal",
+      "scope_effect": "A single-Unit intent cannot be preserved by release publish; disclose the effective whole-Space set and ASK again."
+    },
+    {
+      "capability_id": "unit-runtime-apply-filtered-or-cross-space",
+      "disposition": "REPLACED_BY",
+      "replacement": "release-publish/space-release-proposal",
+      "scope_effect": "Partition into independently reviewed Variant Spaces; never silently broaden a Filter or cross-Space selection."
+    },
+    {
+      "capability_id": "unit-runtime-apply-unapplied",
+      "disposition": "MIGRATED_WITH_PARITY",
+      "replacement": "release-publish/effective-release-set-preview",
+      "scope_effect": "Read pending heads, but publish still captures the complete effective release set."
+    },
+    {
+      "capability_id": "changeset-revision-apply",
+      "disposition": "MIGRATED_WITH_PARITY",
+      "replacement": "closed ChangeSet plus exact Space Release proposal",
+      "scope_effect": "The ChangeSet remains grouping/rollback evidence; it is not a release selector."
+    },
+    {
+      "capability_id": "apply-dry-run",
+      "disposition": "REPLACED_BY",
+      "replacement": "release-publish/exact-release-subject-preview",
+      "scope_effect": "release publish has no dry-run; preview is a read-only manifest of exact IDs, revisions, hashes, gates, and target."
+    },
+    {
+      "capability_id": "apply-specific-revision",
+      "disposition": "MIGRATED_WITH_PARITY",
+      "replacement": "advisory release tag proposal with complete tag coverage and expected mutable tag mapping",
+      "scope_effect": "BLOCK unless every effective Unit resolves to a reviewed tagged RevisionID/DataHash, and remain RELEASE_TAG_MAPPING_CAS_BLOCK because the TagID-to-Revision mapping is re-resolved at execution."
+    },
+    {
+      "capability_id": "cancel-inflight-unit-apply",
+      "disposition": "VERSIONED_LEGACY",
+      "replacement": "none; publish is an immutable synchronous release artifact",
+      "scope_effect": "Withdrawal or controller rollback is a separate destructive/governed job."
+    },
+    {
+      "capability_id": "confighub-provider-delivery",
+      "disposition": "VERSIONED_LEGACY",
+      "replacement": "none in the reviewed current Release path",
+      "scope_effect": "Current release publication requires an OCI provider; preserve knowledge and return BLOCK."
+    },
+    {
+      "capability_id": "bridge-or-unit-runtime-delivery",
+      "disposition": "VERSIONED_LEGACY",
+      "replacement": "release-publish/space-release-proposal",
+      "scope_effect": "ConfigHub v0.2.11 has sunset bridge/per-Unit deploy verbs. Preserve read/diagnostic vocabulary only; never grant execution authority."
+    },
+    {
+      "capability_id": "native-revision-approval",
+      "disposition": "BLOCKED_PENDING_PROVIDER_CAS",
+      "replacement": "head-at-execution cub unit approve knowledge only",
+      "scope_effect": "Server v0.2.11 accepts only omitted/HeadRevisionNum and no expected RevisionID/DataHash CAS. Non-head selectors are VERSIONED_LEGACY/BLOCK; exact artifact approval requires a provider precondition."
+    }
+  ],
+  "skills": [
+    {
+      "skill_id": "app-config",
+      "skill_disposition": "PRESERVED",
+      "trigger_dispositions": [
+        {"trigger_id": "app-config-file-to-configmap", "phrases": ["use my .env with ConfigHub", "render application config as a ConfigMap", "envFrom injection"], "disposition": "PRESERVED"},
+        {"trigger_id": "configmap-mode-choice", "phrases": ["mutable vs immutable ConfigMap"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "appconfig-unit", "disposition": "PRESERVED"},
+        {"capability_id": "render-configmap-upsert-link", "disposition": "PRESERVED"},
+        {"capability_id": "envfrom-wiring", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "properties-for-java-app", "disposition": "PRESERVED"},
+        {"eval_id": "envfrom-env-injection", "disposition": "PRESERVED"},
+        {"eval_id": "mutable-vs-immutable-choice", "disposition": "PRESERVED"}
+      ]
+    },
+    {
+      "skill_id": "confighub-core",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "orientation", "phrases": ["how does ConfigHub work", "give me a tour"], "disposition": "PRESERVED"},
+        {"trigger_id": "topology-and-granularity", "phrases": ["how should I lay out Spaces", "one Unit or many"], "disposition": "PRESERVED"},
+        {"trigger_id": "delete-destroy-protection", "phrases": ["protect prod from deletion"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "config-as-data-doctrine", "disposition": "PRESERVED"},
+        {"capability_id": "space-topology", "disposition": "PRESERVED"},
+        {"capability_id": "skill-routing", "disposition": "PRESERVED"},
+        {"capability_id": "current-delivery-model", "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "new-user-tour", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "confusing-target-vs-worker", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "generic-help-routes", "disposition": "PRESERVED"},
+        {"eval_id": "user-wants-helm-values", "disposition": "PRESERVED"},
+        {"eval_id": "first-real-layout", "disposition": "PRESERVED"},
+        {"eval_id": "suffix-naming-migration", "disposition": "PRESERVED"},
+        {"eval_id": "one-resource-per-unit", "disposition": "PRESERVED"},
+        {"eval_id": "protect-prod-space", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "release-publish",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "deploy-or-apply", "phrases": ["deploy this", "apply this", "push the change", "roll out the fix"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "apply-pending-or-changeset", "phrases": ["apply everything unapplied", "apply the ChangeSet"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "apply-preview", "phrases": ["dry-run what would change"], "disposition": "REPLACED_BY", "replacement": "release-publish/fully-enumerated-advisory-preview"},
+        {"trigger_id": "publish-release", "phrases": ["publish a release", "cut a release", "pin a release to a tag"], "disposition": "PRESERVED"},
+        {"trigger_id": "inspect-release", "phrases": ["get a release", "list releases", "find a release by digest"], "disposition": "PRESERVED"},
+        {"trigger_id": "withdraw-release", "phrases": ["withdraw a release", "unpublish the OCI bundle"], "disposition": "BLOCKED_PENDING_BROKER"},
+        {"trigger_id": "cancel-inflight-unit-apply", "phrases": ["cancel the in-flight apply", "stop the stuck apply"], "disposition": "VERSIONED_LEGACY"},
+        {"trigger_id": "delete-release", "phrases": ["permanently delete a release", "delete the stored release bundle"], "disposition": "BLOCKED_PENDING_BROKER"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "space-release-proposal", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "exact-release-subject", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
+        {"capability_id": "tagged-release", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "cancel-inflight", "disposition": "VERSIONED_LEGACY"},
+        {"capability_id": "config-hub-provider-apply", "disposition": "VERSIONED_LEGACY"},
+        {"capability_id": "release-identity-read", "disposition": "PRESERVED"},
+        {"capability_id": "release-withdrawal-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "historical-release-manifest", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "withdrawal-original-membership-proof", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
+        {"capability_id": "release-deletion-proposal", "disposition": "BLOCKED_PENDING_BROKER"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "single-unit-apply-after-mutate", "disposition": "REPLACED_BY", "current_eval": "publish-variant-release-after-mutate"},
+        {"eval_id": "rollback-to-last-applied", "disposition": "REPLACED_BY", "current_eval": "rollback-then-publish-restored-release"},
+        {"eval_id": "bulk-apply-unapplied-changes", "disposition": "REPLACED_BY", "current_eval": "publish-pending-variant-release"},
+        {"eval_id": "publish-variant-release-after-mutate", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "rollback-then-publish-restored-release", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "publish-pending-variant-release", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "publish-head-release", "disposition": "PRESERVED"},
+        {"eval_id": "publish-pinned-to-tag", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "publish-no-assigned-units", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "withdraw-by-id", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "withdraw-blocked-by-gate", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "list-find-by-digest", "disposition": "PRESERVED"},
+        {"eval_id": "cancel-inflight-unit-apply", "disposition": "VERSIONED_LEGACY"},
+        {"eval_id": "withdraw-membership-drift", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
+        {"eval_id": "delete-release-retention-proof", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "cub-mutate",
+      "skill_disposition": "PRESERVED",
+      "trigger_dispositions": [
+        {"trigger_id": "surgical-unit-change", "phrases": ["update the image", "bump replicas", "change an env var", "edit this Unit"], "disposition": "PRESERVED"},
+        {"trigger_id": "bulk-unit-change", "phrases": ["bulk edit", "change every matching Unit"], "disposition": "PRESERVED"},
+        {"trigger_id": "restore-via-mutation", "phrases": ["restore a prior revision"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "function-first-mutation-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "changeset-grouping", "disposition": "PRESERVED"},
+        {"capability_id": "dry-run-diff", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "single-image-bump", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "bulk-replicas-by-label", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "restore-after-bad-change", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "cub-query",
+      "skill_disposition": "PRESERVED",
+      "trigger_dispositions": [
+        {"trigger_id": "fleet-query", "phrases": ["where is this deployed", "find workloads missing", "audit every Unit"], "disposition": "PRESERVED"},
+        {"trigger_id": "single-workload-read", "phrases": ["what image is this on", "how many replicas"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "metadata-and-data-query", "disposition": "PRESERVED"},
+        {"capability_id": "revision-audit", "disposition": "PRESERVED"},
+        {"capability_id": "external-version-comparison", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "find-release-deployments", "disposition": "PRESERVED"},
+        {"eval_id": "audit-missing-resource-limits", "disposition": "PRESERVED"},
+        {"eval_id": "recent-changes-and-why", "disposition": "PRESERVED"},
+        {"eval_id": "single-unit-image-lookup", "disposition": "PRESERVED"},
+        {"eval_id": "single-workload-replica-count-in-region", "disposition": "PRESERVED"},
+        {"eval_id": "single-unit-up-to-date-check", "disposition": "PRESERVED"}
+      ]
+    },
+    {
+      "skill_id": "import",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "helm-onboarding", "phrases": ["install a Helm chart", "upgrade the chart without losing edits"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "kustomize-onboarding", "phrases": ["import base and overlays", "kustomize build into Units"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "gitops-crd-boundary", "phrases": ["import a Flux Kustomization CRD"], "disposition": "PRESERVED"},
+        {"trigger_id": "helm-values-compatibility", "phrases": ["preserve different Helm values per environment", "do not migrate our per-env values yet"], "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "helm-component-source-base", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "helm-upgrade-and-variant-promote", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "kustomize-variant-upload", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "per-environment-variants", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "helm-values-independent-components", "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "helm-cert-manager-first-install", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "helm-upgrade-preserving-customizations", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "helm-multi-env", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "kustomize-base-plus-overlays", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "kustomize-helm-inflator-redirect", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "kustomize-flux-crd-out-of-scope", "disposition": "PRESERVED"},
+        {"eval_id": "helm-values-compatibility", "disposition": "MIGRATED_WITH_PARITY"}
+      ]
+    },
+    {
+      "skill_id": "incident-management",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "active-incident", "phrases": ["production outage", "prod is crashing", "mitigate or roll back"], "disposition": "PRESERVED"},
+        {"trigger_id": "post-incident-reconcile", "phrases": ["post-incident cleanup", "absorb emergency changes"], "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "read-only-triage", "disposition": "PRESERVED"},
+        {"capability_id": "rollback-or-fix-forward-routing", "disposition": "PRESERVED"},
+        {"capability_id": "release-aware-proof", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "incident-provenance-and-concurrency", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "recent-release-crashing-prod", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "traffic-spike-not-from-change", "disposition": "PRESERVED"},
+        {"eval_id": "post-incident-cleanup", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "concurrent-incidents-shared-unit", "disposition": "PRESERVED"}
+      ]
+    },
+    {
+      "skill_id": "kubernetes-resources",
+      "skill_disposition": "PRESERVED",
+      "trigger_dispositions": [
+        {"trigger_id": "author-kubernetes-resource", "phrases": ["create a StatefulSet", "add an Ingress", "set up NetworkPolicy", "add RBAC", "add a CronJob"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "literal-yaml-authoring", "disposition": "PRESERVED"},
+        {"capability_id": "best-practice-defaults", "disposition": "PRESERVED"},
+        {"capability_id": "unit-create-proposal", "disposition": "BLOCKED_PENDING_BROKER"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "statefulset-for-redis", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "lock-down-namespace-networking", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "cronjob-with-rbac", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "promote-release",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "variant-promotion", "phrases": ["promote to staging", "roll forward to prod"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "promotion-preflight", "phrases": ["is this ready to promote", "which Units are behind"], "disposition": "PRESERVED"},
+        {"trigger_id": "base-to-fleet", "phrases": ["push the base to every downstream"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "variant-create", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "variant-promote-preview", "disposition": "PRESERVED"},
+        {"capability_id": "variant-promote", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "partial-changeset-upgrade", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "native-unit-approval", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "ready-to-promote-dev-to-staging", "disposition": "PRESERVED"},
+        {"eval_id": "source-not-converged", "disposition": "PRESERVED"},
+        {"eval_id": "scope-narrowing", "disposition": "PRESERVED"},
+        {"eval_id": "staging-to-prod-bulk", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "single-unit-promotion", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "base-to-fleet-upgrade", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "rollback-revision",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "rollback-change", "phrases": ["roll back", "revert the release", "undo the ChangeSet", "restore last applied"], "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "head-moving-restore", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "changeset-restore", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "publish-restored-space", "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "undo-last-release", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "apply-revision-is-not-rollback", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "single-unit-bad-image", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "skill-examples-bootstrap",
+      "skill_disposition": "PRESERVED",
+      "trigger_dispositions": [
+        {"trigger_id": "bootstrap-playground", "phrases": ["set up skill-examples", "give me a Unit to tinker with", "walk me through an example"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "example-space-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "idempotent-refresh-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "guided-walkthrough", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "first-time-bootstrap", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "idempotent-rerun", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "walk-through-example", "disposition": "MIGRATED_WITH_PARITY"}
+      ]
+    },
+    {
+      "skill_id": "target-bind",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "setup-target", "phrases": ["set up a target", "publish to OCI", "attach Units to a target"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "worker-question", "phrases": ["do I need a worker before a target"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "oci-target-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "space-release-target-binding", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "unit-target-materialization", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "config-hub-provider-target", "disposition": "VERSIONED_LEGACY"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "single-unit-oci-target", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "bulk-bind-by-label", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "do-i-need-a-worker", "disposition": "PRESERVED"}
+      ]
+    },
+    {
+      "skill_id": "triggers-and-applygates",
+      "skill_disposition": "PRESERVED",
+      "trigger_dispositions": [
+        {"trigger_id": "enforce-policy", "phrases": ["block bad config", "wire schema validation", "require approval"], "disposition": "PRESERVED"},
+        {"trigger_id": "diagnose-gate", "phrases": ["why is this Unit blocked", "what warnings exist"], "disposition": "PRESERVED"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "trigger-filter-policy-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "gate-diagnosis", "disposition": "PRESERVED"},
+        {"capability_id": "native-unit-approval", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
+        {"capability_id": "warning-vs-gate", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "bootstrap-platform-space", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "diagnose-blocked-apply", "disposition": "PRESERVED"},
+        {"eval_id": "add-custom-policy-no-latest", "disposition": "BLOCKED_PENDING_BROKER"}
+      ]
+    },
+    {
+      "skill_id": "verify-apply",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "did-it-deploy", "phrases": ["did it deploy", "is it live", "did Argo pick it up"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "release-closeout", "phrases": ["close out the release", "show proof"], "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "release-identity-proof", "disposition": "MIGRATED_WITH_PARITY"},
+        {"capability_id": "controller-proof", "disposition": "PRESERVED"},
+        {"capability_id": "runtime-proof", "disposition": "PRESERVED"},
+        {"capability_id": "legacy-unit-event-apply-proof", "disposition": "VERSIONED_LEGACY"},
+        {"capability_id": "historical-release-manifest-proof", "disposition": "MIGRATED_WITH_PARITY"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "happy-path-post-apply", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "stuck-apply-imagepullbackoff", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "apply-failed-bad-schema", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "three-way-agreement-check", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "close-out-converged-release", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "bulk-post-apply-triage", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "historical-release-same-count-member-swap", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "historical-release-deleted-revision-gap", "disposition": "MIGRATED_WITH_PARITY"}
+      ]
+    },
+    {
+      "skill_id": "worker-bootstrap",
+      "skill_disposition": "MIGRATED_WITH_PARITY",
+      "trigger_dispositions": [
+        {"trigger_id": "delivery-worker", "phrases": ["do I need to run a worker", "set up a target worker"], "disposition": "MIGRATED_WITH_PARITY"},
+        {"trigger_id": "custom-function-worker", "phrases": ["host custom worker functions", "diagnose external worker"], "disposition": "MIGRATED_WITH_PARITY", "evidence_delta": "The job remains visible and produces metadata-grounded diagnosis plus a concrete governed remedy proposal, but raw worker status/log evidence was removed and is dispositioned separately."}
+      ],
+      "capability_dispositions": [
+        {"capability_id": "server-worker-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "external-worker-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "external-worker-read-diagnosis", "disposition": "MIGRATED_WITH_PARITY", "scope_effect": "Use ConfigHub worker metadata and Kubernetes get/describe only; classify no cause that those records do not prove."},
+        {"capability_id": "worker-local-status-diagnosis", "disposition": "BLOCKED_PENDING_EVIDENCE_PROXY", "scope_effect": "cub worker status reads local daemon/PID state and is not authoritative worker/controller evidence; a typed identity-bound status adapter is required."},
+        {"capability_id": "worker-log-diagnosis", "disposition": "BLOCKED_PENDING_EVIDENCE_PROXY", "scope_effect": "Worker and Kubernetes logs remain blocked until an identity-bound, seek-bounded, byte-capped, redacting, receipted non-follow proxy exists."},
+        {"capability_id": "worker-upgrade-remedy", "disposition": "BLOCKED_PENDING_BROKER", "scope_effect": "A version mismatch may yield an exact cub worker upgrade --dry-run/proposal after same-session help; execution is never implied."},
+        {"capability_id": "worker-credential-remedy", "disposition": "BLOCKED_PENDING_BROKER", "scope_effect": "A missing-secret event may yield a SecretStore/operator provisioning proposal without reading or exposing credential bytes."},
+        {"capability_id": "config-hub-provider-worker", "disposition": "VERSIONED_LEGACY"},
+        {"capability_id": "worker-run-positional-slug", "disposition": "PRESERVED"}
+      ],
+      "eval_dispositions": [
+        {"eval_id": "do-i-need-to-run-a-worker", "disposition": "MIGRATED_WITH_PARITY"},
+        {"eval_id": "external-worker-for-custom-functions", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "diagnose-crashing-external-worker", "disposition": "MIGRATED_WITH_PARITY", "evidence_delta": "Preserves the diagnosis-and-remedy job with metadata-grounded causes and governed proposals; raw status/log evidence is explicitly blocked rather than falsely preserved."}
+      ]
+    }
+  ]
+}

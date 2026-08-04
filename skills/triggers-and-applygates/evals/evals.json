@@ -1,25 +1,26 @@
 {
+  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
   "skill_name": "triggers-and-applygates",
   "evals": [
     {
       "id": 1,
       "name": "bootstrap-platform-space",
       "prompt": "We're starting to use ConfigHub and I want to make sure nobody can apply Kubernetes config that fails schema validation or still has placeholders. Set up the enforcement so this just works for every new Space we create.",
-      "expected_output": "Creates a platform Space, adds vet-schemas, vet-placeholders, vet-format, vet-merge-keys, vet-immutable Triggers on Mutation events, creates a Filter selecting them, and shows how new Spaces inherit via --trigger-filter. Every mutation call includes --change-desc capturing the user's prompt.",
+      "expected_output": "Reads current policy, then prepares exact platform Space/Trigger/Filter/attachment proposals for vet-schemas, vet-placeholders, vet-format, vet-merge-keys, and vet-immutable. It does not execute any create/update operation and BLOCKs on the missing broker. It distinguishes entity writes that reject --change-desc from proposed Unit-data mutations that require it.",
       "files": []
     },
     {
       "id": 2,
       "name": "diagnose-blocked-apply",
       "prompt": "My 'checkout' unit in myapp-prod won't apply. It says something about a gate. What's going on and how do I fix it?",
-      "expected_output": "Reads the Unit and its attached gates, identifies which Trigger attached which ApplyGate, explains which vet-* rule failed, points at the offending data, and recommends a cub function do fix (with --change-desc). Does NOT suggest removing the Trigger or bypassing the gate.",
+      "expected_output": "Reads the Unit, ApplyGates, and ValidationResults, identifies the Trigger/rule/details, and prepares a function-first fix proposal with --change-desc. If vet-approvedby is the gate, explains that v0.2.11 accepts only omitted/HeadRevisionNum approval, which approves head at execution with no expected RevisionID/DataHash CAS; returns APPROVAL_HEAD_RACE_BLOCK and keeps native approval distinct from execution authorization. Does not bypass or mutate.",
       "files": []
     },
     {
       "id": 3,
       "name": "add-custom-policy-no-latest",
       "prompt": "Add a rule to ConfigHub that blocks any Deployment whose container image uses the :latest tag, across all our app spaces.",
-      "expected_output": "Adds a vet-cel Trigger in the platform Space with the no-:latest CEL expression, confirms the existing Filter covers it (or widens the Filter), and verifies the rule propagates to downstream Spaces. Does not use the older vet-celexpr name.",
+      "expected_output": "Prepares, but does not execute, a vet-cel Trigger proposal with the no-:latest expression, reads whether the existing Filter covers it, and includes exact downstream refresh/verification scope. Does not use vet-celexpr and BLOCKs on the missing broker.",
       "files": []
     }
   ]
