@@ -1,8 +1,8 @@
 {
   "schema_version": "confighub-skills-exact-profile-behavior-cases/v1",
-  "profile_id": "cub-0.2.11_server-0.2.11_helm-0.1.0",
+  "profile_id": "cub-0.2.11_server-0.2.15_helm-0.1.0",
   "reviewed_client_commit": "683dce12c2f26ad151aa9e5763e60b0ac66172a4",
-  "reviewed_server_commit": "8cb9f6b4925670658850c8c99357f34fb11a51ad",
+  "reviewed_server_commit": "eebd77551316efc8c58028f6d4275ab504e17ce7",
   "cases": [
     {
       "case_id": "approval-numeric-selector-rejected",
@@ -89,5 +89,29 @@
       "source": "internal/views/release_core.go:release-<ReleaseNum>; addReleaseToRevision",
       "expected": "BIND_AUTO_TAG_SIDE_EFFECT"
     }
-  ]
+  ],
+  "server_reverification": {
+    "reviewed_from": "8cb9f6b4925670658850c8c99357f34fb11a51ad",
+    "reviewed_to": "eebd77551316efc8c58028f6d4275ab504e17ce7",
+    "commits_spanned": 53,
+    "method": "each case re-read at both commits in a local server checkout",
+    "result": "all 17 cases hold; every delta in the cited files is additive",
+    "files_byte_identical": [
+      "internal/views/release_core.go",
+      "internal/models/release.go",
+      "public/cmd/cub/worker_run.go",
+      "public/cmd/cub/worker_logs.go"
+    ],
+    "files_changed_but_case_behaviour_intact": {
+      "internal/views/unit_special.go": "BulkTag now resolves any Revision selector via getSelectedRevision; UnitController.Approve is byte-identical and still rejects non-head selectors",
+      "internal/models/revision.go": "additive: ChangeOrders, Conflicts, new source types; Releases byte-identical",
+      "internal/views/unit_update.go": "refactor only; no compare-and-swap primitive at either commit",
+      "internal/models/tag.go": "additive: ChangeOrderID"
+    },
+    "new_facts_not_covered_by_these_cases": [
+      "Revision.ChangeOrders is written after Revision creation and can accrue more than one entry, so any post-creation-mutable-field list must include it",
+      "SourceTypeSetPredicates is renamed SourceTypeSetProtection with inverse polarity; a rename-only translation is wrong twice",
+      "merge conflicts are first-class (Revision.Conflicts, unit_revision_conflicts migrations) with new ApplyConflicts and DismissConflicts source types"
+    ]
+  }
 }
