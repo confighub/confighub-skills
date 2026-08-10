@@ -2,7 +2,7 @@
   "schema_version": "confighub-skills-compatibility/v1",
   "plugin_version": "0.4.0",
   "candidate_base_commit": "de74ac357b88e4a39b22b2afb6a6ff232d91ded5",
-  "profile_id": "cub-0.2.11_server-0.2.11_helm-0.1.0",
+  "profile_id": "cub-0.2.11_server-0.2.15_helm-0.1.0",
   "reviewed_at": "2026-08-04",
   "status": "BLOCK_ACTIVATION_STATIC_ONLY",
   "authority": {
@@ -27,8 +27,8 @@
       "provenance_caveat": "cub version and Go build metadata bind the advertised v0.2.11 commit and this exact binary hash, but go version -m reports vcs.modified=true, the module version is (devel), signing is ad hoc, and no Homebrew receipt or official release-asset checksum was found. Treat source semantics as reviewed for this hash, not the binary as an authenticated official release asset."
     },
     "confighub_server": {
-      "version": "v0.2.11",
-      "commit": "8cb9f6b4925670658850c8c99357f34fb11a51ad"
+      "version": "v0.2.15",
+      "commit": "eebd77551316efc8c58028f6d4275ab504e17ce7"
     },
     "cub_helm_addon": {
       "version": "0.1.0",
@@ -78,7 +78,7 @@
       "status": "BLOCK",
       "client_help_claim": "A Unit with no matching tagged Revision falls back to its head Revision.",
       "reviewed_source_observation": "The exact installed server commit returns an error when an effective Unit has no Revision carrying the requested Tag, despite its nearby comment and client help describing head fallback.",
-      "source_checkout_commit": "8cb9f6b4925670658850c8c99357f34fb11a51ad",
+      "source_checkout_commit": "eebd77551316efc8c58028f6d4275ab504e17ce7",
       "semantic_change_commit": "fb4276af4888d82d2b6565cb1448ff66941169c5",
       "exact_installed_server_semantics": "STATICALLY_VERIFIED_ERROR_NOT_LIVE_TESTED",
       "policy": "For --revision release proposals, require every effective Unit to have the exact tag and bind the resulting RevisionID/DataHash set. Otherwise return BLOCK."
