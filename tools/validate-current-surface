@@ -569,10 +569,14 @@ test "$active_unit_apply_count" = "0" || fail "versioned-legacy unit apply spell
 if command -v cub >/dev/null 2>&1; then
   command -v shasum >/dev/null 2>&1 || fail "shasum is required for exact cub binary verification"
   cub_version=$(cub version)
+  # `cub version` prints a Client Version block and a Server Version block. A bare
+  # `Version:\s+vX` matches either, so the two version greps below cannot tell client
+  # from server on their own; the commits are the discriminating values and are
+  # checked separately. Client is v0.2.11, server is v0.2.15.
   printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.11' || fail "installed cub client version differs from profile"
   printf '%s\n' "$cub_version" | rg -q '683dce12c2f26ad151aa9e5763e60b0ac66172a4' || fail "installed cub client commit differs from profile"
-  printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.11' || fail "installed server version differs from profile"
-  printf '%s\n' "$cub_version" | rg -q '8cb9f6b4925670658850c8c99357f34fb11a51ad' || fail "installed server commit differs from profile"
+  printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.15' || fail "installed server version differs from profile"
+  printf '%s\n' "$cub_version" | rg -q 'eebd77551316efc8c58028f6d4275ab504e17ce7' || fail "installed server commit differs from profile"
   helm_version=$(cub helm version)
   printf '%s\n' "$helm_version" | rg -q 'helm 0\.1\.0 \(commit ce1b62faa92ec045d96b0e938bf289f83501fd17' || fail "installed cub helm add-on differs from profile"
   cub_binary_sha=$(shasum -a 256 "$(command -v cub)" | awk '{print $1}')
