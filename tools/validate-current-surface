@@ -88,7 +88,7 @@ jq -e '
   .schema_version == "confighub-skills-compatibility/v1" and
   .plugin_version == "0.4.0" and
   .candidate_base_commit == "de74ac357b88e4a39b22b2afb6a6ff232d91ded5" and
-  .profile_id == "cub-0.2.11_server-0.2.11_helm-0.1.0" and
+  .profile_id == "cub-0.2.11_server-0.2.15_helm-0.1.0" and
   .status == "BLOCK_ACTIVATION_STATIC_ONLY" and
   .authority.raw_bash_autoallow == "BLOCK" and
   .authority.typed_final_argv_wrapper == "NOT_INTEGRATED" and
@@ -102,8 +102,8 @@ jq -e '
   .installed_profile.cub_client.code_signature == "ADHOC_NO_TEAM_IDENTIFIER" and
   .installed_profile.cub_client.package_manager_receipt == "NOT_FOUND" and
   .installed_profile.cub_client.provenance_status == "DIRTY_LOCAL_BUILD_NOT_VERIFIED_OFFICIAL_RELEASE_ASSET" and
-  .installed_profile.confighub_server.version == "v0.2.11" and
-  .installed_profile.confighub_server.commit == "8cb9f6b4925670658850c8c99357f34fb11a51ad" and
+  .installed_profile.confighub_server.version == "v0.2.15" and
+  .installed_profile.confighub_server.commit == "eebd77551316efc8c58028f6d4275ab504e17ce7" and
   .installed_profile.cub_helm_addon.version == "0.1.0" and
   .installed_profile.cub_helm_addon.commit == "ce1b62faa92ec045d96b0e938bf289f83501fd17" and
   .surface_counts.skills == 15 and
@@ -119,7 +119,7 @@ jq -e '
   any(.known_semantic_gaps[];
     .gap_id == "release-tag-missing-unit-semantics" and
     .status == "BLOCK" and
-    .source_checkout_commit == "8cb9f6b4925670658850c8c99357f34fb11a51ad" and
+    .source_checkout_commit == "eebd77551316efc8c58028f6d4275ab504e17ce7" and
     .exact_installed_server_semantics == "STATICALLY_VERIFIED_ERROR_NOT_LIVE_TESTED") and
   (["mutation-approval-broker", "raw-bash-final-argv-policy",
     "native-approval-expected-head-cas", "approved-unit-state-cas-integration", "release-execution-cas",
@@ -185,9 +185,9 @@ jq -e '
 ' "$authority_cases" >/dev/null || fail "raw Bash negative/adversarial case matrix is incomplete"
 
 jq -e '
-  .profile_id == "cub-0.2.11_server-0.2.11_helm-0.1.0" and
+  .profile_id == "cub-0.2.11_server-0.2.15_helm-0.1.0" and
   .reviewed_client_commit == "683dce12c2f26ad151aa9e5763e60b0ac66172a4" and
-  .reviewed_server_commit == "8cb9f6b4925670658850c8c99357f34fb11a51ad" and
+  .reviewed_server_commit == "eebd77551316efc8c58028f6d4275ab504e17ce7" and
   (.cases | length) == 17 and
   ([.cases[].case_id] | length == (unique | length)) and
   . as $matrix |

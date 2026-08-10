@@ -42,7 +42,7 @@ Historical Release proof has two explicit retention boundaries. Membership comes
 The static compatibility baseline is:
 
 - cub client v0.2.11, commit `683dce12c2f26ad151aa9e5763e60b0ac66172a4`, binary SHA-256 `0729618f9a6c22dd646e2ef003cc5103206e9fc2c5abdae1c2b444b1f0534553`; this exact local binary is **not authenticated as an official release asset** because Go metadata says `vcs.modified=true` and module `(devel)`, signing is ad hoc with no team identity, and no package-manager receipt/release checksum was found;
-- ConfigHub server v0.2.11, commit `8cb9f6b4925670658850c8c99357f34fb11a51ad`; and
+- ConfigHub server v0.2.15, commit `eebd77551316efc8c58028f6d4275ab504e17ce7` (re-verified from the earlier v0.2.11 review commit `8cb9f6b4925670658850c8c99357f34fb11a51ad` across 53 commits: all 17 behavior cases still hold and every delta in the cited files is additive); and
 - cub helm add-on 0.1.0, commit `ce1b62faa92ec045d96b0e938bf289f83501fd17`.
 
 See [`compatibility/current-profile.v1.json`](compatibility/current-profile.v1.json). Its status is `BLOCK_ACTIVATION_STATIC_ONLY`: static validation does not prove behavioral no-loss, final-argv policy, provider CAS, mutation authority, or live delivery. The former v0.2.10/v0.2.11 tuple is explicitly unselected/blocked. Tagged publication is not immutable selection: tag-to-Revision mappings can move, and the server resolves the highest matching Revision at execution. Missing-tag behavior also remains fail-closed because installed v0.2.11 client help and reviewed server source disagree.
