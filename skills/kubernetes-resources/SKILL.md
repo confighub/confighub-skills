@@ -26,7 +26,7 @@ Author common Kubernetes resource types as ConfigHub Units — literal YAML, bes
 
 - AppConfig-based ConfigMaps (`.env`, `.properties`, `.yaml` config files) — use `app-config`.
 - Helm chart imports — use `import`.
-- General config-as-data doctrine without a specific resource type — use `confighub-core`.
+- General config-as-data doctrine, the component model, or which Space this belongs in — use `confighub-core`.
 - Secrets — ConfigHub Units are not a secret vault. Point users to an external SecretStore; see `references/yaml-patterns.md`.
 - Custom Resource Definitions (writing operators) — out of scope.
 
@@ -135,7 +135,7 @@ cub function set --space <space> --unit <slug> \
 
 `set-container-volume-mount-path` adds the `volumeMount` to the named container and — if the named volume is not already in the pod spec — adds the volume too. `--volume-source` accepts `emptyDir` (default for scratch), `configMap`, `secret`, or `persistentVolumeClaim`. Use `*` as the container name to apply to all containers in the pod.
 
-If the function doesn't fit the shape the user needs (e.g. a `projected` volume, a specific `medium: Memory` emptyDir, or an existing PVC with a sub-path), edit the YAML directly via `cub unit update` or a `yq-i` run instead.
+If the function doesn't fit the shape the user needs (e.g. a `projected` volume, a specific `medium: Memory` emptyDir, or an existing PVC with a sub-path), edit the YAML directly via `cub unit update` or a `set-yq` run instead.
 
 For Namespace Units:
 
@@ -151,7 +151,7 @@ cub function set --space <space> --unit <slug> \
   -- ensure-namespaces --change-desc "..."
 ```
 
-Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containerPort`. For databases and other non-HTTP workloads, override with TCP or exec probes afterward via `yq-i`.
+Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containerPort`. For databases and other non-HTTP workloads, override with TCP or exec probes afterward via `set-yq` (`get-yq` is its read-only counterpart; the deprecated spellings are `yq-i` and `yq`).
 
 ### 6. Validate
 
@@ -173,7 +173,7 @@ Based on what was created, suggest the logical next skill:
 
 ## Unit granularity guidance
 
-**Default: one Kubernetes resource per Unit** (the doctrine in `confighub-core`). It scopes revisions, ApplyGates, diffs, and blast radius to a single resource, and links resources that reference each other via Links / Needs-Provides rather than co-locating them. Author each resource type below as its own Unit; wire cross-references with `cub link create`.
+**Default: one Kubernetes resource per Unit** (the doctrine in `confighub-core`; `cub variant upload --granularity per-resource` produces it for imported manifests). It scopes revisions, ApplyGates, diffs, and blast radius to a single resource, and links resources that reference each other via Links / Needs-Provides rather than co-locating them. Author each resource type below as its own Unit; wire cross-references with `cub link create`.
 
 - **CRDs** — always a separate Unit from their instances (apply-order + blast radius). Slug `<app>-crds`.
 - **PVC** — for StatefulSets, prefer `volumeClaimTemplates` inline rather than a separate PVC resource.

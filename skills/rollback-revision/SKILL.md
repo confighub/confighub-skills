@@ -42,13 +42,14 @@ requested prior revision to RevisionID/DataHash, create a new head with
 1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete). User has write permission on the target Space(s).
 2. The rollback scope is explicit: single Unit slug, or a Filter (usually the `<app>-home/<app>-app` Filter from the promotion that's being rolled back) + optional `--where` narrowing.
 3. The rollback target is explicit. Installed `--restore` selectors include:
-   - Absolute revision number (`--restore 42`).
+   - Absolute revision number (`--restore 42`). **Note `--restore 1` restores *empty*:** every Unit now begins with an empty start revision and its created content lands on Revision 2. Units created before that change kept content on Revision 1, so read `cub revision list` rather than assuming which meaning applies.
    - Relative (`--restore -1` = one before head).
    - `LastAppliedRevisionNum` — the Revision most recently captured by ConfigHub publication bookkeeping; not proof of controller consumption or current runtime state.
    - `LiveRevisionNum` — retained bridge-era state only; not current OCI/controller/runtime proof.
    - `Tag:<home-space>/<tag>` — a named release marker.
    - `ChangeSet:<home-space>/<slug>` — the end of a ChangeSet.
-   - `Before:ChangeSet:<home-space>/<slug>` — the revision immediately before a ChangeSet opened (the standard "undo release X" target).
+   - `Before:ChangeSet:<home-space>/<slug>` — the ChangeSet's start tag, i.e. the head each Unit had immediately before the ChangeSet opened (the standard "undo release X" target). The start tag marks a revision that already existed rather than one manufactured by attaching, so a Unit that joined the ChangeSet and never changed rewinds cleanly along with the rest.
+   - `ChangeOrder:<space>/<slug>` / `Before:ChangeOrder:<space>/<slug>` — the same for a change order, which is how a `cub variant promote --change-order` promotion is undone in one step.
    - A revision UUID.
    Treat relative, `LiveRevisionNum`, and `LastAppliedRevisionNum` forms only as resolution aids: read what each resolves to and bind the exact RevisionNum, RevisionID, and DataHash before approval.
 4. The destination currently isn't in the middle of *another* open ChangeSet on the same Units.
@@ -94,6 +95,8 @@ cub unit tag <home-space>/rollback-<...> --space <space> --unit <unit>
 ## Shape B — ChangeSet rollback (standard post-promotion revert)
 
 This is the standard "undo a release" path, and it's one command per step thanks to the ChangeSet.
+
+**A promotion is nearly always Shape B, not Shape A.** An upgrade or `cub variant promote` walks its range and records **one downstream revision per upstream revision that had an effect** — so a single promotion produces many revisions per Unit, and different Units get different numbers of them. There is no revision number that means "just before the promotion" across the set, and `--restore -1` rewinds one hop of the walk rather than the promotion. If the promotion was wrapped in a ChangeSet (or a change order), `Before:ChangeSet:` / `Before:ChangeOrder:` is the rollback. If it was not, there is no set-wise undo: say so plainly, and reconstruct per Unit from `cub revision list` — the last revision before the first one carrying the promotion's change descriptions.
 
 ```bash
 HOME_SPACE=<app>-home
@@ -158,6 +161,8 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 - Scope includes Units from multiple apps' `<app>-home`s. Split the rollback per app; one rollback per app.
 - User wants to delete the rolled-back revisions from history. Not possible, and not desirable — restore creates a new head; the "bad" revisions stay in the audit trail.
 - Rollback target is the Unit's current head (no-op). Tell the user and stop.
+- The promotion being rolled back was not wrapped in a ChangeSet or change order. There is no set-wise restore target; confirm the per-Unit targets with the user before proposing a reconstructed scope.
+- The restore would rewind past protection or conflict state the user has not seen. Restore rewinds `MutationSources` — including each path's `Protected` flag — along with `Data`, so a restore also restores which paths the variant owned at that point. Read `cub unit get <unit> -o mutations` before and name the difference.
 
 ## Evidence
 
@@ -167,7 +172,7 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 ## References
 
 - `references/changesets.md` — `Before:ChangeSet:<slug>` target, bulk restore pattern, 3-way merge for held-back changes.
-- `references/revisions.md` — restore-target syntax (`Tag:`, `ChangeSet:`, relative / absolute numbers, UUIDs).
+- `references/revisions.md` — restore-target syntax (`Tag:`, `ChangeSet:`, `ChangeOrder:`, relative / absolute numbers, UUIDs), the empty start revision, and how restore rewinds `MutationSources` with `Data`.
 - `references/filters-and-queries.md` — scoping the rollback via Filter.
 - `references/cub-cli.md` — `--change-desc` scope, `-` sentinel for `--changeset` close.
 - Companion skills: `release-publish` (post-restore whole-Space Release), `cub-mutate` (forward fix when clearer), `promote-release` (the forward counterpart), `verify-apply` (post-rollback checks).

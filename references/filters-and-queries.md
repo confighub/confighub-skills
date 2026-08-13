@@ -11,7 +11,7 @@ Always verify flag spellings against `CONFIGHUB_AGENT=1 cub <command> --help` on
 
 ## `--where` — entity metadata filtering
 
-Used with `list`, `function do`, `run`, and other bulk operations.
+Used with `list`, `function get|set|vet`, `run`, and other bulk operations.
 
 ### Syntax
 
@@ -210,7 +210,7 @@ The full Revision data model — fields, per-path `MutationSources`, `ApplyGates
 
 ## Getter functions for content extraction
 
-For questions `--where-data` cannot answer cleanly, a specifically reviewed getter function may help. Do not treat `cub function get` as a safe arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output. Name the exact function and flags, ensure it belongs to the active skill's capability subset, and leave execution at host `ASK`; unknown functions are `BLOCK` pending the typed registry/wrapper. Never substitute `function do` or `run`, which can mutate.
+For questions `--where-data` cannot answer cleanly, a specifically reviewed getter function may help. Do not treat `cub function get` as a safe arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output. Name the exact function and flags, ensure it belongs to the active skill's capability subset, and leave execution at host `ASK`; unknown functions are `BLOCK` pending the typed registry/wrapper. Never substitute `function set`, `function do`, or `run`, which can mutate.
 
 ```bash
 # Current image for every Deployment across all spaces.

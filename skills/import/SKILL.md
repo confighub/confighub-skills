@@ -1,6 +1,6 @@
 ---
 name: import
-description: 'Onboard Helm charts or local Kustomize bases/overlays into Component/Variant/Release. Use for cub helm install/upgrade, multi-env variants, CRDs/hooks, preserving downstream edits, or kustomize build + variant upload. Not for live-cluster or GitOps-CR adoption.'
+description: 'Onboard Helm charts or local Kustomize bases/overlays into Component/Variant/Release. Use for the cub-helm plugin (install/upgrade/template), multi-env variants, CRDs/hooks, preserving downstream edits, or rendered manifests + cub variant upload. Not for live-cluster or GitOps-CR adoption.'
 phase: act
 allowed-tools: []
 read-capability-subset: import
@@ -21,12 +21,30 @@ After onboarding, prefer literal configuration-as-data plus ConfigHub functions 
 
 ```bash
 cub auth status
+cub plugin list                 # is the helm plugin installed?
+cub helm version                # only resolves once it is
 cub helm install --help
 cub helm upgrade --help
 cub variant upload --help
 cub variant create --help
 cub release publish --help
 ```
+
+**Helm is a plugin, not part of `cub`.** The `cub helm` command group is contributed by
+[`confighub/cub-helm`](https://github.com/confighub/cub-helm) and has to be installed before any
+of it resolves:
+
+```bash
+cub plugin install confighub/cub-helm       # latest release for this platform
+cub plugin install confighub/cub-helm@v1.2.0   # or pin the release tag
+cub plugin upgrade helm                     # later, to pick up a new version
+```
+
+Pin the tag when the profile has to be reproducible; an unpinned install takes whatever the latest
+release is. `cub plugin list` reports the installed plugins and their status. The plugin
+authenticates using the current `cub` session (`cub` passes `CUB_SERVER` / `CUB_TOKEN` when it
+invokes a plugin), so `cub auth login` must have run first. If `cub helm` is absent, say so and
+propose the install rather than reaching for stock `helm`.
 
 The reviewed profile is exactly cub client v0.2.11, server v0.2.11, and cub helm add-on 0.1.0 (commits and client binary hash in `compatibility/current-profile.v1.json`). A different profile is `WATCH` or `BLOCK` until its help and semantics are reviewed; v0.2.10/v0.2.11 is explicitly unselected.
 
@@ -44,7 +62,7 @@ Raw `cub helm template`, `helm template`, `kustomize build`, and `kubectl kustom
 
 ## A. Helm onboarding
 
-### What current `cub helm install` actually creates
+### What the plugin's `cub helm install` actually creates
 
 ```text
 cub helm install <release-name> <chart-ref>
@@ -53,11 +71,15 @@ cub helm install <release-name> <chart-ref>
        └─ one Unit per chart template file
 ```
 
-`templates/backend.yaml` becomes Unit `backend`; nested paths are flattened; `crds/foo.yaml` becomes a separate file-derived Unit such as `crds-foo`; subchart files are prefixed. It does **not** create a single `<release>` Unit plus a special `<release>-crds` Unit. Helm hooks are dropped by default because their lifecycle cannot run without Helm; `--include-hooks` retains them only as ordinary resources. `lookup` returns nothing and cluster-dependent charts are out of scope.
+`templates/backend.yaml` becomes Unit `backend`; nested paths are flattened; `crds/foo.yaml` becomes a separate file-derived Unit such as `crds-foo`; subchart files are prefixed. It does **not** create a single `<release>` Unit plus a special `<release>-crds` Unit. The chart reference, values, and options are recorded as a `HelmSource` Unit in `<component>-helm`, which is the source of truth for upgrades.
+
+Rendering is entirely client-side and never contacts a cluster: Helm hooks are dropped unless `--include-hooks` (which retains them only as ordinary resources), `lookup` returns nothing, and capabilities are Helm's defaults. Charts depending on any of that are out of scope; charts that render cleanly client-side work fully.
+
+`cub helm install` and `cub helm upgrade` only ever touch `<component>-helm` and `<component>-base`. Deployments are created with `cub variant create` and updated with `cub variant promote` — the helm commands never touch them.
 
 ### Render remains blocked
 
-After source preflight, record the exact local chart digest, vendored dependency digests, values-file digests, and intended renderer digest. Do not invoke `cub helm template` or another Helm renderer from this skill. A remote chart reference or version string alone is not a content pin and may trigger repository/network refresh. Return `RENDER_SOURCE_POLICY_BLOCK` until the protected wrapper exists. A separately supplied render artifact may be inspected as untrusted input, but it is not attributed to these sources without a trusted render receipt.
+After source preflight, record the exact local chart digest, vendored dependency digests, values-file digests, and intended renderer digest. Do not invoke `cub helm template` (the plugin's offline preview of the Units `install` would create) or another Helm renderer from this skill. A remote chart reference or version string alone is not a content pin and may trigger repository/network refresh. Return `RENDER_SOURCE_POLICY_BLOCK` until the protected wrapper exists. A separately supplied render artifact may be inspected as untrusted input, but it is not attributed to these sources without a trusted render receipt.
 
 ### Install proposal
 
@@ -69,7 +91,7 @@ cub helm install <release-name> <chart-ref> \
   --values <values-file>
 ```
 
-Use only needed flags. Valid installed options include `--component`, `--create-namespace`, `--include-hooks`, `--namespace`, `--prefix`, `--repo`, `--set`, `--skip-crds`, `--values/-f`, `--version`, and `--wait`. There is no `--space` or `--update-crds` on the reviewed command.
+Use only needed flags, and confirm them against the **installed plugin's** `--help` — the plugin versions independently of `cub`, so its flag set is not fixed by the server profile. In the reviewed 0.1.0 add-on the valid options include `--component`, `--create-namespace`, `--include-hooks`, `--namespace`, `--prefix`, `--repo`, `--set`, `--skip-crds`, `--values/-f`, `--version`, and `--wait`; there is no `--space` or `--update-crds`.
 
 The base is untargeted. Do not claim the install deployed anything.
 
@@ -123,16 +145,23 @@ cub helm upgrade <release-name> \
 
 Upgrade patches the HelmSource, re-renders from it, and reconciles `<component>-base`: changed file Units update, new files create Units, and disappeared files delete Units. That delete behavior is part of the approval subject.
 
+The base is where the chart is authoritative, so an edit made in ConfigHub on top of a rendered Unit survives the next upgrade **only if its path is protected** — otherwise the re-render puts the chart's value back. Protect deliberately and sparingly; if the same path needs protecting after every upgrade, the value belongs in the chart values instead.
+
+```bash
+cub function set --space <component>-base --unit <unit> --protect set-replicas 5
+```
+
 Then preview each downstream Variant:
 
 ```bash
 cub variant promote <component>-<variant> --dry-run -o mutations
 ```
 
-If the merge is expected, prepare a governed `cub variant promote <component>-<variant>` proposal. Downstream ConfigHub edits are merge inputs; conflicts are `BLOCK`, not permission to overwrite. After promotion, build a fresh `release-publish` ReleaseProposal.
+If the merge is expected, prepare a governed `cub variant promote <component>-<variant> --changeset <component>-home/<slug>` proposal — the promotion walks the range and records one revision per upstream revision, so the ChangeSet is what makes it undoable. Downstream ConfigHub edits are merge inputs, and what the merge withheld shows up in `cub unit conflicts` rather than as a failure: check it explicitly before calling the promotion clean. Conflicts are `BLOCK` here, not permission to overwrite. After promotion, build a fresh `release-publish` ReleaseProposal. See `promote-release`.
 
 ### Helm stop conditions
 
+- the `cub-helm` plugin is not installed, or its version is not the reviewed one;
 - chart version/source is unpinned;
 - chart/source/dependency is remote, not vendored, or can refresh over the network;
 - renderer binary digest, source/output/resource ceilings, or trusted render receipt is missing;
@@ -210,5 +239,6 @@ Verify expected file/resource-derived Unit identities, upstream links, namespace
 - `compatibility/current-profile.v1.json`
 - `compatibility/no-loss-inventory.v1.json`
 - `confighub-core` — configuration-as-data and Unit granularity.
-- `promote-release` — Variant reconciliation.
+- `promote-release` — Variant reconciliation, protection, and merge conflicts.
+- [`confighub/cub-helm`](https://github.com/confighub/cub-helm) — the plugin contributing `cub helm`; its [guide](https://github.com/confighub/cub-helm/blob/main/docs/guide.md) covers values, namespaces, CRDs, hooks, and upgrades end to end.
 - `target-bind`, `release-publish`, `verify-apply` — exact delivery chain.

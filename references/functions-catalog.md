@@ -1,6 +1,6 @@
 # Kubernetes/YAML functions worth knowing
 
-**Authority boundary:** getters, validators, and explain/help calls are read-only. Setters and every `cub function do`, `cub function set`, or `cub run` example are proposal material only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`).
+**Authority boundary:** getters, validators, and explain/help calls are read-only. Setters and every `cub function set` or `cub run` example are proposal material only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`).
 
 Discover full semantics with:
 
@@ -9,6 +9,12 @@ CONFIGHUB_AGENT=1 cub function explain --toolchain Kubernetes/YAML <name>
 ```
 
 Prefer a function over a hand-edit whenever one fits — functions are hermetic, idempotent, and preserve comments.
+
+**Protection is opt-in, per invocation.** `cub function set` takes `--protect`, which records every
+path the invocation writes as a protected local override so a later merge from upstream leaves it
+alone. Leave the flag off for anything applying a value chosen elsewhere — replaying a change,
+propagating a release — so the path stays eligible for the next upgrade. See
+`references/cub-cli.md` → "Protection and merge conflicts".
 
 Get the full built-in function list with:
 
@@ -52,9 +58,12 @@ CONFIGHUB_AGENT=1 cub function list --toolchain Kubernetes/YAML <name>
 | `set-annotation` / `set-label`                                    | Metadata.                                                    |
 | `set-hostname` / `set-hostname-domain` / `set-hostname-subdomain` | Hostname fields.                                             |
 | `set-default-names`                                               | Replace placeholder names.                                   |
+| `set-image-reference-by-uri`                                      | Retag every image matching a repository URI, wherever it sits. |
+| `set-namespace`                                                   | Namespace on every namespaced resource.                      |
 | `set-bool-path` / `set-cel`                                       | Generic path / CEL-based set.                                |
+| `set-template`                                                    | Render a Go `text/template` expression into a path.          |
 | `set-attributes`                                                  | Read-modify-write with an `AttributeValueList`.              |
-| `set-hash`                                                        | SHA-256 of values at a path → annotation.                    |
+| `set-hash`                                                        | SHA-256 of the values at a path → the resource's hash annotation. See [`set-hash`](#set-hash--content-hash-into-confighubcomhash) below. |
 
 ## Defaults (safe, idempotent, opt-in policy)
 
@@ -81,6 +90,7 @@ All return pass/fail; none mutate. Wire them as Mutation triggers so they fail t
 | `vet-merge-keys`   | No duplicate strategic-merge-patch keys (e.g., duplicate container or env-var names).                                                                                          |
 | `vet-immutable`    | Immutable fields unchanged vs last applied revision. Optional `--attribute-name`. Passes if never applied.                                                                     |
 | `vet-cel`          | CEL expression validates each resource. Replaces `vet-celexpr` / deprecated `cel-validate`. See the dedicated `vet-cel` section below for the return-value shape and examples. |
+| `vet-no-merge-conflicts` | No outstanding merge conflicts on the Unit. Wire it as a Trigger to make a withheld upstream change block publish instead of sitting in `cub unit conflicts`. |
 | `vet-approvedby`   | Sufficient approvers present. Replaces deprecated `is-approved`.                                                                                                               |
 
 ## `vet-cel` — CEL validator with structured failures
@@ -154,6 +164,31 @@ cub function vet --space "$s" --where "Slug = '$u'" \
 
 - `get-cel` — the non-validating counterpart. Returns a list of `AttributeValue` maps (same PascalCase shape) for arbitrary extraction. See the getters table above.
 - Source of truth for return types in the public SDK (https://github.com/confighub/sdk): `core/function/api/validation_result.go` and `core/function/api/attribute_value.go`. CEL extractor: `function-impl/generic/cel.go`.
+
+## `set-hash` — content hash into `confighub.com/Hash`
+
+`set-hash <path>` computes a SHA-256 over every value at `<path>` in each matched resource and
+writes the first 10 hex characters to that resource's hash annotation — `confighub.com/Hash` for
+Kubernetes. It is mutating, hermetic, and idempotent: the same content always produces the same
+hash, so re-running it is a no-op.
+
+The annotation is registered as a **provided** attribute on `v1/ConfigMap` and as a **needed**
+attribute on every workload's pod-template annotations, under the attribute name `configmap-hash`.
+A needs/provides Link from the workload Unit to the ConfigMap Unit therefore copies the hash onto
+`spec.template.metadata.annotations.confighub.com/Hash`, which changes the pod template and rolls
+the workload whenever the ConfigMap's content changes.
+
+`render-configmap --immutable false` sets the annotation for you. Reach for `set-hash` directly for
+a **mutable ConfigMap you author by hand** rather than render from an AppConfig Unit — see the
+`app-config` skill. Scope it, because `set-hash` matches any resource type:
+
+```bash
+cub function set --space <space> --unit <configmap-unit> \
+  --where-resource "ConfigHub.ResourceType = 'v1/ConfigMap'" \
+  --change-desc "Hash the ConfigMap contents so linked workloads roll on change." \
+  -o mutations \
+  -- set-hash data
+```
 
 ## yq escape hatches
 
