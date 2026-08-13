@@ -1,6 +1,6 @@
 ---
 name: cub-mutate
-description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit. Use for "update the image", "bump the replicas", "change the env var", "set the annotation", "apply defaults", "edit this unit", or a bulk edit across many units. Not for creating a brand-new Unit (use confighub-core).'
+description: 'Change data inside an existing ConfigHub Unit, preferring a function over a hand-edit, and write it so it still works in every variant. Use for "update the image", "bump the replicas", "set the annotation", "apply defaults", a bulk edit, or "why did that change miss some variants?". Not for creating a Unit (kubernetes-resources).'
 phase: act
 allowed-tools: []
 read-capability-subset: cub-mutate
@@ -16,11 +16,14 @@ The get / modify / write-back loop for ConfigHub Units.
 
 **Prefer a function over a hand-edit.** Functions like `set-container-image`, `set-replicas`, `set-env-var`, the defaults family — hermetic, idempotent, comment-preserving, and produce clean revisions. Hand-editing YAML is the fallback when no function fits.
 
+**And write the invocation so it works somewhere else too.** A mutation is rarely a one-off: it runs across whatever selection you give it, it propagates to every downstream variant, and — because an upgrade now *replays* the upstream's recorded invocations against each variant rather than copying the paths they touched — it will be re-run later against data that has changed since. See [Write invocations that generalize](#write-invocations-that-generalize).
+
 ## When to use
 
 - Any single-field change: image, replicas, env var, port, annotation, label, resource requests/limits, probe, security context, hostname.
 - Applying the defaults functions to one or many Units.
 - Bulk changes across multiple Units via `--where` / `--where-data` — usually inside a ChangeSet (see below).
+- Making a change hold against the next promotion (`--protect`), or working out why an earlier change missed some variants.
 - Restoring a Unit to a prior revision (or a ChangeSet's pre-open state).
 - Patching metadata (labels, annotations) on one or many Units.
 
@@ -55,7 +58,7 @@ cub function set <fn>    Is this a small, surgical path edit (1–3 fields)?
                           │
                           no again
                           ▼
-             cub function set -- yq-i '<yq-i expression>'   (catch-all; still via a function)
+             cub function set -- set-yq '<yq expression>'   (catch-all; still via a function)
                           │
                           genuinely needs a whole-unit rewrite
                           ▼
@@ -66,6 +69,87 @@ Restoring history instead? cub unit update --restore <revision-or-tag>
 ```
 
 `set-yq` is the escape-hatch mutator: full yq expression power, still invoked via `cub function set`, still records a proper revision with your `--change-desc`. Its non-mutating counterpart `get-yq` is in `cub-query`'s territory (reading a value out). Don't confuse the two.
+
+## Write invocations that generalize
+
+An invocation that only works against the data in front of you fails **silently** in the variants where it does not match: most functions do not error when they find nothing to operate on, deliberately, because that is what lets one invocation run across a bulk selection. So the failure mode is a variant that quietly did not change, not an error message.
+
+### Refer to things by identity, not position
+
+The most common reason an invocation stops working elsewhere is a hardcoded index.
+
+```bash
+# Fragile — whichever container happens to be first in this unit.
+cub function set --space prod --unit backend \
+  -- set-string-path apps/v1/Deployment "spec.template.spec.containers.0.image" ghcr.io/acme/api:v2
+
+# Portable — the container named "api", wherever it appears.
+cub function set --space prod --unit backend \
+  -- set-container-image api ghcr.io/acme/api:v2
+```
+
+`containers.0` selects position 0. A variant that adds a sidecar, or orders its containers differently, has a different container there — and writing to it *succeeds*, because position 0 exists. Nothing fails; the wrong container is modified. Selecting by name is stable under both reordering and insertion, because ConfigHub matches the element rather than counting to it.
+
+Three forms of the same rule:
+
+- **Prefer a purpose-built function** — `set-container-image`, `set-env-var`, `set-container-resources` — over a generic path setter. They already select their target by merge key.
+- **When a path is unavoidable, use one that selects.** ConfigHub paths match by merge key: `spec.template.spec.containers.?name=api.image` selects the container named `api`.
+- **Keep arguments parameters, not data.** An argument that *names* what to change is portable. An argument carrying a list computed from one Unit's current contents only applies to that Unit.
+
+The same rule applies to expressions written in CEL, yq, and Starlark.
+
+### Merge keys are identity — avoid renaming them
+
+ConfigHub matches array elements by merge key (the container name, the volume name), like Kubernetes strategic merge patch and kustomize. A name identifies the element, so changing it makes it a different element as far as the merge engine and every stored invocation are concerned.
+
+Rename a container from `web` to `frontend` in a downstream variant and every stored invocation naming `web` stops reaching that variant — without failing. Merge-key changes also break patches across variants. If a variant genuinely needs a differently-purposed container, add one and remove the old one: that states it directly. When a rename is unavoidable, treat it as a breaking change for that variant and update the invocations that name the old value.
+
+### Plan for a different number of matches
+
+Variants contain more or fewer resources, containers, ports, and volumes.
+
+- **Search for all relevant occurrences** — the `*` wildcard, or a function that searches by value such as `set-image-reference-by-uri`.
+- **Select only the relevant occurrences** — don't assume the path occurs once. Narrow with `--where-resource`, or with an expression in CEL/yq/Starlark, so the invocation doesn't touch paths it shouldn't.
+
+Where a template would express variation with conditional logic or per-environment values files — implicit reasons, buried in a directory layout — make the high-level characteristic **explicit**: put `highly-available`, `pci-compliant`, and the like on the Space or the resource as a label/annotation, then target invocations with a Unit or resource filter over it.
+
+### Dry-run across the variants first
+
+`--dry-run` takes the same selection bulk execution does, so an invocation can be checked against every variant before it becomes history:
+
+```bash
+cub function set --space "*" --where "Slug = 'deployment'" --dry-run -o mutations \
+  -- set-container-image web ghcr.io/acme/app:v2
+```
+
+Two things in that output are worth reading:
+
+- **Variants that report no mutation.** The invocation matched nothing there — the container is absent, or renamed. This is the case that is hardest to notice later, because it produces no error and no change.
+- **Variants that changed something unexpected**, or more paths than intended. The invocation is not selective enough.
+
+Either is cheap to fix while the change is still a proposal.
+
+### Protect only what this variant owns
+
+The other half of a change reaching the right variants is a change not overwriting what a variant set deliberately. ConfigHub records protection per path, and a merge does not overwrite a protected one.
+
+- **A variant's own value is preserved only if someone said so.** Protection is opt-in: pass `--protect` on the change that sets it, or mark the path afterwards with `cub unit set-protection --protect`.
+- **Automation applying a value it did not choose passes neither.** A script propagating a release should leave `--protect` off, so the path stays open to the next upgrade.
+- **Protecting a path is a standing decision.** Once protected, upstream changes to it are *reported* rather than applied; `cub unit conflicts` lists what was withheld and can apply the ones you want.
+
+See `references/cub-cli.md` → "Protection and merge conflicts".
+
+### Checklist
+
+Before an invocation becomes part of the history:
+
+1. Does it select what it changes by name, rather than by position?
+2. Is there a purpose-built function for this change?
+3. If it takes a path, does the path select by merge key?
+4. Does it select precisely the resources and paths that should be affected?
+5. Has it been dry-run across `--space "*"`, and were the variants reporting no mutation accounted for?
+6. Does it rename a merge key that other invocations refer to?
+7. If it sets a value the variant owns, does it pass `--protect` — and if it is automation applying a value decided elsewhere, does it leave the flag off?
 
 ## The loop
 
@@ -127,6 +211,8 @@ cub function set \
   -- \
   <function-name> [function args]
 ```
+
+Add `--protect` **only** when this value is the variant's own decision, to be held against the next upgrade from upstream. Leave it off when the change is propagating a value chosen elsewhere — a release rollout, a replayed change — because a change that protected everything it wrote would turn upstream content into local overrides and block every later merge. Neither choice is reversible by accident: a change never *removes* protection, `cub unit set-protection --unprotect` does.
 
 `-o mutations` makes an externally authorized execution return the resulting diff. Include it in the proposed command, but do not claim anything landed before the broker executes and a fresh revision read verifies it.
 
@@ -198,7 +284,8 @@ Any time a logical change touches more than one Unit (a release, a defaults roll
   no expected RevisionID/DataHash CAS, so it cannot prove the reviewed
   ChangeSet heads were the heads approved at execution time. A ChangeSet also
   does not select or narrow a Space Release.
-- **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces.
+- **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces. The start tag marks each Unit's head as it was *before* the ChangeSet opened, so attaching creates no revision and a Unit that joined but never changed still rewinds with the rest.
+- **The only practical undo for a promotion.** An upgrade walks its range and records one revision per upstream revision that had an effect, so there is no single "before" number to restore to. `--restore Before:ChangeSet:<slug>` is it. See `promote-release`.
 
 Lifecycle:
 
@@ -213,7 +300,7 @@ cub unit update --patch --space <target-space> \
   --changeset <home-space>/<slug> \
   --change-desc "Starting <slug> rollout"
 
-# 3. Mutate: every function do / unit update / run must pass --changeset.
+# 3. Mutate: every function set / unit update / run must pass --changeset.
 cub function set --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
@@ -266,7 +353,9 @@ The `release-publish` skill maps apply/deploy intent to the exact current Space 
 - `references/functions-catalog.md` — the canonical function index.
 - `references/cub-cli.md` — agent-mode help and flag discipline.
 - `references/changesets.md` — full ChangeSet lifecycle, rollback, merge / rebase.
+- `references/cub-cli.md` → "Protection and merge conflicts" — `--protect`, `cub unit set-protection`, `cub unit conflicts`.
 - `references/filters-and-queries.md` — named Filters (use these with ChangeSets).
 - `references/yaml-patterns.md` — for hand-edit fallback.
 - https://docs.confighub.com/markdown/guide/change-apply.md
 - https://docs.confighub.com/markdown/guide/functions.md
+- https://docs.confighub.com/markdown/guide/invocations-that-generalize.md

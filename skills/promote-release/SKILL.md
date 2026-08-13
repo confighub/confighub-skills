@@ -1,6 +1,6 @@
 ---
 name: promote-release
-description: 'Prepare Variant or ChangeSet promotion. Use for "promote to staging", "roll forward to prod", "which Units are behind?", partial promotion, or push a base across the fleet. Covers variant create/promote and exact later Release scope. Not rollback (rollback-revision).'
+description: 'Prepare Variant or ChangeSet promotion and reconcile what a merge withheld. Use for "promote to staging", "roll forward to prod", "which Units are behind?", partial promotion, "why was my override overwritten?", or outstanding merge conflicts. Covers variant upload/create/promote and protection. Not rollback (rollback-revision).'
 phase: act
 allowed-tools: []
 read-capability-subset: promote-release
@@ -21,6 +21,7 @@ Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` t
 
 - "Promote to staging / prod", "roll forward", "push the release", "upgrade the downstreams to match upstream".
 - The decision question: "is this ready?", "which Units are behind their upstream?".
+- "The promotion overwrote a value this environment had set" / "this environment didn't pick up the change" — the [protection](#what-a-merge-may-overwrite-protection) and [conflicts](#conflicts-what-the-merge-withheld) sections.
 - Standing up a new environment/region/tenant variant of an existing Space.
 - Pushing a shared base out to every downstream across env-Spaces.
 
@@ -33,7 +34,112 @@ Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` t
 
 ## Topology assumptions
 
-Promotion data flows `<source>` → `<destination>` (a parent/base Space → its variant/downstream Spaces). One Space per deployment boundary, **one Target per ToolchainType (e.g. Kubernetes/YAML) per Space** (`confighub-core`). Note the direction gotcha: an `UpgradeUnit` Link points downstream→upstream (dependency edge), the **opposite** of data flow.
+The [component model](../confighub-core/SKILL.md) is the frame: a **Component** is a group of Spaces sharing a `Component` label, each Space a **variant** — a **base** (no Target, exists to be cloned) or a **deployment** (has a Target, can be released). Promotion data flows upstream → downstream along that tree, and the relationships form a tree: a variant has at most one upstream. **One Target per ToolchainType per Space.** Note the direction gotcha: an `UpgradeUnit` Link points downstream→upstream (a dependency edge), the **opposite** of data flow.
+
+---
+
+## What a promotion actually does
+
+Read this before proposing one. `cub variant promote` and `cub unit update --upgrade` run the same merge engine, and two of its behaviors decide what a promotion produces and what it leaves behind.
+
+### It walks the range, replaying functions
+
+A merge takes the source's revisions **in order** and, where a revision was produced by a function, **re-runs that function against the target Unit** rather than copying the paths the function happened to touch upstream. Each source revision that has an effect downstream becomes a downstream revision of its own, carrying that upstream revision's change description. The variant's history then reads as the upstream's does, rather than as a series of opaque promotions.
+
+Replay is what makes an upstream policy change reach what a variant added. If the upstream ran `set-container-probe-defaults` with one container and this variant has two because it added a metrics sidecar, replay re-runs the function here and reaches **both** containers. A rebased patch could only have carried probes for the container upstream knew about.
+
+Not everything can be re-run. A revision that was a hand edit, an import, or another merge records no invocation; some functions are excluded (a path with a hardcoded index, a removed function, one that ran on a worker). Those steps are merged as a patch, as before, and the outcome is recorded per mutation — `Replayed`, `ReplayedNoEffect` (re-ran, matched nothing here), `NotReplayable`, `ReplayUnavailable`, `ReplayFailed`, or `Patched`:
+
+```bash
+cub mutation list --space <variant-space> <unit> --select "*" \
+  -o jq='[.[] | .Mutation | {num: .MutationNum, outcome: .ReplayOutcome, why: .ReplayReason}]'
+```
+
+`ReplayedNoEffect` on a Unit you expected to change is the signal that the upstream invocation didn't generalize — see `cub-mutate` → "Write invocations that generalize".
+
+**Two consequences for the proposal.** One promotion produces *many* revisions per Unit, so there is no single "the revision before the promotion" to restore to — always wrap a promotion in a ChangeSet (below). And an invocation replayed across several variants must select what it changes by name rather than position.
+
+`--squash` gives up both: the range arrives as one rebased diff in one revision. Reach for it when the upstream's revision history is noise in this variant, when the Link relies on the subtraction step to preserve downstream differences (replay has no baseline to subtract from, so subtraction only applies to a squashed merge), or when more than one Link is resolved at once. It is a per-request or per-Link choice, not a property of the Units — the same Link can be squashed on one promotion and walked on the next.
+
+### What a merge may overwrite: protection
+
+**Protection is opt-in, and it is the behavior most likely to surprise a user.** An ordinary downstream change — a hand edit, a function invocation, a Trigger, a needs/provides binding — leaves each path it writes as protected as it found it, and content arriving from a clone, an upgrade, or a merge is recorded unprotected. So **by default an upstream change reaches the variant even if someone here had set that path to something else.**
+
+That is the right default for a value the variant is only carrying: a replica count copied down from the base should follow the base when the base changes its mind. It is the wrong default for a value the variant *chose*, and the variant has to say so:
+
+```bash
+# As the change is made — every path it writes becomes a protected local override.
+cub function set --space <variant-space> --unit <unit> --protect set-replicas 5
+
+# Afterwards, per path, as RESOURCE_TYPE:RESOURCE_NAME:PATH.
+cub unit set-protection --space <variant-space> <unit> \
+  --protect "apps/v1/Deployment:<ns>/<name>:spec.replicas"
+
+# Changed our mind — let the upstream drive it again.
+cub unit set-protection --space <variant-space> <unit> \
+  --unprotect "apps/v1/Deployment:<ns>/<name>:spec.replicas"
+```
+
+**Leave `--protect` off for the promotion itself.** A promotion that protected everything it wrote would turn upstream content into local overrides and block every merge after it. `--protect` belongs on the change that *decides* a value — including a `PostClone` Trigger that customizes a variant, which takes `--protect` on `cub trigger create` for exactly this reason.
+
+Read what a Unit currently protects before proposing a promotion; the two lists are precisely the question the promotion is about to ask:
+
+```bash
+cub unit get --space <variant-space> <unit> -o mutations
+```
+
+```
+Locally overridden (preserved during merges):
+Resource: apps/v1/Deployment prod/backend
+  ~ [Update] spec.replicas  (#2)
+
+Eligible for upstream merges:
+Resource: apps/v1/Deployment prod/backend
+  + [Add] (#1)
+```
+
+Protection is stored per path, survives a restore, and is remembered across merges. Two alternatives decide the same question by rule instead — a `WhereMutation` filter over mutation history on the Link, and the merge's subtraction step (`--merge-enable-subtraction`). Each **replaces** the stored flags for the merges it applies to rather than adding to them, so don't describe them as stacking. Both are off/empty by default.
+
+### Conflicts: what the merge withheld
+
+A merge that cannot apply part of what it brought **does not fail, and does not apply it anyway.** It applies the rest and records what it withheld on the Unit, where it stays until dealt with. A merge replaces the outstanding set rather than adding to it, and a merge that lands cleanly clears it — so the set describes where the Unit stands now, not everything that ever happened. Within one walked range, conflicts accumulate across the hops, so nothing is erased before it has been seen.
+
+```bash
+cub unit conflicts --space <variant-space> <unit>
+```
+
+Each conflict names the resource, the path, the withheld value, and a reason:
+
+| Reason | Meaning |
+| --- | --- |
+| `ProtectedPath` | The path is a protected local override, so the upstream's change to it was withheld. The common one — protection reporting itself rather than working silently. |
+| `ExclusiveWithheld` / `ExclusiveCleared` | The two sides set mutually exclusive fields (a volume with one source; a deployment strategy and its options). `Withheld` = the downstream's choice stands; `Cleared` = the source's change applied and a conflicting downstream value was removed to make room, and the conflict carries it. |
+| `Subtracted` / `DeleteShadowed` | The subtraction step dropped a change, or a deletion could not be applied because the target had changed underneath it. |
+| `UnresolvedPath` | The path the source changed could not be located in this Unit. |
+| `ReplayFailed` | A replayed function errored here. The step was patched instead; the conflict carries the function name and the error. |
+
+Resolve by taking the upstream's value after all, or by dropping the report:
+
+```bash
+# What would taking the upstream's value do here? --dry-run writes nothing.
+cub unit conflicts --space <variant-space> <unit> --apply --dry-run -o mutations
+
+# Apply everything withheld for a given reason (or all of it, with no selector).
+cub unit conflicts --space <variant-space> <unit> --apply --reason ProtectedPath
+
+# Or drop the report without changing any data.
+cub unit conflicts --space <variant-space> <unit> --dismiss --reason ProtectedPath
+```
+
+`--path` and `--resource` narrow further. Applying writes the withheld value **and records the path as content that came from elsewhere**, so a later upstream change to it lands normally instead of reporting the same conflict release after release. Dismissing changes no data and leaves the protection in place. Applying is a configuration-data mutation: the Unit goes through the same Trigger pass as any other change and may pick up an ApplyGate.
+
+Conflicts are queryable, so "which variants have something outstanding?" is one command:
+
+```bash
+cub unit list --space "*" --where "Conflicts.*.Reason = 'ProtectedPath'"
+```
+
+To make outstanding conflicts **block** a publish rather than sit there, attach `vet-no-merge-conflicts` as a Trigger (see `triggers-and-applygates`).
 
 ---
 
@@ -57,6 +163,15 @@ Never combine rendering and mutation in a shell pipeline. Bind the exact local a
 - `--target` binds the created Units and stamps the Space's `TargetID` annotation (the one-Target-per-Space convention).
 - `--namespace` synthesizes a Namespace if absent. Links between Units are inferred from references/selectors/CRD relationships; reported cycles are broken at the weakest edge.
 - **Rendered Secrets are never uploaded** — apply them out-of-band via a SecretStore.
+- **Re-uploading is a merge, not a replace.** Running the same command again against a Space it already populated 3-way merges each Unit against the last upload: unchanged Units are left alone, changed ones merged, new resources become new Units, and the whole re-upload is recorded in a ChangeSet so it can be rolled back with the `--restore Before:ChangeSet:<slug>` command printed at the end. A change made in ConfigHub after the first upload survives that merge **only if the path is protected** — the rendered source is otherwise authoritative and the next upload puts its own value back:
+
+  ```bash
+  cub function set --space <base-space> --unit <unit> --protect set-replicas 5
+  ```
+
+  That is usually what you want for a Space whose content is generated elsewhere. If the same path needs protecting after every render, the value belongs in the source instead.
+- `--granularity` and `--namespace` are recorded on the Space and must be repeated on a re-upload; an upload with different values is refused rather than silently replacing the Space's Units. `--prune` empties Units the input no longer produces (nothing is ever deleted); Units guarded by a DestroyGate refuse.
+- `--dry-run` reports what would be created, updated, or emptied, including the per-field merge as the server would resolve it.
 
 ### 2. Clone a variant — `cub variant create`
 
@@ -74,7 +189,7 @@ cub variant create prod web-base \
 - First arg is the **variant name** (becomes the `Variant` label); second is the **upstream Space**. New Space labels inherit from upstream with `Variant` overridden; `--environment` / `--region` / `--variant-labels` adjust the rest.
 - Copies the upstream Space's `WhereTrigger`, `TriggerFilterID`, Permissions, and DeleteGates, and stamps an `UpstreamSpaceID` annotation (this is what `cub variant promote` reads later — only Spaces made by `cub variant create` are promotable).
 - `--target` retargets cloned Units and records the target annotation; for an OCI Target it also sets the new Space's `ReleaseTargetID`, which `cub release publish` requires. `--namespace` runs `set-namespace` on cloned Kubernetes/YAML Units, replacing a `confighubplaceholder` namespace from the base.
-- **Auto-customize on clone:** define `PostClone` Triggers and select them via the upstream Space's `WhereTrigger` / `TriggerFilterID` so they're copied down and run during the clone. Trigger args can read Space metadata in Go templates, e.g. `template:{{.SpaceLabels.Region}}` or `template:{{.SpaceAnnotations.host}}` (set the latter with `--space-annotation`). See `triggers-and-applygates`.
+- **Auto-customize on clone:** define `PostClone` Triggers and select them via the upstream Space's `WhereTrigger` / `TriggerFilterID` so they're copied down and run during the clone. Trigger args can read Space metadata in Go templates, e.g. `template:{{.SpaceLabels.Region}}` or `template:{{.SpaceAnnotations.host}}` (set the latter with `--space-annotation`). See `triggers-and-applygates`. A PostClone Trigger *decides* a value the variant then owns, so it is the one Trigger that usually wants `cub trigger create --protect` — otherwise the next promotion overwrites what it set.
 - `--unit-delete-gate` / `--unit-destroy-gate` protect a prod variant's Units; `--space-delete-gate` protects the Space. `--wait` (default true) waits for the cloned Units' Triggers.
 
 ### 3. Promote a variant — `cub variant promote`
@@ -92,6 +207,18 @@ cub variant promote web-prod \
 
 User prompt: <verbatim>
 Clarifications: <condensed or 'none'>"
+```
+
+**Always pass `--changeset`.** The promotion walks the range and records one revision per upstream revision that had an effect, so `--restore <n>` has nothing meaningful to name; `--restore Before:ChangeSet:<slug>` across the Space is the undo. Two other flags worth knowing:
+
+- `--squash` records each Unit's range as one rebased diff in one revision instead of walking it. See [It walks the range](#it-walks-the-range-replaying-functions) for when that is the right trade.
+- `--change-order <slug>` promotes one *named* change rather than everything the upstream has reached. The change order fixed its range when it was created, so the upgrade stops where it ends, a Unit it does not cover is passed over, and a Unit that is not where it starts is an error rather than a merge of a different range. It also undoes in one step: `cub unit update --patch --space <variant> --where "Slug LIKE '%'" --restore Before:ChangeOrder:<space>/<change-order>`.
+
+After promoting, check what the merge withheld before calling it done:
+
+```bash
+cub unit list --space <variant-space> --where "Conflicts.*.Reason = 'ProtectedPath'"
+cub unit conflicts --space <variant-space> <unit>
 ```
 
 Then hand off to `release-publish`. A ChangeSet remains grouping/rollback evidence; it is not a selector on `cub release publish`. `release-publish` recomputes the complete destination EffectiveReleaseSet and asks again if the promotion scope was narrower.
@@ -199,12 +326,16 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 
 - `cub variant promote` on a Space with no `UpstreamSpaceID` annotation (not made by `cub variant create`) — it errors; set the variant up with `cub variant create` first.
 - Preflight `no-go` — route to remediation.
-- Another ChangeSet already open against the scope; destination scope empty; upgrade merge leaves conflicts (`cub unit diff` shows `<<<<<<<` / non-empty `MergeConflicts`) — resolve in `cub-mutate` within the ChangeSet, re-diff, close.
+- Another ChangeSet already open against the scope, or the destination scope is empty.
+- The upgrade left outstanding conflicts (`cub unit conflicts <unit>` is non-empty). A merge does not fail on these — it applies the rest and reports what it withheld — so check explicitly rather than reading a successful exit as a clean merge. Resolve with `cub unit conflicts --apply|--dismiss` inside the ChangeSet, re-check, then close.
+- A `ReplayedNoEffect` or `ReplayFailed` outcome on a Unit the promotion was supposed to change — the upstream invocation did not generalize to this variant. Fix the invocation upstream rather than patching the variant by hand.
 - User wants to skip the ChangeSet for a >1-Unit manual promotion (loses lock + grouped set-wise restore), or self-approve without the role, or upstream linkage doesn't match intent — stop and confirm.
 
 ## Verify chain
 
 - Variant: `cub variant promote <space> --dry-run` reports zero would-upgrade / would-add after a successful promote; `cub unit list --space <space> --filter platform/needs-upgrade` is empty.
+- Conflicts: `cub unit list --space <space> --where "Conflicts.*.Reason = 'ProtectedPath'"` returns nothing outstanding, or every entry is a deliberate protection the user has seen.
+- Protection held: `cub unit get --space <space> <unit> -o mutations` still lists the variant's own values under **Locally overridden**.
 - ChangeSet: scoped Units no longer match `platform/needs-upgrade`; `cub revision list --space <SCOPE_SPACE> --where "ChangeSet.Slug = '<slug>'"` shows the tagged revisions; `cub changeset get --space $HOME_SPACE <slug>` shows start+end tags (closed).
 
 ## Evidence
@@ -218,7 +349,7 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 - `cub variant upload --help`, `cub variant create --help`, `cub variant promote --help` — authoritative flags.
 - `references/changesets.md` — lifecycle, rollback, merge/rebase.
 - `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `not-approved` recipes.
-- `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close.
+- `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close, and "Protection and merge conflicts".
 - `references/revisions.md` — `ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`.
 - Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated advisory Release proposal), `rollback-revision`, `verify-apply`.
-- `https://docs.confighub.com/markdown/guide/variants.md`, `.../guide/dependencies.md`.
+- `https://docs.confighub.com/markdown/guide/variants.md`, `.../guide/advanced-merging.md`, `.../background/concepts/mutation-sources.md`, `.../background/concepts/component.md`, `.../guide/dependencies.md`.

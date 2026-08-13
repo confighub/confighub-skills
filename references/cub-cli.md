@@ -21,7 +21,7 @@ If a flag isn't in `--help`, it doesn't exist. Re-check `--help` on the current 
 cub <entity-or-area> <verb> [flags] [arguments]
 ```
 
-Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `worker`, `function`, `run`, `link`.
+Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `worker`, `function`, `run`, `link`, `variant`, `component`, `resource`, `k8s`, `release`, `changeset`.
 
 ## Context
 
@@ -166,7 +166,7 @@ Rules of thumb:
 - `-o name` — slugs only (one per line). Space-resident entities print as `<space-slug>/<slug>`.
 - `-o jq=<expr>` / `-o yq=<expr>` — post-process inside cub. Prefer this over piping to external `jq`/`yq` — one fewer process, one fewer shell-quoting hazard.
 - `-o custom-columns=<spec>` — column projection on list commands (same as `--columns`).
-- `-o mutations` — diff of the configuration mutations a mutating command just produced. Works on `cub unit update`, `cub function do|set`, `cub run`, with or without `--dry-run`.
+- `-o mutations` — the per-path mutation view. On a mutating command (`cub unit update`, `cub function set|do`, `cub run`, `cub variant promote`, `cub unit conflicts --apply`) it is the diff that command produced, with or without `--dry-run`. On `cub unit get` it renders the Unit's stored `MutationSources`, grouped into **Locally overridden (preserved during merges)** and **Eligible for upstream merges** — which is how you read what a Unit currently protects. Add `--verbose` for each field's value and the change that set it.
 - `-o wide` — all default columns on list commands.
 
 Other:
@@ -238,6 +238,69 @@ cub function get --space "*" --resource-type apps/v1/Deployment get-replicas --s
 The envelope is emitted **per Unit** — each Unit prints its own JSON object, not wrapped in an outer array. `jq`'s `.` starts at one envelope at a time. If you need to collect across units, pipe through `jq -s`.
 
 `--show values` (scalar extraction) and `--show data` (modified ConfigData) do **not** wrap — they pass the raw payload through. Envelope only applies to `--show output` combined with `-o json|yaml|jq|yq`.
+
+## Protection and merge conflicts
+
+A merge from upstream — `cub variant promote`, `cub unit update --upgrade`, a resolved
+UpgradeUnit/MergeUnits Link, `--merge-source`, `--merge-external-source` — decides per path whether
+it may overwrite what the downstream has. **Protection is opt-in.** An ordinary change leaves each
+path it writes as protected as it found it, and content arriving from a clone, an upgrade, or a
+merge is recorded unprotected. So by default an upstream change reaches the downstream even if
+someone here had set that path to something else.
+
+Say a value is this variant's own in one of two ways:
+
+```bash
+# As you make the change — every path the change writes becomes a protected local override.
+cub function set --space prod --unit backend --protect set-replicas 5
+
+# Afterwards, per path, as RESOURCE_TYPE:RESOURCE_NAME:PATH (repeatable).
+cub unit set-protection --space prod backend \
+  --protect "apps/v1/Deployment:prod/backend:spec.replicas"
+
+# Re-open a path so the next merge may overwrite it again.
+cub unit set-protection --space prod backend \
+  --unprotect "apps/v1/Deployment:prod/backend:spec.replicas"
+```
+
+`--protect` is also accepted on `cub unit update` and `cub run`. Leave it **off** for anything
+applying a value decided somewhere else — a script propagating a release, a promotion — because a
+change that protected everything it wrote would turn upstream content into local overrides and
+block every merge after it. Neither form touches configuration data, and a new Revision is produced
+only if a flag actually changes.
+
+Read what a Unit protects with `cub unit get <slug> --space <space> -o mutations` (see the
+`-o mutations` bullet above).
+
+### Conflicts — what a merge could not apply
+
+A merge that cannot place part of its patch does not fail and does not apply it anyway: it applies
+the rest and records what it withheld on the Unit, where it stays until dealt with. The next merge
+replaces the set; a merge that lands cleanly clears it.
+
+```bash
+cub unit conflicts <slug> --space <space>                      # list what is outstanding
+cub unit conflicts <slug> --space <space> --apply --dry-run -o mutations
+cub unit conflicts <slug> --space <space> --apply --reason ProtectedPath
+cub unit conflicts <slug> --space <space> --dismiss --reason ProtectedPath
+```
+
+Reasons: `ProtectedPath` (the common one — protection reporting itself), `Subtracted`,
+`DeleteShadowed`, `UnresolvedPath` (the source's path could not be located here),
+`ExclusiveWithheld` / `ExclusiveCleared` (mutually exclusive fields), and `ReplayFailed`.
+`--path` and `--resource` narrow further; with no selector, `--apply`/`--dismiss` act on
+everything outstanding.
+
+Applying writes the withheld value and records the path as content that came from elsewhere, so a
+later upstream change to it lands normally instead of reporting the same conflict every release.
+Dismissing changes no data and leaves the protection in place.
+
+Conflicts are queryable, and `vet-no-merge-conflicts` turns them into an ApplyGate when wired as a
+Trigger:
+
+```bash
+cub unit list --space "*" --where "Conflicts.*.Reason = 'ProtectedPath'"
+```
 
 ## Function commands — `vet` / `get` / `set` preferred over `do`
 

@@ -2,7 +2,16 @@
 
 **Authority boundary:** revision reads and diffs are evidence. Any command that creates a new Revision, restores a head, approves a revision, or publishes its data is a governed proposal only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`). Native ConfigHub revision approval is policy evidence, not authorization for the companion to execute.
 
-Every Unit-data mutation produces a `Revision`. A Revision's **configuration snapshot** (`Data` plus `DataHash`) is immutable. The row as a whole is not: approvals, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
+Every Unit-data mutation produces a `Revision`.
+
+**Revision 1 is empty.** Every Unit now begins with an empty start Revision, and the content it was
+created with lands on Revision 2. That gives "before this Unit had anything" a Revision to name, so
+a ChangeSet opened as the Unit is created, a clone that replays the upstream's history, and a
+restore that rewinds past the first change are all the ordinary path rather than carve-outs. The
+consequence to remember: **`--restore 1` restores empty**, not the created content. It cannot be
+backfilled, so Units created before this change keep their content on Revision 1 — check
+`cub revision list <unit> --space <s>` rather than assuming.
+ A Revision's **configuration snapshot** (`Data` plus `DataHash`) is immutable. The row as a whole is not: approvals, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
 
 Authoritative definition: `Revision` struct in the public SDK at `https://github.com/confighub/sdk` (`core/openapi/goclient-new/models.gen.go`).
 
@@ -37,7 +46,7 @@ The `Description` field is what makes revision history self-explaining later —
 
 | Field | Meaning |
 |---|---|
-| `Source` | The cub operation that produced the revision. Common values: `CreateUnit` (initial create), `Update` (`cub unit update`), `Invoke` (`cub function do` / `cub run`), `Resolve` (self-resolve and invoked triggers — automated). |
+| `Source` | The cub operation that produced the revision. Common values: `CreateUnit` (initial create), `Update` (`cub unit update`), `Invoke` (`cub function set` / `cub run`), `Resolve` (self-resolve and invoked triggers — automated), `CloneUnit`, `UpgradeUnit`, `MergeUnits`, `MergeExternal` (merge-produced). |
 | `UserID` | User who initiated the change. Zero UUID (`00000000-…`) for automated changes like trigger resolution. |
 | `UserAgent` | User-Agent string if the change came via API call. Useful for distinguishing CI / custom automation from interactive sessions. |
 
@@ -45,9 +54,9 @@ The `Description` field is what makes revision history self-explaining later —
 
 | Field | Meaning |
 |---|---|
-| `MutationSources` | For each attribute path that changed in this revision, records which function produced the change, the mutation type (`Add` / `Update`), and the new value. This is what you see in `cub unit get -o yaml` under `MutationSources` and what powers `compute-mutations` / `patch-mutations`. |
+| `MutationSources` | Per-path index of which change last set each configuration value: the mutation type (`Add` / `Update` / `Delete`), a reference to the Mutation (and so the Revision, function, Link, or Trigger) responsible, the value, and a **`Protected`** flag saying whether the path is a local override a merge must not overwrite. It is what powers `compute-mutations` / `patch-mutations`, what the merge engine consults to tell an upstream change from a local one, and what `cub unit get -o mutations` renders. Restore rewinds `MutationSources` along with `Data`, so provenance always matches the state you restored. |
 
-`MutationSources` is what lets you answer "which function set this field?" — each entry is keyed by resource identity and path, and names the function + an index into the revision's function-invocation sequence. When you ran `set-container-resources-defaults` on `hello-app` in the skill-examples bootstrap, the resulting revision's `MutationSources` recorded that `resources.requests` was set by that function with a specific value.
+`MutationSources` is what lets you answer "which function set this field?" and "may a merge overwrite this field?" — each entry is keyed by resource identity and path, and names the function + an index into the revision's function-invocation sequence. When you ran `set-container-resources-defaults` on `hello-app` in the skill-examples bootstrap, the resulting revision's `MutationSources` recorded that `resources.requests` was set by that function with a specific value.
 
 ### Validation state (revision-scoped, but mutable)
 
@@ -123,4 +132,5 @@ cub revision get <unit> --space <s> --revision <n> -o yaml
 
 - `references/cub-cli.md` — `--change-desc` composition rule and `-o mutations` for inline diffs at mutation time.
 - `references/filters-and-queries.md` — filter vocabulary including revision-state fields (`HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`) on the Unit side.
-- Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `release-publish` (publishes from a tagged revision via `cub release publish --revision <tag>`).
+- `references/cub-cli.md` → "Protection and merge conflicts" — the `Protected` flag, `cub unit set-protection`, and `cub unit conflicts`.
+- Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `promote-release` (walked merges record one revision per upstream revision), `rollback-revision` (restore targets), `release-publish` (publishes from a tagged revision via `cub release publish --revision <tag>`).

@@ -1,6 +1,6 @@
 ---
 name: app-config
-description: 'Turn .env, properties, YAML, JSON, TOML, INI, or text into an AppConfig Unit and rendered ConfigMap via Upsert + render-configmap. Use for "use my .env", configMapGenerator-like config, envFrom, and mutable-vs-immutable ConfigMaps. Not for raw ConfigMap YAML (confighub-core).'
+description: 'Turn .env, properties, YAML, JSON, TOML, INI, or text into an AppConfig Unit and rendered ConfigMap via Upsert + render-configmap, or hash a hand-authored mutable ConfigMap with set-hash so linked workloads roll. Use for "use my .env", configMapGenerator-like config, envFrom, and a Deployment that never restarts on a ConfigMap change.'
 phase: act
 allowed-tools: []
 read-capability-subset: app-config
@@ -50,10 +50,11 @@ Syntax by format: YAML/JSON top-level `configHub:` key; TOML/INI `[configHub]` s
 - "like `kubectl create configmap`" / "like `configMapGenerator`" / "versioned ConfigMap."
 - Inject a `.env` as container env vars via `envFrom`.
 - Schema validation on application config (`vet-jsonschema`).
+- A **hand-authored mutable ConfigMap** whose changes should roll the workload that reads it — the `set-hash` path below, no AppConfig Unit involved.
 
 ## Do not load for
 
-- Authoring a raw Kubernetes `ConfigMap` YAML directly (use `confighub-core` + `cub-mutate`) — fine for small static ConfigMaps with no rendering / history / hashing story.
+- Authoring a raw Kubernetes `ConfigMap` YAML directly (use `kubernetes-resources` + `cub-mutate`) — fine for small static ConfigMaps with no rendering or history story. If such a ConfigMap does need to roll its workload, come back for [`set-hash`](#hashing-a-hand-authored-mutable-configmap-set-hash).
 - Secrets — use an external SecretStore (see `references/yaml-patterns.md`).
 - Helm-chart `ConfigMap`s — the chart already renders them; use `import`.
 
@@ -93,17 +94,17 @@ User prompt: <verbatim>
 Clarifications: <e.g. 'source: ./app.env at <git ref>'>"
 ```
 
-`ToolchainType` is locked in here. Edit later with `cub function do`, not by re-creating (you'd lose history).
+`ToolchainType` is locked in here. Edit later with `cub function set`, not by re-creating (you'd lose history).
 
 ### 3. Mutate values (optional)
 
 `set-*-path` takes the `configSchema` first, then the dotted path, then the value:
 
 ```bash
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Env -o mutations \
+cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Env -o mutations \
   --change-desc "Point DATABASE_HOST at prod. User prompt: <verbatim>. Clarifications: <condensed>" \
   -- set-string-path SimpleApp DATABASE_HOST postgres.prod.internal
-cub function do --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
+cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
   -- set-bool-path SimpleApp database.ssl.enabled false
 ```
 
@@ -207,6 +208,66 @@ spec:
 
 After externally authorized wiring, delivery uses a whole-Space `release-publish` proposal. This skill stops at the exact AppConfig/render/link/workload proposal and read-only postcondition plan.
 
+## Hashing a hand-authored mutable ConfigMap (`set-hash`)
+
+The rendering path above is for config that lives in an AppConfig Unit. When the user instead has a **plain, mutable ConfigMap Unit** they author and edit directly, and the problem is that changing it doesn't restart the Deployment that reads it, the answer is the same annotation the render path uses — just set by hand.
+
+`confighub.com/Hash` is registered as a **provided** attribute on `v1/ConfigMap` and as a **needed** attribute on every workload's pod-template annotations, under the attribute name `configmap-hash`. So the wiring is: hash the ConfigMap, then let Needs/Provides copy the hash onto the pod template. A changed pod template is what makes Kubernetes roll the workload — the same trick a `kubectl rollout restart` performs manually, but driven by content.
+
+### 1. Hash the ConfigMap's contents
+
+```bash
+cub function set --space <space> --unit <configmap-slug> \
+  --where-resource "ConfigHub.ResourceType = 'v1/ConfigMap'" \
+  --change-desc "Hash the ConfigMap contents so linked workloads roll when it changes.
+
+User prompt: <verbatim>
+Clarifications: <condensed>" \
+  -o mutations \
+  -- set-hash data
+```
+
+`set-hash <path>` computes a SHA-256 over every value at `<path>` and writes the first 10 hex characters to `metadata.annotations.confighub.com/Hash`. For a ConfigMap the path is `data`. Scope it with `--where-resource` — `set-hash` matches any resource type, so an unscoped run in a Unit holding more than one resource hashes all of them.
+
+It is hermetic and idempotent: identical content always yields the same hash, so re-running changes nothing. Re-run it after every edit to the ConfigMap — or, better, register it as a **Mutation Trigger** on the Space so the hash is never stale:
+
+```bash
+cub trigger create --space <space> hash-configmaps Mutation Kubernetes/YAML \
+  --where-resource "ConfigHub.ResourceType = 'v1/ConfigMap'" \
+  -- set-hash data
+```
+
+`--where-resource` restricts which resources the Trigger's function touches; `--where-unit` would
+restrict which Units it runs on. Confirm both against `cub trigger create --help` before composing.
+
+### 2. Receive the hash on the workload
+
+Put a placeholder in the workload's pod template and link the two Units:
+
+```yaml
+spec:
+  template:
+    metadata:
+      annotations:
+        confighub.com/Hash: confighubplaceholder   # resolved to the ConfigMap's content hash
+    spec:
+      containers:
+        - name: main
+          envFrom:
+            - configMapRef:
+                name: <configmap-slug>             # stable name; no hash suffix
+```
+
+```bash
+cub link create --space <space> - <workload-slug> <configmap-slug>
+```
+
+Resolution replaces the placeholder with the hash. When the ConfigMap's `data` changes, the hash changes, the pod-template annotation changes, and the next publish rolls the workload.
+
+**Limitation:** when a workload references more than one ConfigMap, each hash is propagated separately — combining several into one annotation is not yet supported. Say so rather than wiring something that silently drops one.
+
+**When to prefer the immutable render path instead:** if old pods must keep reading the old config through the rollout, use `render-configmap --immutable true` (the default) from the loop above. Hashing a mutable ConfigMap replaces its contents in place, so a pod that restarts mid-rollout for any reason picks up the new config.
+
 ## Tool boundary
 
 - Host-ASK: read-only Unit/function/controller/runtime inspection in this skill's declared capability subset; no raw Bash is auto-allowed.
@@ -237,5 +298,5 @@ After externally authorized wiring, delivery uses a whole-Space `release-publish
 - `https://docs.confighub.com/markdown/guide/app-config.md` — canonical walkthrough (Upsert path + legacy path).
 - `references/cub-cli.md` — `--change-desc` / `-o mutations` / four Unit views.
 - `references/yaml-patterns.md` — `confighubplaceholder` + Needs/Provides receivers.
-- `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema` / `render-configmap` / `prune-configmaps`.
-- Companion skills: `confighub-core` (raw-ConfigMap authoring; Links / Needs-Provides doctrine), `cub-mutate` (bulk AppConfig edits), `release-publish` (whole-Space OCI Release proposal), `verify-apply` (post-release checks).
+- `references/functions-catalog.md` — `set-string-path` / `set-int-path` / `set-bool-path` / `vet-jsonschema` / `render-configmap` / `prune-configmaps` / `set-hash`.
+- Companion skills: `kubernetes-resources` (raw-ConfigMap authoring), `confighub-core` (Links / Needs-Provides doctrine), `cub-mutate` (bulk AppConfig edits), `triggers-and-applygates` (the `set-hash` Mutation Trigger), `release-publish` (whole-Space OCI Release proposal), `verify-apply` (post-release checks).

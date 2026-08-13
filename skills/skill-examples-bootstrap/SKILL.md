@@ -110,6 +110,10 @@ Clarifications: <condensed or 'none'>"
 done
 ```
 
+`--merge-external-source` records each file as the Unit's external source, so re-running this against an already-seeded Space merges the new file content rather than replacing the Unit — anything you tinkered with in ConfigHub survives, unless the file changed the same path.
+
+> `cub variant upload --granularity per-file` would produce the same file-stem slugs in one command and merge the same way on re-upload. It is the right tool for a real base Space, and the wrong one here: it requires `--component` / `--variant` and stamps those labels, which would make the playground look like a variant of a component it isn't. Use it when you graduate an example into a real component; keep the loop for the playground.
+
 ### 4. Apply the defaults chain
 
 Each function call is hermetic and idempotent, so re-running on an already-seeded Space produces no-op revisions (and no noise in the history if nothing changes).

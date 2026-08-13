@@ -88,6 +88,22 @@ cub trigger create --space platform -o json require-min-replicas Mutation Kubern
 
 Add `require-ha`, `no-latest`, etc. to your Filter (or broaden it) and every downstream Space inherits the rule.
 
+## Merge-conflict gate
+
+A merge that could not apply part of what it brought records the withheld changes on the Unit
+rather than failing (see `references/cub-cli.md` → "Protection and merge conflicts"). By default
+they sit there until someone runs `cub unit conflicts`. Wire this Trigger to make them block
+publish instead:
+
+```bash
+cub trigger create --space platform -o json no-merge-conflicts Mutation Kubernetes/YAML \
+  vet-no-merge-conflicts
+```
+
+It fails while anything is outstanding, which becomes an ApplyGate. Clear it by applying or
+dismissing the conflicts (`cub unit conflicts <slug> --apply|--dismiss`), not by dropping the
+Trigger. Worth attaching in Spaces that are promoted into regularly.
+
 ## Approval gate (optional)
 
 ```bash
@@ -102,6 +118,6 @@ Approval policy is recorded as a gate until sufficient approvers sign off.
 1. `cub unit get <slug> --space <app-space>` — shows attached gates.
 2. `cub revision list <slug> --space <app-space>` — history of validating failures.
 3. Inspect the trigger: `cub trigger get --space platform <trigger-slug>`.
-4. Fix the data (e.g., `cub function do set-container-image …`) — the Mutation triggers re-run.
+4. Fix the data (e.g., `cub function set set-container-image …`) — the Mutation triggers re-run.
 
 Never drop the trigger or delete the gate to "make it publish."

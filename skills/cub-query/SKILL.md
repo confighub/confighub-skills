@@ -1,6 +1,6 @@
 ---
 name: cub-query
-description: 'Find, count, inspect, or audit desired and published Kubernetes config stored in ConfigHub. Use for fleet sweeps and single-workload lookups; route "currently running/deployed" claims through verify-apply because ConfigHub metadata alone is not runtime proof.'
+description: 'Find, count, inspect, or audit Kubernetes config stored in ConfigHub — cub k8s get and cub resource list to browse resources, cub unit list for Units. Use for fleet sweeps and single-workload lookups; route "currently running/deployed" claims through verify-apply, because ConfigHub metadata alone is not runtime proof.'
 phase: verify
 allowed-tools: []
 read-capability-subset: cub-query
@@ -15,6 +15,8 @@ The database-like query surface of ConfigHub. Most users don't discover this fro
 ## Why this matters
 
 Configuration is stored as data. Every field of every resource in every Unit in every Space is queryable — by metadata (`--where`), by content (`--where-data`), by resource type, and via functions that return structured values. This replaces "clone the repo, grep, try to figure out which env does what." Also, it is generally unnecessary to list all configuration Units or other entities and post-process locally — prefer server-side `--where` plus `-o jq`/`-o yq`. One caveat: a singular `get` returns the whole entity, but a **`list` returns only default fields** (entity IDs + Slug + a few) even with `-o json`/`-o yaml`. To pull any other field from a `list` (e.g. `Labels`, `DisplayName`, `ApplyGates`/`ApplyWarnings`), name it with `--select` (or `--select "*"` for everything) — see [Output shaping](#output-shaping).
+
+**Ask about resources when the question is about resources.** A Unit is a container; the Deployment, Service, or ConfigMap inside it is what users actually ask about. ConfigHub extracts those resources from Unit data and indexes them, so `cub k8s get` and `cub resource list` answer resource questions directly — one row per resource, filtered server-side — instead of listing Units and digging into each one's YAML. Reach for them first for "which Deployments…", "show me the Ingresses in prod", "what's in this namespace". See [Browsing resources](#0-browsing-resources--cub-k8s-get-and-cub-resource-list).
 
 The same toolkit covers two scopes:
 
@@ -35,6 +37,7 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 
 ## When to use
 
+- "What Deployments / Services / Ingresses / CRs exist in <scope>?" — the fastest path is `cub k8s get`.
 - "Where does desired or published config reference <image/release/version>?" — across the fleet. If the user asks where it is actually deployed, this produces candidates and then routes to `verify-apply`.
 - "Which Deployments / workloads have <field> <condition>?" — e.g., replicas > 5, missing resource requests or limits, using a specific registry.
 - "List every Deployment / Service / Ingress / ConfigMap in <environment / region>."
@@ -59,7 +62,64 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 
 ## The query toolkit
 
-### 0. Single-workload inspection — desired, published, and runtime are separate
+### 0. Browsing resources — `cub k8s get` and `cub resource list`
+
+Two read surfaces over the resources **inside** Units. Both filter server-side, so a fleet-wide sweep does not read every Unit's configuration.
+
+**`cub k8s get`** names resource types the way `kubectl` does and is the friendlier of the two — reach for it whenever the user's question is phrased in Kubernetes terms:
+
+```bash
+# Deployments in a Space. Plural, singular, short name, Kind, or full type all resolve.
+cub k8s get deploy --space <space>
+
+# Two types at once, across every Space.
+cub k8s get deploy,sts --space "*"
+
+# Everything except CRDs in one Unit ("all" excludes CustomResourceDefinition; ask for "crd" to see those).
+cub k8s get all --space <space> --where "Unit.Slug = '<slug>'"
+
+# Everything headed for one target.
+cub k8s get netpol --target <space>/<target>
+
+# Describe one resource, or print its stored YAML.
+cub k8s get deploy <name> --space <space> --show detail
+cub k8s get cm -n kube-system --space "*" --show data
+
+# Deployments over one replica, in prod, whose Unit name ends in -backend.
+cub k8s get deploy --space "*" \
+  --where "Unit.Slug LIKE '%-backend' AND Space.Labels.Environment = 'prod'" \
+  --where-resource "spec.replicas > 1"
+```
+
+Types not built in still resolve by Kind across any API group, so custom resources work: `cub k8s get externalsecrets --space "*"`. `--show` picks the view: `list` (default, one row per resource), `detail` (a `kubectl describe`-style summary), `data` (the YAML as stored). Filtering combines four independent scopes, all ANDed: `--space`/`--target`, the type/name/`--namespace`, `--where` (conditions on the resource or its containing `Unit.`/`Space.`/`Target.`), and `--where-resource` (a condition on the resource's own configuration).
+
+**`cub resource list`** is the general form — no Kubernetes vocabulary, full `--where` reach over resource metadata and data paths. Use it for toolchains other than Kubernetes, and when you want data-path predicates:
+
+```bash
+# Every Deployment in the organization.
+cub resource list --space "*" --where "ResourceType = 'apps/v1/Deployment'"
+
+# Resources not bound to any target yet.
+cub resource list --space "*" --where "TargetID IS NULL"
+
+# A named container's image, wherever it sits in the containers array.
+cub resource list --space "*" \
+  --where "Data.spec.template.spec.containers.?name=nginx.image LIKE 'nginx:1.%'"
+
+# Any container running an image from a given registry.
+cub resource list --space "*" --where "Data.spec.template.spec.containers.*.image LIKE 'ghcr.io/%'"
+
+# Include the configuration data, which the default output omits.
+cub resource list --space <space> --select "ResourceType,ResourceName,Data" -o json
+```
+
+Filterable metadata: `ResourceType`, `ResourceName`, `ToolchainType`, `UnitID`, `SpaceID`, `TargetID` (mirrors the containing Unit's, so it selects by where the resource will be applied). Attributes of the containing Unit and Space take a prefix — `Unit.Labels.App`, `Unit.Slug`, `Space.Labels.Environment` — and only the named fields are fetched, so filtering on a Unit label does not drag its configuration data along. `Data.` paths use the same syntax as `--where-data` on Units, including array indexes, `*` wildcards, associative matching (`?name=nginx`), and split paths; embedded accessors (`#accessor`) and parameter bindings (`@key:name`) are the exceptions — use `cub unit list --where-data` for those.
+
+Resources are **derived from Unit data**, read-only, and re-extracted whenever a Unit changes. There is no create/update/delete: change the Unit. And like everything else here, this is configuration, not live cluster state — route "is it running?" through `verify-apply`.
+
+Use `cub unit list` (§1–2 below) when the answer is about Units themselves: revision numbers, gates, upstream linkage, targets, ChangeSet membership.
+
+### 0.1. Single-workload inspection — desired, published, and runtime are separate
 
 For "what is desired for our frontend in us-east?" / "what image is recorded for our worker?" / "show me the YAML of this workload":
 
@@ -196,6 +256,27 @@ cub unit-event list --space <space> --where "Action = 'Apply'"
 
 These historical reads do not describe current v0.2.11 Release/controller/runtime state. The `--change-desc` captured at mutation time (see `cub-mutate`) makes current revision history self-explaining; use Release records for publication history.
 
+### 6. Protection and outstanding merge conflicts
+
+What a variant owns, and what a merge could not deliver to it, are both queryable:
+
+```bash
+# What does this Unit protect from upstream merges, and what may a merge still update?
+cub unit get <slug> --space <space> -o mutations
+
+# What did the last merge fail to apply here?
+cub unit conflicts <slug> --space <space>
+
+# Which variants have something outstanding, fleet-wide?
+cub unit list --space "*" --where "Conflicts.*.Reason = 'ProtectedPath'"
+cub unit list --space "*" --where "Conflicts.*.Reason = 'UnresolvedPath'"
+
+# Which Units are behind their upstream?
+cub unit list --space "*" --where "UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"
+```
+
+`-o mutations` splits the Unit's paths into **Locally overridden (preserved during merges)** and **Eligible for upstream merges**; add `--verbose` for each value and the change that set it. Resolving a conflict is a mutation — hand it to `promote-release` or `cub-mutate`. See `references/cub-cli.md` → "Protection and merge conflicts".
+
 ## Output shaping
 
 - `-o json` / `-o yaml` — structured. **For `list` commands this is NOT the whole entity** — only the default fields (IDs + Slug + a few). A singular `get` does return the whole entity.
@@ -208,7 +289,7 @@ These historical reads do not describe current v0.2.11 Release/controller/runtim
 
 ## Tool boundary
 
-- Host-ASK: `cub unit/revision/space/trigger/filter` reads and specifically named, reviewed `cub function get/vet` getters/validators in this skill's declared capability subset. Arbitrary functions are not permitted; no raw Bash is auto-allowed.
+- Host-ASK: `cub unit/revision/space/trigger/filter/resource/k8s get/component` reads and specifically named, reviewed `cub function get|vet` getters/validators in this skill's declared capability subset. Arbitrary functions are not permitted; no raw Bash is auto-allowed. `cub k8s source` / `cub k8s collect` reach a cluster and are not part of this skill — route those through `verify-apply`.
 - Not allowed: mutating functions from a query skill. If the answer to a query suggests a fix, hand off to `cub-mutate`.
 
 ## Stop conditions
@@ -234,4 +315,5 @@ Queries are read-only; the "verify" is cross-checking:
 
 - `references/filters-and-queries.md` — full filter vocabulary and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`); Release/controller/runtime proof belongs to `verify-apply`.
 - `references/cub-cli.md` — `cub unit data` / `livedata` / `livestate` / `bridgestate` semantics (see the "Data / LiveData / LiveState / BridgeState" table) and the where/where-data/output flags.
-- `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-placeholders`, etc.).
+- `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-yq`, `get-placeholders`, etc.).
+- `cub k8s get --help`, `cub resource list --help` — the resource-browsing surfaces above; confirm flags before composing.

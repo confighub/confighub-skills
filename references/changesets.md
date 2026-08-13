@@ -9,8 +9,8 @@ Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 ## Lifecycle
 
 1. **Create** — `cub changeset create --space <home-space> <slug> --description "<one-line summary>"`. Lives in one Space; Units it covers can be anywhere. `<home-space>` is the app team's home Space (`<app>-home` per `skills/confighub-core`) — cross-environment operational artifacts like ChangeSets, Tags, and Filters belong there, not in any single deployment Space.
-2. **Open** — bulk-patch the target Units to add them to the ChangeSet. This creates a revision per Unit tagged with the ChangeSet's *start tag*, even if data doesn't change.
-3. **Mutate** — every `cub function do` / `cub unit update` / `cub run` against those Units passes `--changeset <home-space>/<slug>`. Revisions are tagged as part of the ChangeSet.
+2. **Open** — bulk-patch the target Units to add them to the ChangeSet. Attaching creates **no** revision: the ChangeSet's *start tag* goes on each Unit's existing head, so the ChangeSet is the interval `(start, end]` and every Unit it was opened on carries the tag whether or not it later changes.
+3. **Mutate** — every `cub function set` / `cub unit update` / `cub run` against those Units passes `--changeset <home-space>/<slug>`. Revisions are tagged as part of the ChangeSet.
 4. **Close** — bulk-patch with `--changeset -`. Each Unit's head revision gets the ChangeSet's *end tag*.
 5. **Native gate assessment** — current server v0.2.11 cannot approve a ChangeSet/Tag/numeric Revision selector. Omitted/`HeadRevisionNum` approval targets the head at execution time without expected-head CAS, so exact-artifact approval remains blocked.
 6. **Review / publish proposal** — compute the destination Space's complete EffectiveReleaseSet and record a new review decision for that whole-Space advisory subject. Execution still requires both provider-side expected-target/manifest CAS and the external broker; neither exists.
@@ -37,7 +37,7 @@ If any of the selected Units are already in another (open) ChangeSet, the open f
 Every mutating call against Units in the ChangeSet must pass `--changeset`. The server rejects mutations that target Units in an open ChangeSet without the flag — that's the lock doing its job.
 
 ```bash
-cub function do --space <target-space> \
+cub function set --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
   --change-desc "Bump image to v452. User prompt: <verbatim>. Clarifications: <condensed>" \
@@ -102,7 +102,7 @@ cub unit update --patch --space <target-space> \
 cub release publish <target-variant-space>
 ```
 
-`Before:ChangeSet:<...>` resolves per Unit to "the revision that was head right before the ChangeSet opened." Each Unit gets a new head revision carrying the restored data.
+`Before:ChangeSet:<...>` resolves per Unit to the start tag's revision — the head the Unit had right before the ChangeSet opened. Each Unit gets a new head revision carrying the restored data. Because the start tag marks a revision that already existed rather than one manufactured by attaching, a Unit that joined the ChangeSet and never changed rewinds cleanly along with the rest of the set.
 
 ## Merge / rebase around a ChangeSet
 
@@ -139,7 +139,7 @@ cub revision list --space <target-space> --filter <home-space>/<filter-slug> \
 
 - A change spans more than one Unit and you want grouped review and set-wise rollback. Do not call current native approval exact or publication atomic across a subset: a Space Release captures its complete EffectiveReleaseSet.
 - A release across many Units — group all revisions so you have one name to roll back or reapply.
-- A bulk upgrade (`cub unit update --upgrade`) applied across a filter — opening a ChangeSet first makes the "before / after" auditable as one set.
+- **Any upgrade or promotion.** A merge now *walks* its range by default, recording one downstream revision per upstream revision that has an effect (see `skills/promote-release`). One promotion therefore produces many revisions per Unit, and there is no single "the revision before the promotion" number to restore to. A ChangeSet — `cub variant promote <space> --changeset <home-space>/<slug>`, or the open/mutate/close flow around a bulk `--upgrade` — gives the whole promotion one name and makes `--restore Before:ChangeSet:<slug>` the way back. This is the main reason to reach for one.
 - The user asks for a "rollback" across many Units — a prior ChangeSet (or a Tag you set at known-good time) is what you need to restore before.
 
 ## When not
@@ -153,5 +153,5 @@ cub revision list --space <target-space> --filter <home-space>/<filter-slug> \
 - **Forgetting `--changeset` on a mutation.** The server rejects, but the error is specific — re-run with the flag.
 - **Using `""` instead of `-` to close.** Looks identical, does nothing. Always `-`.
 - **Reusing a ChangeSet slug across Spaces.** Slugs are Space-scoped; `acme-home/release-v452` is not the same as `acme-prod/release-v452`. Pick the app team's home Space (`<app>-home`, per `skills/confighub-core`) and put all that app's release ChangeSets there.
-- **Opening a ChangeSet before the Filter is right.** Opening creates revisions on every selected Unit. Dry-run the Filter first (`cub unit list --filter <home-space>/<slug>`) and confirm the set before opening.
+- **Opening a ChangeSet before the Filter is right.** Opening tags every selected Unit's head, and the ChangeSet then locks those Units against another ChangeSet. Dry-run the Filter first (`cub unit list --filter <home-space>/<slug>`) and confirm the set before opening.
 - **Mixing ChangeSet and ad-hoc Tags on the same release.** Pick one. A ChangeSet already produces start / end Tags; don't also hand-apply a separate `release-v452` Tag to the same revisions.

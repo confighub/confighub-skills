@@ -42,7 +42,7 @@ cub space create platform \
   --change-desc "Create platform space to hold org-wide Triggers. User prompt: <verbatim>. Clarifications: <condensed>"
 
 # 2. Baseline vet-* Triggers on Mutation.
-for t in vet-schemas vet-placeholders vet-format vet-merge-keys vet-immutable; do
+for t in vet-schemas vet-placeholders vet-format vet-merge-keys vet-immutable vet-no-merge-conflicts; do
   cub trigger create --space platform -o json "$t" Mutation Kubernetes/YAML "$t"
 done
 
@@ -50,6 +50,8 @@ done
 cub filter create --space platform -o json standard-vets Trigger \
   --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
+
+`vet-no-merge-conflicts` is worth including in any Space that gets promoted into. A merge that could not apply part of what it brought — a protected path, a path it could not locate, a replay that errored — does **not** fail: it applies the rest and records what it withheld on the Unit, where it sits until someone runs `cub unit conflicts`. This Trigger turns that into an ApplyGate so it can't be published past unnoticed. Clear it by applying or dismissing the conflicts, never by dropping the Trigger. See `promote-release`.
 
 Verify flag spellings with `CONFIGHUB_AGENT=1 cub space create --help`, `cub trigger create --help`, `cub filter create --help` — flag names evolve across cub versions.
 
@@ -129,6 +131,21 @@ Numeric, `LiveRevisionNum`, `LastAppliedRevisionNum`, Tag, ChangeSet, and Revisi
 Even for head, the server accepts no expected HeadRevisionNum, RevisionID, or DataHash precondition. It locks the Unit and approves whichever head is current inside the execution transaction. A pre-read can explain intent but cannot make approval exact: if head changes after review, the new head is what gets approved. Classify this as `APPROVAL_HEAD_RACE_BLOCK`; do not claim the reviewed RevisionID/DataHash was approved. Exact approval needs a server/API compare-and-set precondition.
 
 Native head-at-execution approval may clear `vet-approvedby`; it is **not external authorization to execute** the approval command, a promotion, or a Release. Conversely, external execution authorization does not satisfy `vet-approvedby`. With no external broker and no exact-head CAS, this companion may explain the current operation but must not emit an authoritative exact-revision approval proposal.
+
+## `PostClone` Triggers and protection
+
+A `PostClone` Trigger runs as a variant is cloned, so it is how a new variant customizes itself — a per-region hostname, an environment-appropriate replica count — reading Space metadata through Go templates in its arguments (`template:{{.SpaceLabels.Region}}`, `template:{{.SpaceAnnotations.host}}`).
+
+Such a Trigger **decides** a value the variant then owns, which makes it the one Trigger kind that usually wants `--protect`:
+
+```bash
+cub trigger create --space platform -o json regional-hostname PostClone Kubernetes/YAML --protect \
+  -- set-hostname 'template:{{.SpaceLabels.Region}}.example.com'
+```
+
+Without it, the paths the Trigger wrote stay eligible for merges and the first `cub variant promote` overwrites the customization with the base's value. With it, they become protected local overrides, and an upstream change to those paths is reported as a `ProtectedPath` conflict instead of applied.
+
+Validating Triggers should **not** take `--protect` — they don't write configuration data. Neither should a Mutation Trigger that applies an org-wide default (`set-container-resources-defaults` and friends): those are policy the upstream should keep driving.
 
 ## Blocking vs warning: ApplyGates and ApplyWarnings
 
@@ -228,5 +245,6 @@ Clarifications: <condensed — e.g., "user confirmed the namespace value should 
 
 - `references/triggers-recipes.md`
 - `references/functions-catalog.md` — which `vet-*` does what.
+- `references/cub-cli.md` → "Protection and merge conflicts" — what `vet-no-merge-conflicts` gates on, and how to clear it.
 - `references/cub-cli.md`
 - https://docs.confighub.com/markdown/guide/validation-and-policies.md

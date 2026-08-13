@@ -43,7 +43,7 @@ The static compatibility baseline is:
 
 - cub client v0.2.11, commit `683dce12c2f26ad151aa9e5763e60b0ac66172a4`, binary SHA-256 `0729618f9a6c22dd646e2ef003cc5103206e9fc2c5abdae1c2b444b1f0534553`; this exact local binary is **not authenticated as an official release asset** because Go metadata says `vcs.modified=true` and module `(devel)`, signing is ad hoc with no team identity, and no package-manager receipt/release checksum was found;
 - ConfigHub server v0.2.15, commit `eebd77551316efc8c58028f6d4275ab504e17ce7` (re-verified from the earlier v0.2.11 review commit `8cb9f6b4925670658850c8c99357f34fb11a51ad` across 53 commits: all 17 behavior cases still hold and every delta in the cited files is additive); and
-- cub helm add-on 0.1.0, commit `ce1b62faa92ec045d96b0e938bf289f83501fd17`.
+- cub helm add-on 0.1.0, commit `ce1b62faa92ec045d96b0e938bf289f83501fd17` — installed as a CLI plugin from [`confighub/cub-helm`](https://github.com/confighub/cub-helm) with `cub plugin install confighub/cub-helm`; it is not part of `cub` itself.
 
 See [`compatibility/current-profile.v1.json`](compatibility/current-profile.v1.json). Its status is `BLOCK_ACTIVATION_STATIC_ONLY`: static validation does not prove behavioral no-loss, final-argv policy, provider CAS, mutation authority, or live delivery. The former v0.2.10/v0.2.11 tuple is explicitly unselected/blocked. Tagged publication is not immutable selection: tag-to-Revision mappings can move, and the server resolves the highest matching Revision at execution. Missing-tag behavior also remains fail-closed because installed v0.2.11 client help and reviewed server source disagree.
 
@@ -63,7 +63,7 @@ Prerequisites depend on the read/evidence path:
 - `cub` on PATH with `cub auth status` succeeding;
 - `kubectl` for read-only runtime proof;
 - `argocd` and/or `flux` for read-only controller proof; and
-- cub helm add-on 0.1.0 for the reviewed Helm onboarding surface.
+- cub helm add-on 0.1.0 for the reviewed Helm onboarding surface, installed via `cub plugin install confighub/cub-helm`.
 
 Do not infer compatibility from version strings alone when the installed commits differ from the profile.
 
@@ -91,7 +91,7 @@ Do not infer compatibility from version strings alone when the installed commits
 
 ## Helm and Kustomize onboarding
 
-Current `cub helm install <release-name> <chart-ref>` creates `<component>-helm` (HelmSource) and `<component>-base` (untargeted base) Spaces, with one Unit per chart template file. Deployment is `cub variant create <variant> <component>-base --target <space>/<target> --namespace <ns>`, followed by an exact Space Release proposal. The reviewed command has no `--space` or `--update-crds` flag.
+The `cub-helm` plugin's `cub helm install <release-name> <chart-ref>` creates `<component>-helm` (HelmSource) and `<component>-base` (untargeted base) Spaces, with one Unit per chart template file. Deployment is `cub variant create <variant> <component>-base --target <space>/<target> --namespace <ns>`, followed by an exact Space Release proposal. The reviewed command has no `--space` or `--update-crds` flag.
 
 Helm/Kustomize rendering is not currently a read capability. The version-bound static checker inventories a canonical local tree, rejects duplicate YAML keys/symlinks/remotes/plugins, traverses the reviewed Kustomize v0.21.1 file-bearing fields, blocks Helm `lookup`/`tpl`, and requires unpacked vendored subcharts rather than opaque archives. Unknown Kustomize source-bearing forms fail closed. Its success status explicitly says render is still blocked: it neither creates a trusted digest receipt nor enforces renderer network/output/resource bounds. The required digest-pinned, network-off, read-only, byte/resource-capped wrapper and receipt are not integrated. A separately governed upload may later consume exactly that receipt, normally with per-resource granularity. Publication still requires a verified controller binding; otherwise return `CONTROLLER_BINDING_UNPROVEN`.
 

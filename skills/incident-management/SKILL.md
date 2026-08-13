@@ -30,6 +30,25 @@ Stabilize first, but do not sacrifice attribution. Current delivery evidence is 
    cub unit list --space <variant-space> --select "TargetID,HeadRevisionNum,LastAppliedRevisionNum,ApplyGates" -o json
    ```
 
+   To see the affected workload as a resource rather than as a Unit — the faster read when the
+   symptom is phrased in Kubernetes terms — use `cub k8s get deploy <name> --space <variant-space>
+   --show detail` or `--show data`. It is configuration, not live state; keep it separate from the
+   `kubectl` read in step 5.
+
+   If a promotion preceded the symptom, check what its merge **withheld** as well as what it
+   applied. A merge that could not place part of its patch does not fail — it records the withheld
+   changes on the Unit:
+
+   ```bash
+   cub unit conflicts --space <variant-space> <unit>
+   cub unit list --space <variant-space> --where "Conflicts.*.Reason = 'ProtectedPath'"
+   ```
+
+   A protected path is the common reason, and the common surprise: an environment-specific value
+   the variant owns held against the release, so the fix that went everywhere else did not land
+   here. `cub unit get <unit> -o mutations` shows which paths this variant owns. See
+   `promote-release` for resolving them; resolving is a mutation, not a read.
+
 4. Read controller state and history with `argocd app get/history/diff` or `flux get/logs`. Bind the controller source to the suspect ManifestDigest or mark that link unknown.
 5. Read runtime health with `kubectl get/describe/logs`; inspect `confighub.com/origin` for SpaceID, UnitID, and RevisionNum. Never exec, restart, scale, patch, sync, or reconcile from this companion.
 
