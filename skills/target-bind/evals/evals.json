@@ -1,26 +1,26 @@
 {
-  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "execution_policy": "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY",
   "skill_name": "target-bind",
   "evals": [
     {
       "id": 1,
       "name": "single-unit-oci-target",
       "prompt": "Bind my 'checkout' unit in space myapp-dev to an OCI target so ArgoCD can deploy it.",
-      "expected_output": "Reads existing worker/Target/Space/Unit state, then prepares (but does not execute) proposals for a server worker if needed, an OCI target, `cub space update myapp-dev --release-target <target-space>/<target>`, and checkout's matching Unit TargetID. Discloses every other Unit already in the resulting EffectiveReleaseSet, requires new approval if scope expands, and BLOCKs on the missing external broker. Notes ArgoCD configuration is a separate integration.",
+      "expected_output": "Reads existing worker/Target/Space/Unit state, previews the server worker if needed, OCI Target, `cub space update myapp-dev --release-target <target-space>/<target>`, and checkout TargetID steps. Discloses every other Unit in the resulting EffectiveReleaseSet and asks a focused question on any scope expansion. For unchanged explicit scope, submits only the single next exact literal mutation to the host permission system and verifies it before the later separately permitted step. Notes ArgoCD configuration is a separate integration and an external overlay can stop before Bash.",
       "files": []
     },
     {
       "id": 2,
       "name": "bulk-bind-by-label",
       "prompt": "All units labeled Tier=backend in myapp-staging should publish through the oci-target we already have in the shared targets space. Set that up for all of them.",
-      "expected_output": "Resolves the label selector to exact UnitIDs and verifies targets/oci-target is OCI. Confirms or proposes myapp-staging ReleaseTargetID and prepares the exact unit set-target command, but does not run either. Shows the before/after EffectiveReleaseSet (which may include non-backend Units already on that Target), requires re-approval for changed scope, and BLOCKs pending the external broker.",
+      "expected_output": "Resolves the label selector to exact UnitIDs and verifies targets/oci-target is OCI. Shows the before/after EffectiveReleaseSet, including non-backend Units already on that Target, and asks a focused question if that changes the requested scope. For unchanged scope, submits exactly one next literal ReleaseTargetID or Unit TargetID command through Bash to the host permission system, verifies it, and treats the other command as a separate later permission decision.",
       "files": []
     },
     {
       "id": 3,
       "name": "do-i-need-a-worker",
       "prompt": "Do I need to run a worker process before I can create a target and apply my units?",
-      "expected_output": "Explains that current OCI Release delivery uses a server-worker entity hosted by ConfigHub, so no external process is needed. Shows the server-worker and OCI Target forms as proposal-only, includes the load-bearing Space.ReleaseTargetID and Unit.TargetID steps, and distinguishes external workers for custom functions. Labels direct ConfigHub-provider Release delivery VERSIONED_LEGACY/BLOCK.",
+      "expected_output": "Explains that current OCI Release delivery uses a server-worker entity hosted by ConfigHub, so no external process is needed. Shows the server-worker and OCI Target forms, includes the load-bearing Space.ReleaseTargetID and Unit.TargetID steps, and distinguishes external workers for custom functions. Explains in plain language that direct ConfigHub-provider Release delivery is historical and unsupported in the reviewed current profile.",
       "files": []
     }
   ]

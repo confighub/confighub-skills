@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "//": "Reference-only while status is BLOCK_ACTIVATION_STATIC_ONLY; do not rename or use it to activate this candidate. It deliberately grants no Bash auto-allow. A later clean, artifact-bound, trigger/tool-trace-tested advisory pack may use host ASK for reads. Authoritative command execution remains BLOCK until the structured wrapper, provider CAS, and external broker exist.",
+  "//": "Optional settings example. It deliberately grants no Bash auto-allow; the host permission policy decides standalone reads and mutations. Copying this file is not required for installation.",
   "permissions": {
     "allow": []
   }

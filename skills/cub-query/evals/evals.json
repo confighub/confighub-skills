@@ -1,5 +1,5 @@
 {
-  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "execution_policy": "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY",
   "skill_name": "cub-query",
   "evals": [
     {
@@ -20,7 +20,7 @@
       "id": 3,
       "name": "recent-changes-and-why",
       "prompt": "What got changed in the myapp-prod space in the last 48 hours, and why? I'm trying to understand an alert.",
-      "expected_output": "Runs `cub revision list --space myapp-prod` filtered by UpdatedAt, surfaces the revisions with their --change-desc values (which include the user prompt and clarifications recorded at mutation time), and summarizes the changes in plain English. Offers the GUI revision-list link.",
+      "expected_output": "Runs `cub revision list --space myapp-prod` filtered by UpdatedAt, surfaces the revisions with their short safe --change-desc summaries, and summarizes the changes in plain English. Notes that fuller request context belongs in the shared transcript or receipt, then offers the GUI revision-list link.",
       "files": []
     },
     {

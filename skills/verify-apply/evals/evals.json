@@ -1,5 +1,5 @@
 {
-  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "execution_policy": "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY",
   "skill_name": "verify-apply",
   "evals": [
     {
@@ -34,7 +34,7 @@
       "id": 5,
       "name": "close-out-converged-release",
       "prompt": "The myapp-prod deploy I just did is passing every check. Close it out and show me the revision history to share.",
-      "expected_output": "Closes PASS only after the named immutable-content Release, digest-matching OCI manifest Target annotation, governed publication receipt/Revision.Releases historical member manifest, controller ManifestDigest, runtime origin, and health agree. Keeps current EffectiveReleaseSet separate, reports ReleaseID, historical TargetID, both digests, exact gaps, revision/change history, and verified navigation commands. Remains read-only; even an optional tag would be a separate governed proposal.",
+      "expected_output": "Closes as successfully proved only after the named immutable-content Release, digest-matching OCI manifest Target annotation, publication receipt/Revision.Releases historical member manifest, controller ManifestDigest, runtime origin, and health agree. Keeps current EffectiveReleaseSet separate, reports ReleaseID, historical TargetID, both digests, exact gaps, revision/change history, and verified navigation commands. Remains read-only; even an optional tag would be a separate requested host-permission call.",
       "files": []
     },
     {
@@ -48,14 +48,14 @@
       "id": 7,
       "name": "historical-release-same-count-member-swap",
       "prompt": "Release r-123 says UnitCount 2. We retargeted one old Unit away and a new Unit in, so the current release set is also 2. Prove what r-123 actually contained.",
-      "expected_output": "Rejects UnitCount/current EffectiveReleaseSet as historical proof. Requires the publication receipt and reconstructs only Revisions whose Revision.Releases map contains r-123, producing exact UnitID/RevisionID/RevisionNum/DataHash membership. Names the same-count member swap and returns BLOCK if receipt/reconstruction disagree or are incomplete.",
+      "expected_output": "Rejects UnitCount/current EffectiveReleaseSet as historical proof. Requires the publication receipt and reconstructs only Revisions whose Revision.Releases map contains r-123, producing exact UnitID/RevisionID/RevisionNum/DataHash membership. Names the same-count member swap and reports the concrete proof failure if receipt/reconstruction disagree or are incomplete.",
       "files": []
     },
     {
       "id": 8,
       "name": "historical-release-deleted-revision-gap",
       "prompt": "An old Release still exists, but one Unit and its revisions were deleted. Can we certify the original manifest from Release UnitCount and today's Units?",
-      "expected_output": "Says no. Uses a retained governed publication receipt if available and cross-checks surviving Revision.Releases links, but never substitutes current Units or UnitCount for the deleted historical member. Returns HISTORICAL_RELEASE_MANIFEST_UNPROVEN when the receipt is missing/incomplete and explains the retention requirement.",
+      "expected_output": "Says no. Uses a retained publication receipt if available and cross-checks surviving Revision.Releases links, but never substitutes current Units or UnitCount for the deleted historical member. When the receipt is missing or incomplete, says plainly that the historical Release manifest is unproven and explains the retention requirement.",
       "files": []
     }
   ]

@@ -2,7 +2,7 @@
 
 A ChangeSet groups related mutations across multiple Units so they can be reviewed, restored, and merged *as a set*. Use one any time a single logical change spans more than one Unit: a release, a fleet-wide defaults upgrade, a cross-Space promotion, a coordinated secret rotation. The ChangeSet acts as a lock: while a Unit is in a ChangeSet, another ChangeSet can't open against it until the first is closed. Delivery is now a Component/Variant Space Release, not a per-Unit runtime operation.
 
-**Authority boundary:** all write commands in this reference are governed proposals. The installed companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`), so it may inspect or compose these steps but must not execute them.
+**Execution mode:** follow [How commands run](execution-modes.md). Every write in this reference is a separate one-command normal host permission call. This pack preapproves none of them.
 
 Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 
@@ -12,20 +12,20 @@ Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
 2. **Open** — bulk-patch the target Units to add them to the ChangeSet. Attaching creates **no** revision: the ChangeSet's *start tag* goes on each Unit's existing head, so the ChangeSet is the interval `(start, end]` and every Unit it was opened on carries the tag whether or not it later changes.
 3. **Mutate** — every `cub function set` / `cub unit update` / `cub run` against those Units passes `--changeset <home-space>/<slug>`. Revisions are tagged as part of the ChangeSet.
 4. **Close** — bulk-patch with `--changeset -`. Each Unit's head revision gets the ChangeSet's *end tag*.
-5. **Native gate assessment** — current server v0.2.11 cannot approve a ChangeSet/Tag/numeric Revision selector. Omitted/`HeadRevisionNum` approval targets the head at execution time without expected-head CAS, so exact-artifact approval remains blocked.
-6. **Review / publish proposal** — compute the destination Space's complete EffectiveReleaseSet and record a new review decision for that whole-Space advisory subject. Execution still requires both provider-side expected-target/manifest CAS and the external broker; neither exists.
+5. **Native gate assessment** — installed v0.2.15 help advertises ChangeSet, Tag, numeric, Live, and head selectors. Exact v0.2.21 acceptance and atomic preconditions are not source-reviewed, so confirm the command with current help, inspect the result, and do not claim exact reviewed-artifact binding.
+6. **Review / publish** — compute the destination Space's complete EffectiveReleaseSet, disclose the provider race, then submit the separate publish call to the host permission system. Do not claim that the preview is atomically bound to execution.
 7. **Rollback (optional)** — restore with `--restore "Before:ChangeSet:<home-space>/<slug>"`; every Unit's head reverts to the pre-open state.
 
 ## Open
 
-```bash
+```text
 cub changeset create --space <home-space> <slug> \
-  --description "Release 452: fix X, feature Y, upgrade Z"
+  --description 'Prepare reviewed release scope'
 
 cub unit update --patch --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
-  --change-desc "Starting <slug> rollout"
+  --change-desc 'Start reviewed ChangeSet rollout'
 ```
 
 Use a named Filter (`cub filter create ... Unit --where-field "..."`) rather than inlining `--where` — you'll reuse the same Filter across open/mutate/close/review.
@@ -40,7 +40,7 @@ Every mutating call against Units in the ChangeSet must pass `--changeset`. The 
 cub function set --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
-  --change-desc "Bump image to v452. User prompt: <verbatim>. Clarifications: <condensed>" \
+  --change-desc 'Bump reviewed image to v452' \
   -o mutations \
   -- set-container-image <container> <image>:v452
 ```
@@ -61,35 +61,39 @@ After close, every Unit's head revision carries the ChangeSet's end tag. No furt
 
 ## Review and publish
 
-If a `vet-approvedby` Trigger is installed, preserve the advertised ChangeSet approval form only as versioned legacy knowledge:
+If a `vet-approvedby` Trigger is installed, preserve the advertised ChangeSet approval form only as historical compatibility knowledge:
 
-```bash
-# VERSIONED_LEGACY/BLOCK on server v0.2.11.
+```text
+# Historical example only; confirm current selector support with installed help.
 cub unit approve --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --revision ChangeSet:<home-space>/<slug>
 ```
 
-The server rejects every nonempty selector except `HeadRevisionNum`. Omitting `--revision` or using `HeadRevisionNum` approves each selected Unit's head inside the execution transaction. There is no expected RevisionID/DataHash precondition, so a head change after review can change what gets approved. Treat this as `APPROVAL_HEAD_RACE_BLOCK`, not exact ChangeSet approval. Native approval also does **not** authorize this companion to run approval, promotion, or publication.
+Installed v0.2.15 help advertises numeric, live, Tag, and ChangeSet selectors.
+Exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed
+here. Confirm current help, inspect the result, and do not claim exact
+reviewed-artifact binding without provider evidence. Approval, promotion, and
+publication are separate host-permission calls.
 
 Next compute the destination Space's EffectiveReleaseSet: all Units whose `TargetID` equals `Space.ReleaseTargetID`. The Release command has no ChangeSet/Filter/Unit selector. If the ChangeSet is narrower than that set, disclose the additional Units and obtain a fresh whole-Space approval; never reuse the ChangeSet approval as though it narrowed the Release.
 
-Once every effective revision, ID/hash, target, and gate is bound in the `release-publish` proposal, the current path still returns `RELEASE_EXECUTION_CAS_BLOCK`: the broker alone cannot bind those reads to provider execution. This is the command shape a future expected-target/manifest-CAS endpoint and external broker would govern:
+Once every effective revision, ID/hash, target, and gate is bound in the `release-publish` preview, the current command still cannot atomically bind those reads to provider execution. Refresh the preview immediately before this one standalone host-permission call:
 
 ```bash
 cub release publish <target-variant-space>
 ```
 
-The companion returns `BLOCK` because provider CAS and the broker are both missing. After a future provider-CAS-capable, externally authorized execution, capture the Release ID, bundle Digest, OCI ManifestDigest, digest-matching manifest Target annotation, and exact `Revision.Releases` membership receipt; then prove controller/runtime convergence before declaring the rollout complete.
+After execution, capture the Release ID, bundle Digest, OCI ManifestDigest, digest-matching manifest Target annotation, and exact `Revision.Releases` membership receipt; then prove controller/runtime convergence before declaring the rollout complete. State that the pre-read-to-publish race remains unless a future provider operation accepts atomic expected-target/manifest preconditions.
 
 ## Rollback
 
 To undo everything the ChangeSet did across all its Units:
 
-```bash
+```text
 # Tag the rollback for traceability (optional but recommended).
 cub tag create --space <home-space> rollback-<slug> \
-  --description "Rollback <slug>"
+  --annotation 'description=Rollback reviewed ChangeSet'
 
 # Bulk restore each Unit's head to its pre-ChangeSet revision.
 cub unit update --patch --space <target-space> \
@@ -97,8 +101,8 @@ cub unit update --patch --space <target-space> \
   --restore "Before:ChangeSet:<home-space>/<slug>" \
   --tag <home-space>/rollback-<slug>
 
-# Proposal only: resolve any native gate through an exact-CAS-capable future
-# path, then obtain a distinct whole-Space execution approval.
+# After verifying the restore and resolving any current gate, publication is a
+# separate user request and host-permission call.
 cub release publish <target-variant-space>
 ```
 
@@ -114,7 +118,7 @@ cub unit update --patch --space <target-space> \
   --merge-source Self \
   --merge-base Before:ChangeSet:<home-space>/<slug> \
   --merge-end ChangeSet:<home-space>/<slug> \
-  --change-desc "Reapply <slug> on current head"
+  --change-desc 'Reapply reviewed ChangeSet on current head'
 ```
 
 `merge-base` + `merge-end` define the range of changes to rebase onto the current head.

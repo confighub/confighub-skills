@@ -5,7 +5,7 @@
     "email": "hello@confighub.com"
   },
   "metadata": {
-    "description": "Evaluation-only ConfigHub skill candidate. Advisory activation is BLOCK pending externally authenticated package/review evidence, deterministic Claude permission boundaries, and trigger/tool traces; authoritative command execution remains BLOCK pending protected CAS-bound actions and an external broker."
+    "description": "Standalone ConfigHub operating skills. The host permission policy decides exact scoped reads and mutations; no tool is preapproved, and optional governance overlays may impose stricter policy."
   },
   "plugins": [
     {

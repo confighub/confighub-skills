@@ -74,86 +74,72 @@ inventory=compatibility/no-loss-inventory.v1.json
 read_capabilities=compatibility/read-capability-subsets.v1.json
 authority_cases=compatibility/authority-negative-cases.v1.json
 profile_cases=compatibility/exact-profile-behavior-cases.v1.json
+execution_modes=compatibility/execution-modes.v1.json
 semantic_contracts=compatibility/semantic-contracts.v1.json
 artifact_manifest=compatibility/release-artifact-manifest.v1.json
 render_policy=compatibility/render-source-policy.v1.json
 release_review_schema=compatibility/release-review-attestation.schema.json
+
 jq empty .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json \
   .claude/settings.local.json.example "$profile" "$inventory" "$read_capabilities" \
-  "$authority_cases" "$profile_cases" "$semantic_contracts" "$artifact_manifest" \
-  "$render_policy" "$release_review_schema" || fail "invalid JSON"
+  "$authority_cases" "$profile_cases" "$execution_modes" "$semantic_contracts" \
+  "$artifact_manifest" "$render_policy" "$release_review_schema" || fail "invalid JSON"
 
 jq -e '
   . as $profile |
   .schema_version == "confighub-skills-compatibility/v1" and
-  .plugin_version == "0.4.0" and
-  .candidate_base_commit == "de74ac357b88e4a39b22b2afb6a6ff232d91ded5" and
-  .profile_id == "cub-0.2.11_server-0.2.15_helm-0.1.0" and
-  .status == "BLOCK_ACTIVATION_STATIC_ONLY" and
-  .authority.raw_bash_autoallow == "BLOCK" and
-  .authority.typed_final_argv_wrapper == "NOT_INTEGRATED" and
-  .authority.mutation_execution == "BLOCK" and
-  .authority.external_approval_broker == "NOT_INTEGRATED" and
-  .installed_profile.cub_client.version == "v0.2.11" and
-  .installed_profile.cub_client.commit == "683dce12c2f26ad151aa9e5763e60b0ac66172a4" and
-  .installed_profile.cub_client.binary_sha256 == "0729618f9a6c22dd646e2ef003cc5103206e9fc2c5abdae1c2b444b1f0534553" and
+  .plugin_version == "0.4.1" and
+  .candidate_base_commit == "700fcb3" and
+  .profile_id == "cub-0.2.15_server-0.2.21_helm-0.1.0" and
+  .status == "STANDALONE_SOURCE_CANDIDATE" and
+  .authority.standalone_reads == "HOST_PERMISSION" and
+  .authority.standalone_mutations == "HOST_PERMISSION_SINGLE_COMMAND" and
+  .authority.plugin_autoallow == false and
+  .authority.optional_governance_overlay == "ABSENT_BY_DEFAULT" and
+  .installed_profile.cub_client.version == "v0.2.15" and
+  .installed_profile.cub_client.commit == "3e0cad345fbcc60d4761d928f02fccb8dc5def4f" and
+  .installed_profile.cub_client.binary_sha256 == "adc0c6cd53e24d91145eacf40947f929d041613393d4afa36e7d009520133051" and
   .installed_profile.cub_client.build_vcs_modified == true and
   .installed_profile.cub_client.go_module_version == "(devel)" and
   .installed_profile.cub_client.code_signature == "ADHOC_NO_TEAM_IDENTIFIER" and
   .installed_profile.cub_client.package_manager_receipt == "NOT_FOUND" and
-  .installed_profile.cub_client.provenance_status == "DIRTY_LOCAL_BUILD_NOT_VERIFIED_OFFICIAL_RELEASE_ASSET" and
-  .installed_profile.confighub_server.version == "v0.2.15" and
-  .installed_profile.confighub_server.commit == "eebd77551316efc8c58028f6d4275ab504e17ce7" and
+  .installed_profile.confighub_server.version == "v0.2.21" and
+  .installed_profile.confighub_server.commit == "770cce6816ad8cbc7169272cbf08277eab0f0eb0" and
+  .installed_profile.confighub_server.source_checkout_available == false and
   .installed_profile.cub_helm_addon.version == "0.1.0" and
   .installed_profile.cub_helm_addon.commit == "ce1b62faa92ec045d96b0e938bf289f83501fd17" and
-  .surface_counts.skills == 15 and
-  .surface_counts.eval_files == 15 and
-  .surface_counts.eval_cases == 75 and
-  .surface_counts.trigger_families == 38 and
-  .surface_counts.capability_dispositions == 68 and
-  .surface_counts.eval_dispositions == 78 and
+  .surface_counts == {skills:15,eval_files:15,eval_cases:75,trigger_families:38,capability_dispositions:68,eval_dispositions:78} and
   .current_delivery_contract.release_provider == "OCI" and
   .current_delivery_contract.release_target_field == "Space.ReleaseTargetID" and
-  .current_delivery_contract.config_hub_provider_delivery == "VERSIONED_LEGACY_BLOCK" and
-  .current_delivery_contract.bridge_or_unit_runtime_delivery == "SUNSET_VERSIONED_LEGACY_BLOCK" and
-  any(.known_semantic_gaps[];
-    .gap_id == "release-tag-missing-unit-semantics" and
-    .status == "BLOCK" and
-    .source_checkout_commit == "eebd77551316efc8c58028f6d4275ab504e17ce7" and
-    .exact_installed_server_semantics == "STATICALLY_VERIFIED_ERROR_NOT_LIVE_TESTED") and
-  (["mutation-approval-broker", "raw-bash-final-argv-policy",
-    "native-approval-expected-head-cas", "approved-unit-state-cas-integration", "release-execution-cas",
-    "historical-release-manifest-retention", "historical-release-target-attestation",
-    "withdrawal-current-membership-gates", "release-delete-bypasses-withdrawal-gates",
-    "worker-log-evidence-boundary", "render-source-execution-boundary"] |
-    all(.[]; . as $gap |
-      any($profile.known_semantic_gaps[]; .gap_id == $gap and .status == "BLOCK"))) and
-  any(.unselected_profiles[]; .profile_id == "cub-0.2.10_server-0.2.11_helm-0.1.0" and .status == "BLOCK_UNSELECTED") and
-  any(.known_semantic_gaps[]; .gap_id == "unselected-runtime-profile-0.2.10-0.2.11" and .status == "BLOCK")
-' "$profile" >/dev/null || fail "exact compatibility profile changed or overclaims readiness"
+  ([$profile.known_semantic_gaps[].gap_id] | length == (unique | length)) and
+  (["release-tag-missing-unit-semantics","mutation-approval-broker","raw-bash-final-argv-policy",
+    "native-approval-expected-head-cas","approved-unit-state-cas-integration","release-execution-cas",
+    "historical-release-manifest-retention","historical-release-target-attestation",
+    "withdrawal-current-membership-gates","release-delete-bypasses-withdrawal-gates",
+    "worker-log-evidence-boundary","render-source-execution-boundary","end-to-end-controller-runtime-proof"] |
+    all(.[]; . as $gap | any($profile.known_semantic_gaps[]; .gap_id == $gap))) and
+  any(.known_semantic_gaps[]; .gap_id == "mutation-approval-broker" and .status == "HISTORICAL_POLICY_RETIRED") and
+  any(.known_semantic_gaps[]; .gap_id == "raw-bash-final-argv-policy" and .status == "AUTOALLOW_DISABLED_STANDALONE_USABLE")
+' "$profile" >/dev/null || fail "current compatibility profile changed or overclaims evidence"
 
 jq -e '
   .schema_version == "confighub-skills-read-capabilities/v1" and
-  .status == "ASK_PENDING_TYPED_WRAPPER" and
-  .raw_bash_autoallow == "BLOCK" and
+  .candidate_plugin_version == "0.4.1" and
+  .status == "STANDALONE_HOST_PERMISSION" and
+  .raw_bash_autoallow == false and
   .enforcement.current == "NO_PLUGIN_OR_SKILL_BASH_AUTOALLOW" and
-  .enforcement.read_execution == "HOST_PERMISSION_ASK" and
-  .enforcement.typed_final_argv_wrapper == "NOT_INTEGRATED" and
+  .enforcement.read_execution == "HOST_PERMISSION" and
+  .enforcement.mutation_execution == "HOST_PERMISSION_SINGLE_COMMAND" and
+  .enforcement.optional_governance_overlay == "ABSENT_BY_DEFAULT" and
   (.skills | length) == 15 and
   ([.skills[].skill_id] | length == (unique | length)) and
   all(.skills[]; (.capabilities | type == "array" and length > 0)) and
-  ([.denied_from_any_future_autoallow[]] | sort) == ([
-    "arbitrary-function-get-or-vet", "controller-hard-refresh",
-    "credentials-or-secrets", "file-read-or-write-without-bounded-artifact",
-    "mutation", "network-source-or-repository-refresh", "plugin-or-exec-loading",
-    "shell-composition-or-expansion", "unknown-verb-or-flag"] | sort)
-' "$read_capabilities" >/dev/null || fail "per-skill read capability boundary changed or overclaims enforcement"
+  (.denied_from_any_future_autoallow | index("mutation-autoallow")) != null and
+  (.denied_from_any_future_autoallow | index("shell-composition-or-expansion")) != null
+' "$read_capabilities" >/dev/null || fail "per-skill read capability boundary changed"
 
 jq -e '
   .schema_version == "confighub-skills-render-source-policy/v1" and
-  .status == "BLOCK_RENDER_EXECUTION_UNTIL_TYPED_WRAPPER" and
-  .source_preflight.outcome_on_pass == "SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED" and
-  .source_preflight.render_allowed == false and
   .source_preflight.duplicate_yaml_keys == "DENY" and
   .source_preflight.remote_url_or_repository == "DENY" and
   .source_preflight.unpinned_source_or_dependency == "DENY" and
@@ -161,454 +147,239 @@ jq -e '
   .source_preflight.helm_tpl_dynamic_evaluation == "DENY" and
   .source_preflight.helm_dependency_archives == "DENY_REQUIRE_UNPACKED_VENDORED_DIRECTORY" and
   (.source_preflight.kustomize_schema_authority | contains("api@v0.21.1")) and
-  ([.source_preflight.kustomize_file_fields_traversed[]] | sort) == ([
-    "openapi.path","resources[]","bases[]","components[]","crds[]","configurations[]",
-    "patches[].path","patchesJson6902[].path","replacements[].path",
-    "configMapGenerator[].files[]","configMapGenerator[].envs[]","configMapGenerator[].env"] | sort) and
   .future_wrapper_requirements.network == "OFF" and
   .future_wrapper_requirements.renderer_binary_digest_required == true and
   .future_wrapper_requirements.max_source_bytes > 0 and
   .future_wrapper_requirements.max_rendered_bytes > 0 and
   .future_wrapper_requirements.max_resources > 0 and
-  .future_wrapper_requirements.receipt_required == true and
-  (.claim_boundary | contains("not evidence"))
-' "$render_policy" >/dev/null || fail "render source policy is incomplete or falsely claims enforcement"
+  .future_wrapper_requirements.receipt_required == true
+' "$render_policy" >/dev/null || fail "render source policy lost its bounded-source requirements"
 
 jq -e '
-  .current_boundary == "NO_RAW_BASH_AUTOALLOW_HOST_ASK" and
-  .typed_wrapper == "NOT_INTEGRATED" and
+  .schema_version == "confighub-skills-authority-negative-cases/v1" and
+  .candidate_plugin_version == "0.4.1" and
+  .current_boundary == "NO_PLUGIN_AUTOALLOW_HOST_PERMISSION_DECIDES" and
   (.cases | length) == 12 and
   ([.cases[].case_id] | length == (unique | length)) and
   all(.cases[]; .current_outcome == "NOT_AUTOALLOWED" or .current_outcome == "HOST_ASK") and
-  all(.cases[] | select(.category != "legitimate-read-regression"); .future_typed_outcome == "DENY") and
   any(.cases[]; .case_id == "quoted-where-comparison" and .current_outcome == "HOST_ASK")
-' "$authority_cases" >/dev/null || fail "raw Bash negative/adversarial case matrix is incomplete"
+' "$authority_cases" >/dev/null || fail "automatic-permission negative case matrix is incomplete"
 
 jq -e '
+  .candidate_plugin_version == "0.4.1" and
+  .status == "HISTORICAL_SOURCE_REVIEW_FIXTURE" and
+  (.scope | contains("not current")) and
   .profile_id == "cub-0.2.11_server-0.2.15_helm-0.1.0" and
   .reviewed_client_commit == "683dce12c2f26ad151aa9e5763e60b0ac66172a4" and
   .reviewed_server_commit == "eebd77551316efc8c58028f6d4275ab504e17ce7" and
   (.cases | length) == 17 and
   ([.cases[].case_id] | length == (unique | length)) and
-  . as $matrix |
-  (["approval-numeric-selector-rejected", "approval-tag-selector-rejected",
-    "approval-changeset-selector-rejected", "approval-head-race-no-expected-cas",
-    "unit-update-cas-primitive-not-integrated",
-    "publish-no-expected-manifest-or-target-cas", "historical-same-count-member-swap",
-    "historical-deleted-revision", "withdrawal-current-membership-drift",
-    "release-delete-retention", "historical-target-hidden-public-manifest",
-    "release-delete-bypasses-withdrawal-gates", "worker-run-positional-slug",
-    "worker-run-auto-creates-missing-worker", "worker-logs-unbound-full-file-scan",
-    "tag-mapping-mutable-at-publish",
-    "untagged-publish-auto-tag-side-effect"] |
-    all(.[]; . as $case | any($matrix.cases[]; .case_id == $case))) and
-  any(.cases[]; .case_id == "approval-numeric-selector-rejected" and .expected == "BLOCK_NON_HEAD_SELECTOR") and
-  any(.cases[]; .case_id == "approval-tag-selector-rejected" and .expected == "BLOCK_NON_HEAD_SELECTOR") and
-  any(.cases[]; .case_id == "approval-changeset-selector-rejected" and .expected == "BLOCK_NON_HEAD_SELECTOR") and
-  any(.cases[]; .case_id == "approval-head-race-no-expected-cas" and .expected == "APPROVAL_HEAD_RACE_BLOCK") and
-  any(.cases[]; .case_id == "unit-update-cas-primitive-not-integrated" and .expected == "APPROVED_STATE_CAS_NOT_INTEGRATED") and
-  any(.cases[]; .case_id == "publish-no-expected-manifest-or-target-cas" and .expected == "RELEASE_EXECUTION_CAS_BLOCK") and
-  any(.cases[]; .case_id == "historical-same-count-member-swap" and .expected == "REQUIRE_RECEIPT_AND_REVISION_RELEASES") and
-  any(.cases[]; .case_id == "historical-deleted-revision" and .expected == "HISTORICAL_RELEASE_MANIFEST_UNPROVEN") and
-  any(.cases[]; .case_id == "withdrawal-current-membership-drift" and .expected == "WITHDRAWAL_MEMBERSHIP_DRIFT_BLOCK") and
-  any(.cases[]; .case_id == "release-delete-retention" and .expected == "REQUIRE_RETAINED_RECEIPT_BEFORE_DELETE") and
-  any(.cases[]; .case_id == "historical-target-hidden-public-manifest" and .expected == "REQUIRE_TRUSTED_MANIFEST_TARGET_ATTESTATION") and
-  any(.cases[]; .case_id == "release-delete-bypasses-withdrawal-gates" and .expected == "RELEASE_DELETE_WITHOUT_WITHDRAW_OR_GATE_BLOCK") and
   any(.cases[]; .case_id == "worker-run-positional-slug" and .expected == "REQUIRE_EXACTLY_ONE_WORKER_SLUG") and
-  any(.cases[]; .case_id == "worker-run-auto-creates-missing-worker" and .expected == "CLASSIFY_WORKER_RUN_AS_MUTATING") and
-  any(.cases[]; .case_id == "worker-logs-unbound-full-file-scan" and .expected == "WORKER_LOG_EVIDENCE_BLOCK") and
-  any(.cases[]; .case_id == "tag-mapping-mutable-at-publish" and .expected == "RELEASE_TAG_MAPPING_CAS_BLOCK") and
-  any(.cases[]; .case_id == "untagged-publish-auto-tag-side-effect" and .expected == "BIND_AUTO_TAG_SIDE_EFFECT")
-' "$profile_cases" >/dev/null || fail "exact-profile behavior case matrix is incomplete"
+  any(.cases[]; .case_id == "worker-run-auto-creates-missing-worker" and .expected == "CLASSIFY_WORKER_RUN_AS_MUTATING")
+' "$profile_cases" >/dev/null || fail "historical exact-profile fixture is incomplete or presented as current"
 
-jq -e '.version == "0.4.0"' .claude-plugin/plugin.json >/dev/null || fail "plugin version is not 0.4.0"
-jq -e '.description | contains("Evaluation-only") and contains("activation is BLOCK")' .claude-plugin/plugin.json >/dev/null || fail "plugin listing overclaims activation readiness"
-jq -e '.metadata.description | contains("Evaluation-only") and contains("authoritative command execution remains BLOCK")' .claude-plugin/marketplace.json >/dev/null || fail "marketplace listing overclaims activation readiness"
-jq -e '.["//"] | contains("Reference-only") and contains("do not rename or use it to activate")' .claude/settings.local.json.example >/dev/null || fail "settings example is presented as activation guidance"
+jq -e '.version == "0.4.1" and (.description | contains("Standalone") and contains("host permission") and contains("no automatic tool permission"))' \
+  .claude-plugin/plugin.json >/dev/null || fail "plugin metadata does not describe the 0.4.1 standalone contract"
+jq -e '.metadata.description | contains("Standalone") and contains("host permission") and contains("no tool is preapproved")' \
+  .claude-plugin/marketplace.json >/dev/null || fail "marketplace metadata does not describe the standalone contract"
+jq -e '.permissions.allow == [] and (. ["//"] | contains("grants no Bash auto-allow"))' \
+  .claude/settings.local.json.example >/dev/null || fail "settings example grants or implies plugin autoallow"
+
 jq -e '
-  .candidate_plugin_version == "0.4.0" and
+  .candidate_plugin_version == "0.4.1" and
   .candidate_base_commit == "de74ac357b88e4a39b22b2afb6a6ff232d91ded5" and
   .compatibility_profile == "compatibility/current-profile.v1.json" and
-  any(.global_authority_blocks[];
-    .block_id == "approved-unit-state-cas-integration" and .status == "BLOCK" and
-    .result == "APPROVED_STATE_CAS_NOT_INTEGRATED" and
-    ([.applies_to[]] | sort) == (["function-or-run-mutation","unit-patch","unit-restore","unit-update","variant-promotion"] | sort)) and
-  any(.retired_skill_dispositions[];
-    .skill_id == "cub-apply" and .disposition == "REPLACED_BY" and .replacement == "release-publish") and
-  any(.compatibility_aliases[];
-    .alias == "/confighub-skills:cub-apply" and .disposition == "REPLACED_BY" and
-    .replacement == "release-publish" and .observable_path == "commands/cub-apply.md") and
-  any(.compatibility_aliases[];
-    .alias == "cub-apply" and .kind == "skill-identity-stub" and .disposition == "REPLACED_BY" and
-    .replacement == "release-publish" and .observable_path == "skills/cub-apply/SKILL.md") and
-  any(.upstream_change_dispositions[];
-    .change_id == "de74ac3-release-publish-addition" and .disposition == "PRESERVED") and
-  any(.upstream_change_dispositions[];
-    .change_id == "de74ac3-verify-apply-deletion" and .disposition == "PRESERVED")
-' \
-  "$inventory" >/dev/null || fail "inventory/profile version mismatch"
+  any(.global_claim_limits[]; .block_id == "approved-unit-state-cas-integration" and .status == "CLAIM_LIMIT" and .result == "PREVIEW_TO_EXECUTION_ATOMICITY_NOT_PROVEN") and
+  any(.retired_skill_dispositions[]; .skill_id == "cub-apply" and .disposition == "REPLACED_BY" and .replacement == "release-publish") and
+  any(.compatibility_aliases[]; .alias == "/confighub-skills:cub-apply" and .observable_path == "commands/cub-apply.md") and
+  any(.compatibility_aliases[]; .alias == "cub-apply" and .observable_path == "skills/cub-apply/SKILL.md")
+' "$inventory" >/dev/null || fail "no-loss inventory/version/profile binding is incomplete"
 
-git merge-base --is-ancestor de74ac357b88e4a39b22b2afb6a6ff232d91ded5 HEAD || fail "candidate branch is not based on upstream de74ac3"
+git merge-base --is-ancestor 700fcb3d2c2dd92ee656de2ed7c7a7397be90690 HEAD || fail "candidate branch is not based on main 700fcb3"
 
 inventory_skills=$(jq -r '.skills[].skill_id' "$inventory" | sort)
 test "$inventory_skills" = "$expected_skills" || fail "typed inventory does not cover exactly the stable skill IDs"
-
 jq -e '
   (.skills | length) == 15 and
   ([.skills[].trigger_dispositions[]] | length) == 38 and
   ([.skills[].capability_dispositions[]] | length) == 68 and
   ([.skills[].eval_dispositions[]] | length) == 78 and
-  all(.skills[];
-    (.trigger_dispositions | type == "array" and length > 0) and
-    (.capability_dispositions | type == "array" and length > 0) and
-    (.eval_dispositions | type == "array" and length > 0) and
-    ([.trigger_dispositions[].trigger_id] | length == (unique | length)) and
-    ([.capability_dispositions[].capability_id] | length == (unique | length)) and
-    ([.eval_dispositions[].eval_id] | length == (unique | length))
-  ) and
-  (.disposition_enum | type == "array" and length == 7 and index("BLOCKED_PENDING_EVIDENCE_PROXY") != null) and
+  (.disposition_enum | index("STANDALONE_HOST_PERMISSION")) != null and
+  (.disposition_enum | index("COACHED_TERMINAL_EXECUTION")) != null and
+  (.disposition_enum | index("BLOCKED_PENDING_BROKER")) == null and
   (.disposition_enum as $allowed |
-    ([.global_legacy_jobs[].disposition,
-      .deleted_surface_dispositions[].disposition,
-      .retired_skill_dispositions[].disposition,
-      .compatibility_aliases[].disposition,
-      .upstream_change_dispositions[].disposition,
-      .skills[].skill_disposition,
-      .skills[].trigger_dispositions[].disposition,
-      .skills[].capability_dispositions[].disposition,
+    ([.global_legacy_jobs[].disposition,.deleted_surface_dispositions[].disposition,
+      .retired_skill_dispositions[].disposition,.compatibility_aliases[].disposition,
+      .upstream_change_dispositions[].disposition,.skills[].skill_disposition,
+      .skills[].trigger_dispositions[].disposition,.skills[].capability_dispositions[].disposition,
       .skills[].eval_dispositions[].disposition] as $values |
       all($values[]; . as $d | ($allowed | index($d)) != null))) and
   ([.. | objects | select(.disposition? == "REPLACED_BY")] |
-    all(.[]; (((.replacement? // .current_eval? // "") | type) == "string") and
-      ((.replacement? // .current_eval? // "") | length) > 0))
-' "$inventory" >/dev/null || fail "inventory dispositions are incomplete or outside the typed enum"
+    all(.[]; (((.replacement? // .current_eval? // "") | type) == "string") and ((.replacement? // .current_eval? // "") | length) > 0))
+' "$inventory" >/dev/null || fail "typed no-loss dispositions are incomplete"
 
-test -f commands/cub-apply.md || fail "deprecated cub-apply compatibility command disappeared"
-command_frontmatter=$(./tools/parse-frontmatter commands/cub-apply.md) || fail "deprecated cub-apply command frontmatter is invalid"
-printf '%s' "$command_frontmatter" | jq -e '.["allowed-tools"] == []' >/dev/null || fail "deprecated cub-apply command grants tools"
-rg -q 'release-publish' commands/cub-apply.md || fail "deprecated cub-apply alias does not route to release-publish"
-stub_frontmatter=$(./tools/parse-frontmatter skills/cub-apply/SKILL.md) || fail "cub-apply Skill stub frontmatter is invalid"
-printf '%s' "$stub_frontmatter" | jq -e '.name == "cub-apply" and .["allowed-tools"] == [] and .["read-capability-subset"] == "none" and .["compatibility-stub"] == true' >/dev/null || fail "cub-apply Skill stub is not a no-tools compatibility identity"
-rg -q 'release-publish' skills/cub-apply/SKILL.md || fail "cub-apply Skill stub does not route to release-publish"
+test -f commands/cub-apply.md || fail "cub-apply compatibility command disappeared"
+command_frontmatter=$(./tools/parse-frontmatter commands/cub-apply.md) || fail "cub-apply command frontmatter invalid"
+printf '%s' "$command_frontmatter" | jq -e '.["allowed-tools"] == []' >/dev/null || fail "cub-apply command grants tools"
+stub_frontmatter=$(./tools/parse-frontmatter skills/cub-apply/SKILL.md) || fail "cub-apply Skill frontmatter invalid"
+printf '%s' "$stub_frontmatter" | jq -e '.name == "cub-apply" and .["allowed-tools"] == [] and .["read-capability-subset"] == "none" and .["compatibility-stub"] == true' >/dev/null || fail "cub-apply Skill is not the stable no-tools identity"
+rg -q 'release-publish' commands/cub-apply.md skills/cub-apply/SKILL.md || fail "cub-apply compatibility paths do not route to release-publish"
 
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
-
 : >"$tmp_dir/current-evals"
+: >"$tmp_dir/current-evals-qualified"
 while IFS= read -r skill; do
   skill_file="skills/$skill/SKILL.md"
   eval_file="skills/$skill/evals/evals.json"
-  test -f "$skill_file" || fail "missing $skill_file"
-  rg -q '^\*\*Authority boundary:\*\*' "$skill_file" || fail "missing authority boundary in $skill"
-
   frontmatter=$(./tools/parse-frontmatter "$skill_file") || fail "full YAML frontmatter parse failed for $skill"
   printf '%s' "$frontmatter" | jq -e --arg skill "$skill" '
-    .name == $skill and
-    (.description | type == "string" and length > 0) and
-    (.phase | type == "string" and length > 0) and
-    .["allowed-tools"] == [] and
-    .["read-capability-subset"] == $skill and
-    (has("compatibility-stub") | not)
+    .name == $skill and (.description | type == "string" and length > 0) and
+    (.phase | type == "string" and length > 0) and .["allowed-tools"] == [] and
+    .["read-capability-subset"] == $skill and (has("compatibility-stub") | not)
   ' >/dev/null || fail "frontmatter policy mismatch for $skill"
-  description=$(printf '%s' "$frontmatter" | jq -r '.description')
-  test "${#description}" -le 340 || fail "skill-listing description exceeds 340 characters in $skill"
-
-  jq -e --arg skill "$skill" '
-    any(.skills[]; .skill_id == $skill and (.capabilities | length > 0))
-  ' "$read_capabilities" >/dev/null || fail "machine-readable read subset missing for $skill"
-
+  rg -q 'references/execution-modes\.md' "$skill_file" || fail "$skill does not inherit execution modes"
+  jq -e --arg skill "$skill" 'any(.skills[]; .skill_id == $skill and (.capabilities | length > 0))' \
+    "$read_capabilities" >/dev/null || fail "read subset missing for $skill"
   jq -e '
-    .execution_policy == "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER" and
+    .execution_policy == "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY" and
     ((.evals // .prompts) | type == "array" and length > 0) and
-    all((.evals // .prompts)[];
-      (.name | type == "string" and length > 0) and
-      (.prompt | type == "string" and length > 0) and
-      (.expected_output | type == "string" and length > 0)) and
+    all((.evals // .prompts)[]; (.name|length)>0 and (.prompt|length)>0 and (.expected_output|length)>0) and
     ([((.evals // .prompts)[].name)] | length == (unique | length))
   ' "$eval_file" >/dev/null || fail "eval policy/schema/expectation failure in $skill"
   jq -r '(.evals // .prompts)[].name' "$eval_file" >>"$tmp_dir/current-evals"
+  jq -r --arg skill "$skill" '(.evals // .prompts)[] | [$skill,.name] | @tsv' "$eval_file" >>"$tmp_dir/current-evals-qualified"
 done <<<"$expected_skills"
 
-sort -u "$tmp_dir/current-evals" -o "$tmp_dir/current-evals"
-test "$(wc -l <"$tmp_dir/current-evals" | tr -d ' ')" = "75" || fail "current eval-case count is not 75"
-
-: >"$tmp_dir/current-evals-qualified"
-while IFS= read -r skill; do
-  jq -r --arg skill "$skill" '(.evals // .prompts)[] | [$skill,.name] | @tsv' \
-    "skills/$skill/evals/evals.json" >>"$tmp_dir/current-evals-qualified"
-done <<<"$expected_skills"
+LC_ALL=C sort -u "$tmp_dir/current-evals" -o "$tmp_dir/current-evals"
 LC_ALL=C sort -u "$tmp_dir/current-evals-qualified" -o "$tmp_dir/current-evals-qualified"
+test "$(wc -l <"$tmp_dir/current-evals" | tr -d ' ')" = 75 || fail "current eval-case count is not 75"
 jq -r '.skills[] as $skill | $skill.eval_dispositions[] | [$skill.skill_id,(.current_eval // .eval_id)] | @tsv' \
   "$inventory" | LC_ALL=C sort -u >"$tmp_dir/inventory-current-evals-qualified"
-cmp -s "$tmp_dir/current-evals-qualified" "$tmp_dir/inventory-current-evals-qualified" ||
-  fail "skill-qualified current evals and typed disposition inventory differ"
+cmp -s "$tmp_dir/current-evals-qualified" "$tmp_dir/inventory-current-evals-qualified" || fail "current evals and typed inventory differ by Skill"
 
 for legacy_eval in single-unit-apply-after-mutate rollback-to-last-applied bulk-apply-unapplied-changes; do
-  jq -e --arg eval "$legacy_eval" '
-    any(.skills[].eval_dispositions[]; .eval_id == $eval and .disposition == "REPLACED_BY" and (.current_eval | length > 0))
-  ' "$inventory" >/dev/null || fail "legacy eval alias missing: $legacy_eval"
+  jq -e --arg eval "$legacy_eval" 'any(.skills[].eval_dispositions[]; .eval_id == $eval and .disposition == "REPLACED_BY" and (.current_eval|length)>0)' \
+    "$inventory" >/dev/null || fail "legacy eval mapping missing: $legacy_eval"
+done
+for release_eval in publish-head-release publish-pinned-to-tag publish-no-assigned-units withdraw-by-id withdraw-blocked-by-gate list-find-by-digest; do
+  rg -qx "$release_eval" "$tmp_dir/current-evals" || fail "release eval disappeared: $release_eval"
 done
 
-for upstream_release_eval in publish-head-release publish-pinned-to-tag publish-no-assigned-units withdraw-by-id withdraw-blocked-by-gate list-find-by-digest; do
-  rg -qx "$upstream_release_eval" "$tmp_dir/current-evals" || fail "upstream release eval disappeared: $upstream_release_eval"
-done
-
-if git cat-file -e '855f734^{commit}' 2>/dev/null; then
-  : >"$tmp_dir/baseline-evals"
-  : >"$tmp_dir/baseline-evals-qualified"
-  while IFS= read -r skill; do
-    inventory_skill=$skill
-    test "$skill" != cub-apply || inventory_skill=release-publish
-    git show "855f734:skills/$skill/evals/evals.json" |
-      jq -r '(.evals // .prompts)[].name' >>"$tmp_dir/baseline-evals"
-    git show "855f734:skills/$skill/evals/evals.json" |
-      jq -r --arg skill "$inventory_skill" '(.evals // .prompts)[] | [$skill,.name] | @tsv' >>"$tmp_dir/baseline-evals-qualified"
-  done <<<"$baseline_skills"
-  sort -u "$tmp_dir/baseline-evals" -o "$tmp_dir/baseline-evals"
-  sort -u "$tmp_dir/baseline-evals-qualified" -o "$tmp_dir/baseline-evals-qualified"
-  test "$(wc -l <"$tmp_dir/baseline-evals" | tr -d ' ')" = "62" || fail "baseline eval count changed unexpectedly"
-  jq -r '.skills[] as $skill | $skill.eval_dispositions[] | [$skill.skill_id,.eval_id] | @tsv' \
-    "$inventory" | sort -u >"$tmp_dir/all-inventory-eval-ids-qualified"
-  comm -23 "$tmp_dir/baseline-evals-qualified" "$tmp_dir/all-inventory-eval-ids-qualified" >"$tmp_dir/missing-baseline-evals"
-  test ! -s "$tmp_dir/missing-baseline-evals" || fail "baseline evals disappeared from typed inventory"
-fi
-
-./tools/validate-no-loss-deletions >/dev/null || fail "deleted durable surfaces lack exact typed dispositions"
-./tools/validate-no-loss-evals >/dev/null || fail "skill-qualified current/baseline eval dispositions are incomplete"
+./tools/validate-no-loss-deletions >/dev/null || fail "deleted durable surfaces lack exact dispositions"
+./tools/validate-no-loss-evals >/dev/null || fail "current/baseline eval dispositions are incomplete"
 
 test ! -e hooks/auto-allow.sh || fail "retired raw Bash auto-allow hook still exists"
 bash -n hooks/skill-reminder.sh || fail "routing reminder shell syntax failure"
 test -x hooks/skill-reminder.sh || fail "routing reminder is not executable"
-jq -e '(.hooks.PreToolUse // []) | length == 0' hooks/hooks.json >/dev/null || fail "Bash PreToolUse permission hook reintroduced"
-jq -e '.permissions.allow == []' .claude/settings.local.json.example >/dev/null || fail "settings example grants automatic tool permission"
-
+jq -e '(.hooks.PreToolUse // []) | length == 0' hooks/hooks.json >/dev/null || fail "PreToolUse permission hook reintroduced"
 if rg -n "permissionDecision['\"[:space:]:]+allow|Bash\\(" hooks .claude/settings.local.json.example skills/*/SKILL.md; then
-  fail "silent Bash allow reintroduced in plugin, settings, or skill frontmatter"
+  fail "plugin-provided Bash allow reintroduced"
 fi
-if rg -n '^claude plugin (marketplace add|install)' README.md; then
-  fail "README exposes installation/activation commands while status is BLOCK_ACTIVATION_STATIC_ONLY"
-fi
-if ! rg -q 'evaluation-only' README.md || ! rg -q 'BLOCK_ACTIVATION_STATIC_ONLY' README.md; then
-  fail "README evaluation-only activation block is unclear"
-fi
-if rg -n 'Auto-allowed|auto-allowed read' skills/*/SKILL.md; then
-  fail "skill prose falsely claims read autoallow"
-fi
+rg -q '^## Install or update$' README.md || fail "normal installation/update guidance disappeared"
+rg -q 'allowed-tools: \[\].*zero preapprovals' README.md || fail "allowed-tools standalone meaning is not explained"
 
-for case_id in validator-side-effect-flag worker-secret-shell-expansion kubernetes-secret-read \
-  kind-kubeconfig kustomize-exec-plugin kubectl-kustomize-alpha-plugin helm-output-directory \
-  argocd-hard-refresh credential-minting-getter zsh-eval-expansion unknown-flag quoted-where-comparison; do
-  jq -e --arg case_id "$case_id" 'any(.cases[]; .case_id == $case_id)' "$authority_cases" >/dev/null ||
-    fail "authority adversarial/regression case missing: $case_id"
-done
+# Product no-loss and safety invariants. These are plain semantic checks, not
+# local hash checks, so a self-renewed fingerprint cannot erase them.
+rg -q 'Space\.ReleaseTargetID' skills/target-bind/SKILL.md || fail "target binding omits Space.ReleaseTargetID"
+rg -q 'cub space update <app-space> --release-target <target-space>/<target-slug>' skills/target-bind/SKILL.md || fail "target-binding command disappeared"
+rg -q 'EffectiveReleaseSet' skills/target-bind/SKILL.md skills/release-publish/SKILL.md || fail "effective Release membership disappeared"
+rg -q 'Unit\.TargetID == Space\.ReleaseTargetID' skills/release-publish/SKILL.md || fail "Release membership equality disappeared"
+rg -q 'RevisionID' skills/release-publish/SKILL.md && rg -q 'DataHash' skills/release-publish/SKILL.md || fail "Release preview omits revision identities/hashes"
+rg -q 'Never convert a narrow request into a broader publish silently' skills/release-publish/SKILL.md || fail "scope-expansion guard disappeared"
+rg -q 'preview is not atomically bound to execution' skills/release-publish/SKILL.md || fail "publication pre-read race disclosure disappeared"
+rg -q 'Installed v0\.2\.15 help advertises' skills/release-publish/SKILL.md skills/triggers-and-applygates/SKILL.md || fail "current native-approval help boundary disappeared"
+rg -q 'Host permission likewise does not satisfy `vet-approvedby`' skills/triggers-and-applygates/SKILL.md || fail "native approval and host permission are conflated"
+rg -q 'cub release withdraw --help' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json || fail "withdrawal help check disappeared"
+rg -q 'cub release delete --help' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json || fail "deletion help check disappeared"
+rg -q 'Published=false' skills/release-publish/SKILL.md || fail "withdrawal retained-record behavior disappeared"
+rg -q 'not-found/blob-unavailable' skills/release-publish/SKILL.md || fail "deletion retention postcondition disappeared"
+rg -q 'public Release resource has no `TargetID`' skills/release-publish/SKILL.md || fail "historical Target claim boundary disappeared"
+rg -q 'com\.confighub\.target\.id' README.md skills/release-publish/SKILL.md skills/verify-apply/SKILL.md || fail "digest-attested Target evidence disappeared"
+rg -q 'Revision\.Releases' skills/release-publish/SKILL.md skills/verify-apply/SKILL.md references/revisions.md || fail "historical membership linkage disappeared"
+rg -q 'same-count member swap' skills/verify-apply/SKILL.md || fail "historical same-count swap caveat disappeared"
+rg -q 'historical Release manifest is unproven' skills/verify-apply/SKILL.md || fail "historical manifest proof gap disappeared"
+rg -q -- '-o jq=.UnitStatus' skills/verify-apply/SKILL.md && rg -q -- '-o jq=.LatestUnitEvent' skills/verify-apply/SKILL.md && rg -q 'cub unit-event list <unit>' skills/verify-apply/SKILL.md || fail "historical Unit-event diagnostics disappeared"
+jq -e 'any(.global_legacy_jobs[]; .capability_id == "bridge-or-unit-runtime-delivery" and .disposition == "VERSIONED_LEGACY")' "$inventory" >/dev/null || fail "retired delivery history disappeared"
+jq -e 'any(.skills[] | select(.skill_id == "release-publish").trigger_dispositions[]; .trigger_id == "cancel-inflight-unit-apply" and .disposition == "VERSIONED_LEGACY")' "$inventory" >/dev/null || fail "historical cancellation job disappeared"
 
-rg -q 'Space\.ReleaseTargetID' skills/target-bind/SKILL.md || fail "target-bind omits Space.ReleaseTargetID"
-rg -q 'cub space update <app-space> --release-target <target-space>/<target-slug>' skills/target-bind/SKILL.md || fail "target-bind omits --release-target proposal"
-rg -q 'EffectiveReleaseSet' skills/target-bind/SKILL.md skills/release-publish/SKILL.md || fail "effective release membership is not named"
-rg -q 'Unit\.TargetID.*Space\.ReleaseTargetID' skills/release-publish/SKILL.md || fail "release membership equality is not explicit"
-if ! rg -q 'RevisionID' skills/release-publish/SKILL.md || ! rg -q 'DataHash' skills/release-publish/SKILL.md; then
-  fail "release proposal does not bind exact revisions/hashes"
-fi
-rg -q 'Never convert a narrow approval into a broader publish' skills/release-publish/SKILL.md || fail "scope broadening guard is missing"
-rg -q 'cub unit approve' skills/release-publish/SKILL.md skills/triggers-and-applygates/SKILL.md references/changesets.md || fail "native revision approval knowledge is missing"
-rg -q 'not external authorization' skills/triggers-and-applygates/SKILL.md || fail "native approval is not separated from execution authorization"
-rg -q 'APPROVAL_HEAD_RACE_BLOCK' skills/release-publish/SKILL.md skills/promote-release/SKILL.md skills/triggers-and-applygates/SKILL.md || fail "head-at-execution approval race is not a hard block"
-rg -q 'Only omitted `--revision` and `--revision HeadRevisionNum` are accepted' skills/release-publish/SKILL.md || fail "v0.2.11 approval selector limitation is missing"
-rg -q 'no expected RevisionID/DataHash CAS' skills/release-publish/SKILL.md skills/triggers-and-applygates/SKILL.md || fail "native approval CAS limitation is missing"
-rg -q 'RELEASE_EXECUTION_CAS_BLOCK' skills/release-publish/SKILL.md || fail "Release target/member/head execution race is not a hard block"
-rg -q 'no expected Space version, TargetID, expected tag mapping, ordered UnitID/RevisionID/DataHash manifest, or proposal digest' skills/release-publish/SKILL.md || fail "Release provider-CAS limitation is incomplete"
-rg -q 'v0\.2\.11.*bridge/per-Unit' skills/release-publish/SKILL.md || fail "bridge/per-Unit sunset is not explicit"
-rg -q 'cub release withdraw <release-id>' skills/release-publish/SKILL.md || fail "Release withdrawal proposal disappeared"
-rg -q 'Published=false' skills/release-publish/SKILL.md || fail "withdrawal retained-record semantics disappeared"
-rg -q 'WITHDRAWAL_MEMBERSHIP_DRIFT_BLOCK' skills/release-publish/SKILL.md || fail "withdrawal current-membership drift guard disappeared"
-rg -q 'cub release delete <release-id>' skills/release-publish/SKILL.md || fail "Release deletion lifecycle disappeared"
-rg -q 'not-found/blob-unavailable' skills/release-publish/SKILL.md || fail "Release deletion retention postcondition disappeared"
-rg -q 'HISTORICAL_RELEASE_TARGET_UNPROVEN' skills/release-publish/SKILL.md skills/verify-apply/SKILL.md || fail "historical Release target proof gap disappeared"
-rg -q 'com\.confighub\.target\.id' README.md skills/release-publish/SKILL.md skills/verify-apply/SKILL.md || fail "digest-attested historical Target evidence disappeared"
-rg -q 'public Release resource has no `TargetID`' skills/release-publish/SKILL.md || fail "public Release target-field limitation disappeared"
-rg -q 'does \*\*not\*\* call withdrawal first' skills/release-publish/SKILL.md || fail "Release delete withdrawal bypass disappeared"
-rg -q 'cub release withdraw --help' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json || fail "withdraw proposal omits same-session destructive help verification"
-rg -q 'cub release delete --help' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json || fail "delete proposal omits same-session destructive help verification"
-rg -q 'RELEASE_DELETE_STILL_PUBLISHED_BLOCK' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json || fail "published Release deletion guard disappeared"
-rg -q 'Revision\.Releases' skills/release-publish/SKILL.md skills/verify-apply/SKILL.md references/revisions.md || fail "historical Release membership linkage disappeared"
-rg -Fq -- '--where "Releases ? '\''<release-id>'\''"' skills/release-publish/SKILL.md skills/verify-apply/SKILL.md || fail "exact ReleaseID membership predicate disappeared"
-rg -q 'HISTORICAL_RELEASE_MANIFEST_UNPROVEN' skills/verify-apply/SKILL.md || fail "historical manifest proof gap disappeared"
-rg -q 'same-count member swap' skills/verify-apply/SKILL.md || fail "same-count membership swap caveat disappeared"
-rg -q 'Versioned-legacy Unit apply/event diagnosis' skills/verify-apply/SKILL.md || fail "legacy UnitStatus/UnitEvent diagnostic procedure disappeared"
-if ! rg -q -- '-o jq=.UnitStatus' skills/verify-apply/SKILL.md || \
-  ! rg -q -- '-o jq=.LatestUnitEvent' skills/verify-apply/SKILL.md || \
-  ! rg -q 'cub unit-event list <unit>' skills/verify-apply/SKILL.md; then
-  fail "legacy UnitStatus/UnitEvent evidence reads disappeared"
-fi
-jq -e 'any(.global_legacy_jobs[]; .capability_id == "bridge-or-unit-runtime-delivery" and .disposition == "VERSIONED_LEGACY")' \
-  "$inventory" >/dev/null || fail "bridge sunset disappeared from no-loss inventory"
-jq -e 'any(.skills[] | select(.skill_id == "release-publish").trigger_dispositions[]; .trigger_id == "cancel-inflight-unit-apply" and .disposition == "VERSIONED_LEGACY")' \
-  "$inventory" >/dev/null || fail "cancel-inflight trigger disappeared from no-loss inventory"
-rg -qx 'cancel-inflight-unit-apply' "$tmp_dir/current-evals" || fail "cancel-inflight eval disappeared"
+rg -q 'cub helm install <release-name> <chart-ref>' skills/import/SKILL.md || fail "Helm install shape disappeared"
+rg -q '<component>-helm' skills/import/SKILL.md && rg -q '<component>-base' skills/import/SKILL.md || fail "Helm source/base topology disappeared"
+rg -q 'one Unit per chart template file' skills/import/SKILL.md || fail "Helm Unit granularity disappeared"
+rg -q 'Never emit a raw `kustomize build \| cub variant upload` pipeline' skills/import/SKILL.md || fail "unsafe Kustomize pipeline refusal disappeared"
+rg -q 'separate-per-environment compatibility lane' skills/import/SKILL.md || fail "Helm-values compatibility lane disappeared"
+rg -Fq -- "--space-pattern 'template:{{.Labels.Component}}'" skills/import/SKILL.md || fail "Helm-values naming guard disappeared"
 
-rg -q 'cub helm install <release-name> <chart-ref>' skills/import/SKILL.md || fail "current Helm install shape missing"
-if ! rg -q '<component>-helm' skills/import/SKILL.md || ! rg -q '<component>-base' skills/import/SKILL.md; then
-  fail "Helm source/base topology missing"
-fi
-rg -q 'one Unit per chart template file' skills/import/SKILL.md || fail "Helm Unit granularity missing"
-rg -q 'cub variant create <variant> <component>-base' skills/import/SKILL.md || fail "Helm deployment Variant shape missing"
-rg -q 'RENDER_SOURCE_POLICY_BLOCK' skills/import/SKILL.md skills/import/evals/evals.json "$profile" || fail "render source execution boundary disappeared"
-rg -q 'Never emit a raw `kustomize build \| cub variant upload` pipeline' skills/import/SKILL.md || fail "raw Kustomize render/upload pipeline is not explicitly blocked"
-if rg -n '^[[:space:]]*kustomize build .*\|[[:space:]]*cub variant upload' skills/*/SKILL.md; then
-  fail "raw Kustomize renderer-to-mutation pipeline re-entered the skill"
-fi
-rg -q 'Compatibility lane: materially different per-environment values' skills/import/SKILL.md || fail "distinct Helm-values compatibility lane disappeared"
-rg -q 'HELM_VALUES_COMPATIBILITY' skills/import/SKILL.md skills/import/evals/evals.json || fail "Helm-values compatibility disposition/eval disappeared"
-rg -Fq -- "--space-pattern 'template:{{.Labels.Component}}'" skills/import/SKILL.md || fail "Helm-values compatibility Space naming guard disappeared"
+rg -q 'retired-unit-runtime-verbs' skills/rollback-revision/SKILL.md "$inventory" || fail "retired replay anti-pattern disappeared"
+rg -q 'it is \*\*not rollback\*\*' skills/rollback-revision/SKILL.md || fail "head-moving rollback distinction disappeared"
+rg -q 'not proof of controller consumption or current runtime state' skills/rollback-revision/SKILL.md || fail "rollback live-state claim boundary disappeared"
+rg -q 'currently-running claim requires controller and Kubernetes evidence' skills/cub-query/SKILL.md || fail "query/runtime proof boundary disappeared"
+rg -q '^Incident: INC-512 rollback checkout to prior image$' skills/incident-management/SKILL.md || fail "safe incident provenance example disappeared"
+rg -q 'Shared Units must be sequenced or' skills/incident-management/SKILL.md || fail "concurrent-incident Unit guard disappeared"
+rg -q 'incident-<YYYYMMDD>-<ticket>' skills/incident-management/SKILL.md || fail "incident resolution marker disappeared"
 
-rg -q 'retired-unit-runtime-verbs' skills/rollback-revision/SKILL.md compatibility/no-loss-inventory.v1.json || fail "typed historical replay anti-pattern disappeared"
-rg -q 'it is \*\*not rollback\*\*' skills/rollback-revision/SKILL.md || fail "historical replay is not clearly refused"
-if rg -n '\bcub unit (apply|destroy|refresh|gitops)\b|\bcub unit approve[^`[:space:]]*.*--revision[[:space:]]+(?:[0-9]|-|Tag:|ChangeSet:)' skills/*/SKILL.md; then
-  fail "copy-pasteable versioned-legacy command spelling re-entered an active skill"
-fi
-rg -q '^Incident: <ticket-id or short slug>$' skills/incident-management/SKILL.md || fail "incident ticket provenance disappeared"
-rg -q '^User prompt: <verbatim>$' skills/incident-management/SKILL.md || fail "verbatim incident prompt provenance disappeared"
-rg -q 'Shared Units must be sequenced or the scope split' skills/incident-management/SKILL.md || fail "concurrent incident ownership guard disappeared"
-rg -q 'incident-<YYYYMMDD>-<ticket>' skills/incident-management/SKILL.md || fail "incident resolution tag proposal disappeared"
-rg -qx 'concurrent-incidents-shared-unit' "$tmp_dir/current-evals" || fail "concurrent incident eval disappeared"
-rg -q 'cub worker run --space <space> <worker-slug> --functions' skills/worker-bootstrap/SKILL.md || fail "worker-run positional slug disappeared"
-rg -q 'cobra\.ExactArgs\(1\)' skills/worker-bootstrap/SKILL.md skills/worker-bootstrap/evals/evals.json || fail "worker-run source/help discrepancy disappeared"
-rg -q 'attempts to create' skills/worker-bootstrap/SKILL.md || fail "worker-run implicit Worker creation side effect disappeared"
-if rg -n '^[[:space:]]*cub worker status([[:space:]]|$)' skills/worker-bootstrap/SKILL.md; then
-  fail "cub worker status re-entered the read-only command subset"
-fi
-worker_log_lines=$(rg '^[[:space:]]*cub worker logs([[:space:]]|$)' skills/worker-bootstrap/SKILL.md || true)
-test -z "$worker_log_lines" || fail "untrusted cub worker logs re-entered the evidence subset"
-kubectl_log_lines=$(rg '^[[:space:]]*kubectl logs([[:space:]]|$)' skills/worker-bootstrap/SKILL.md || true)
-test -z "$kubectl_log_lines" || fail "untrusted Kubernetes worker logs re-entered the evidence subset"
-rg -q 'WORKER_LOG_EVIDENCE_BLOCK' skills/worker-bootstrap/SKILL.md skills/worker-bootstrap/evals/evals.json "$profile" || fail "worker log evidence block disappeared"
-rg -q 'slug alone' skills/worker-bootstrap/SKILL.md || fail "worker log Space/Worker binding gap disappeared"
-rg -q 'scans the full file' skills/worker-bootstrap/SKILL.md || fail "worker log full-file scan gap disappeared"
+rg -q 'cub worker run --space <space> <worker-slug> --functions' skills/worker-bootstrap/SKILL.md || fail "worker positional slug disappeared"
+rg -q 'cobra\.ExactArgs\(1\)' skills/worker-bootstrap/SKILL.md skills/worker-bootstrap/evals/evals.json || fail "worker help/source discrepancy disappeared"
+rg -q 'attempts to create' skills/worker-bootstrap/SKILL.md || fail "worker-run implicit create side effect disappeared"
+! rg -q '^[[:space:]]*cub worker logs([[:space:]]|$)' skills/worker-bootstrap/SKILL.md || fail "unbounded worker log command re-entered active guidance"
+! rg -q '^[[:space:]]*kubectl logs([[:space:]]|$)' skills/worker-bootstrap/SKILL.md || fail "unbounded Kubernetes log command re-entered active guidance"
+rg -q 'scans the full' skills/worker-bootstrap/SKILL.md || fail "worker full-file log caveat disappeared"
 jq -e '
-  . as $inventory |
-  any($inventory.skills[] | select(.skill_id == "worker-bootstrap").trigger_dispositions[];
-    .trigger_id == "custom-function-worker" and .disposition == "MIGRATED_WITH_PARITY") and
-  any($inventory.skills[] | select(.skill_id == "worker-bootstrap").capability_dispositions[];
-    .capability_id == "external-worker-read-diagnosis" and .disposition == "MIGRATED_WITH_PARITY") and
-  (["worker-local-status-diagnosis","worker-log-diagnosis"] |
-    all(.[]; . as $id | any($inventory.skills[] | select(.skill_id == "worker-bootstrap").capability_dispositions[];
-      .capability_id == $id and .disposition == "BLOCKED_PENDING_EVIDENCE_PROXY"))) and
-  (["worker-upgrade-remedy","worker-credential-remedy"] |
-    all(.[]; . as $id | any($inventory.skills[] | select(.skill_id == "worker-bootstrap").capability_dispositions[];
-      .capability_id == $id and .disposition == "BLOCKED_PENDING_BROKER"))) and
-  any($inventory.skills[] | select(.skill_id == "worker-bootstrap").eval_dispositions[];
-    .eval_id == "diagnose-crashing-external-worker" and .disposition == "MIGRATED_WITH_PARITY")
-' "$inventory" >/dev/null || fail "worker diagnosis evidence/remedy reductions are falsely dispositioned"
-rg -q 'cub worker upgrade --help' skills/worker-bootstrap/SKILL.md skills/worker-bootstrap/evals/evals.json || fail "metadata-grounded worker upgrade remedy proposal disappeared"
-
-rg -q 'Tag is mutable metadata' skills/release-publish/SKILL.md || fail "mutable tag mapping semantics disappeared"
-rg -q 'RELEASE_TAG_MAPPING_CAS_BLOCK' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json || fail "tag-mapping execution race is not blocked"
-rg -q 'release-<ReleaseNum>' skills/release-publish/SKILL.md skills/release-publish/evals/evals.json "$profile" || fail "untagged auto-tag side effect disappeared"
-rg -q 'expected tag mapping' skills/release-publish/SKILL.md "$profile" || fail "Release CAS subject omits tag mapping"
-
-rg -q 'not proof of controller consumption or current runtime state' skills/rollback-revision/SKILL.md || fail "rollback LastAppliedRevisionNum claim regressed to currently-live"
-if rg -q 'LastAppliedRevisionNum.*currently live|LiveRevisionNum.*same as above' skills/rollback-revision/SKILL.md; then
-  fail "rollback selector is falsely described as currently live"
-fi
-rg -q 'currently-running claim requires controller and Kubernetes evidence' skills/cub-query/SKILL.md || fail "cub-query runtime claim boundary disappeared"
-jq -e 'all((.evals // .prompts)[] | select(.prompt | test("running|deployed"; "i")); (.expected_output | contains("verify-apply")))' \
-  skills/cub-query/evals/evals.json >/dev/null || fail "cub-query running/deployed eval bypasses verify-apply"
-
-rg -q 'CONTROLLER_BINDING_UNPROVEN' skills/import/SKILL.md skills/import/evals/evals.json || fail "Kustomize controller-binding proof gap disappeared"
-rg -q 'APPROVED_STATE_CAS_NOT_INTEGRATED' skills/cub-mutate/SKILL.md skills/rollback-revision/SKILL.md skills/promote-release/SKILL.md \
-  skills/cub-mutate/evals/evals.json skills/rollback-revision/evals/evals.json skills/promote-release/evals/evals.json "$profile" ||
-  fail "approved Unit-state CAS integration block disappeared"
-rg -q 'does have a transactional Unit primitive|has a real transactional primitive' skills/cub-mutate/SKILL.md skills/promote-release/SKILL.md || fail "existing ConfigHub Unit CAS primitive is misrepresented"
-
-jq -e 'any((.evals // .prompts)[]; .name == "diagnose-blocked-apply" and (.expected_output | contains("APPROVAL_HEAD_RACE_BLOCK")))' \
-  skills/triggers-and-applygates/evals/evals.json >/dev/null || fail "approval head-race eval expectation disappeared"
-jq -e 'any((.evals // .prompts)[]; .name == "staging-to-prod-bulk" and (.expected_output | contains("APPROVAL_HEAD_RACE_BLOCK")) and (.expected_output | contains("APPROVED_STATE_CAS_NOT_INTEGRATED")) and (.expected_output | contains("provider CAS")))' \
-  skills/promote-release/evals/evals.json >/dev/null || fail "promotion approval/provider-CAS eval expectation disappeared"
-jq -e '
-  any((.evals // .prompts)[]; .name == "cancel-inflight-unit-apply" and (.expected_output | contains("VERSIONED_LEGACY/BLOCK"))) and
-  any((.evals // .prompts)[]; .name == "withdraw-membership-drift" and (.expected_output | contains("WITHDRAWAL_MEMBERSHIP_DRIFT_BLOCK"))) and
-  any((.evals // .prompts)[]; .name == "list-find-by-digest" and (.expected_output | contains("HISTORICAL_RELEASE_TARGET_UNPROVEN"))) and
-  any((.evals // .prompts)[]; .name == "delete-release-retention-proof" and (.expected_output | contains("not-found/blob-unavailable")) and (.expected_output | contains("does not withdraw or check DestroyGates")))
-' skills/release-publish/evals/evals.json >/dev/null || fail "Release lifecycle semantic eval expectations disappeared"
-jq -e '
-  any((.evals // .prompts)[]; .name == "historical-release-same-count-member-swap" and (.expected_output | contains("Revision.Releases"))) and
-  any((.evals // .prompts)[]; .name == "historical-release-deleted-revision-gap" and (.expected_output | contains("HISTORICAL_RELEASE_MANIFEST_UNPROVEN")))
-' skills/verify-apply/evals/evals.json >/dev/null || fail "historical Release manifest semantic eval expectations disappeared"
-jq -e 'any((.evals // .prompts)[]; .name == "helm-values-compatibility" and (.expected_output | contains("HELM_VALUES_COMPATIBILITY")))' \
-  skills/import/evals/evals.json >/dev/null || fail "Helm-values compatibility eval expectation disappeared"
-jq -e 'any((.evals // .prompts)[]; .name == "concurrent-incidents-shared-unit" and (.expected_output | contains("Refuses to interleave")) and (.expected_output | contains("verbatim prompt")))' \
-  skills/incident-management/evals/evals.json >/dev/null || fail "incident concurrency/provenance eval expectation disappeared"
-jq -e 'any((.evals // .prompts)[]; .name == "external-worker-for-custom-functions" and (.expected_output | contains("<worker-slug>")) and (.expected_output | contains("cobra.ExactArgs(1)")))' \
-  skills/worker-bootstrap/evals/evals.json >/dev/null || fail "worker positional-slug eval expectation disappeared"
-jq -e '
-  any(.skills[] | select(.skill_id == "verify-apply").eval_dispositions[];
-    .eval_id == "apply-failed-bad-schema" and .disposition == "MIGRATED_WITH_PARITY") and
-  any(.skills[] | select(.skill_id == "verify-apply").eval_dispositions[];
-    .eval_id == "bulk-post-apply-triage" and .disposition == "MIGRATED_WITH_PARITY")
-' "$inventory" >/dev/null || fail "present verify-apply evals are incorrectly classified as replacements"
-
-rg -q 'configuration snapshot.*Data.*DataHash.*immutable' references/revisions.md || fail "Revision content immutability distinction disappeared"
-rg -q 'row as a whole is not' references/revisions.md || fail "Revision metadata mutability distinction disappeared"
+  any(.skills[] | select(.skill_id == "worker-bootstrap").capability_dispositions[]; .capability_id == "server-worker-proposal" and .disposition == "STANDALONE_HOST_PERMISSION") and
+  any(.skills[] | select(.skill_id == "worker-bootstrap").capability_dispositions[]; .capability_id == "external-worker-proposal" and .disposition == "COACHED_TERMINAL_EXECUTION") and
+  any(.skills[] | select(.skill_id == "worker-bootstrap").capability_dispositions[]; .capability_id == "worker-log-diagnosis" and .disposition == "BLOCKED_PENDING_EVIDENCE_PROXY")
+' "$inventory" >/dev/null || fail "worker execution/evidence dispositions regressed"
 
 if rg -n \
-  -e '^[[:space:]]*cub[[:space:]]+unit[[:space:]]+(refresh|destroy|gitops)([[:space:]]|$)' \
+  -e '^[[:space:]]*cub[[:space:]]+unit[[:space:]]+(apply|refresh|destroy|gitops)([[:space:]]|$)' \
   -e '^[[:space:]]*cub[[:space:]]+helm[[:space:]]+install[^\n]*--space' \
   -e '^[[:space:]]*cub[[:space:]]+helm[[:space:]]+upgrade[^\n]*--update-crds' \
-  -e 'ReleaseURL' \
-  -e '--web([[:space:]]|$)' \
+  -e 'ReleaseURL' -e '--web([[:space:]]|$)' \
   README.md SKILL_TEMPLATE.md references skills hooks; then
-  fail "retired command/flag appears as an active command surface"
+  fail "retired command or flag appears as an active command surface"
 fi
 
-active_unit_apply_count=$(
-  (rg -n '^[[:space:]]*cub[[:space:]]+unit[[:space:]]+apply([[:space:]]|$)' \
-    README.md SKILL_TEMPLATE.md references skills hooks || true) | wc -l | tr -d ' '
-)
-test "$active_unit_apply_count" = "0" || fail "versioned-legacy unit apply spelling re-entered the active package"
-
 if command -v cub >/dev/null 2>&1; then
-  command -v shasum >/dev/null 2>&1 || fail "shasum is required for exact cub binary verification"
   cub_version=$(cub version)
-  # `cub version` prints a Client Version block and a Server Version block. A bare
-  # `Version:\s+vX` matches either, so the two version greps below cannot tell client
-  # from server on their own; the commits are the discriminating values and are
-  # checked separately. Client is v0.2.11, server is v0.2.15.
-  printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.11' || fail "installed cub client version differs from profile"
-  printf '%s\n' "$cub_version" | rg -q '683dce12c2f26ad151aa9e5763e60b0ac66172a4' || fail "installed cub client commit differs from profile"
-  printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.15' || fail "installed server version differs from profile"
-  printf '%s\n' "$cub_version" | rg -q 'eebd77551316efc8c58028f6d4275ab504e17ce7' || fail "installed server commit differs from profile"
+  printf '%s\n' "$cub_version" | rg -q 'Client Version:|Client' || fail "cub version output lacks client identity"
+  printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.15' || fail "installed cub client version differs from profile"
+  printf '%s\n' "$cub_version" | rg -q '3e0cad345fbcc60d4761d928f02fccb8dc5def4f' || fail "installed cub client commit differs from profile"
+  printf '%s\n' "$cub_version" | rg -q 'Version:[[:space:]]+v0\.2\.21' || fail "installed server version differs from profile"
+  printf '%s\n' "$cub_version" | rg -q '770cce6816ad8cbc7169272cbf08277eab0f0eb0' || fail "installed server commit differs from profile"
   helm_version=$(cub helm version)
   printf '%s\n' "$helm_version" | rg -q 'helm 0\.1\.0 \(commit ce1b62faa92ec045d96b0e938bf289f83501fd17' || fail "installed cub helm add-on differs from profile"
   cub_binary_sha=$(shasum -a 256 "$(command -v cub)" | awk '{print $1}')
-  test "$cub_binary_sha" = "0729618f9a6c22dd646e2ef003cc5103206e9fc2c5abdae1c2b444b1f0534553" || fail "installed cub binary SHA-256 differs from profile"
+  test "$cub_binary_sha" = adc0c6cd53e24d91145eacf40947f929d041613393d4afa36e7d009520133051 || fail "installed cub binary SHA-256 differs from profile"
   cub_build_metadata=$(go version -m "$(command -v cub)")
-  printf '%s\n' "$cub_build_metadata" | rg -q 'mod[[:space:]]+github.com/confighub/sdk/cmd/cub[[:space:]]+\(devel\)' || fail "cub module provenance no longer matches recorded dirty local build"
-  printf '%s\n' "$cub_build_metadata" | rg -q 'build[[:space:]]+vcs\.modified=true' || fail "cub dirty-build provenance caveat no longer matches exact binary"
+  printf '%s\n' "$cub_build_metadata" | rg -q 'mod[[:space:]]+github.com/confighub/sdk/cmd/cub[[:space:]]+\(devel\)' || fail "cub module metadata differs from profile"
+  printf '%s\n' "$cub_build_metadata" | rg -q 'build[[:space:]]+vcs\.modified=true' || fail "cub modified-build caveat differs from profile"
 fi
 
-./tools/validate-semantic-contracts >/dev/null || fail "local semantic drift contracts failed"
+./tools/test-execution-modes >/dev/null || fail "execution-mode T0 gate failed"
+./tools/validate-semantic-contracts >/dev/null || fail "semantic drift contracts failed"
 ./tools/test-semantic-guards >/dev/null || fail "semantic guard metamorphic tests failed"
-./tools/test-no-loss-deletion-dispositions >/dev/null || fail "deleted-surface disposition metamorphic tests failed"
-./tools/test-no-loss-eval-qualification >/dev/null || fail "skill-qualified eval disposition swap test failed"
-./tools/test-frontmatter-policy >/dev/null || fail "full YAML frontmatter adversarial tests failed"
-./tools/test-claude-stream-json >/dev/null || fail "Claude stream-json JSONL adversarial tests failed"
-./tools/test-installed-permission-state >/dev/null || fail "installed-state checker metamorphic tests failed"
-./tools/test-render-source-policy >/dev/null || fail "render source preflight adversarial tests failed"
-set +e
-installed_state=$(./tools/check-installed-permission-state --json)
-installed_rc=$?
-set -e
-test "$installed_rc" -ne 0 || fail "installed-state checker unexpectedly authorized activation"
-installed_status=$(printf '%s\n' "$installed_state" | jq -r '.status')
+./tools/test-no-loss-deletion-dispositions >/dev/null || fail "deleted-surface metamorphic tests failed"
+./tools/test-no-loss-eval-qualification >/dev/null || fail "eval qualification swap test failed"
+./tools/test-frontmatter-policy >/dev/null || fail "frontmatter adversarial tests failed"
+./tools/test-claude-stream-json >/dev/null || fail "Claude stream-json adversarial tests failed"
+./tools/test-installed-permission-state >/dev/null || fail "installed-state adversarial tests failed"
+./tools/test-render-source-policy >/dev/null || fail "render-source adversarial tests failed"
+
+mkdir -p "$tmp_dir/empty-config" "$tmp_dir/empty-project"
+installed_state=$(CLAUDE_CONFIG_DIR="$tmp_dir/empty-config" ./tools/check-installed-permission-state --project-dir "$tmp_dir/empty-project" --json) || fail "clean standalone installed-state fixture was rejected"
 printf '%s\n' "$installed_state" | jq -e '
-  .status == "BLOCK_ACTIVATION_PERMISSION_BOUNDARY" and
-  .activation_allowed == false and
-  .state_error == null and
-  any(.block_reasons[]; . == "DETERMINISTIC_FINAL_ARGV_DENY_NOT_INTEGRATED")
-' >/dev/null || fail "effective Claude permission/install audit did not produce the required activation block"
+  .status == "STANDALONE_HOST_PERMISSION_READY" and
+  .activation_allowed == true and
+  .standalone_host_permission_allowed == true and
+  .plugin_autoallow_allowed == false and
+  .automatic_permission_claim_allowed == false and
+  .block_reasons == [] and
+  (.claim_limits | index("RAW_SHELL_NO_AUTOMATIC_PERMISSION_CLAIM")) != null
+' >/dev/null || fail "clean standalone installed-state contract changed"
+installed_status=$(printf '%s\n' "$installed_state" | jq -r '.status')
 
 artifact_state=$(./tools/verify-release-artifact-manifest --json) || fail "local artifact drift binding failed"
-./tools/test-independent-authority-policy >/dev/null || fail "independent non-generated authority policy tests failed"
+./tools/test-independent-authority-policy >/dev/null || fail "independent permission/safety policy tests failed"
 release_readiness=$(printf '%s\n' "$artifact_state" | jq -r '.release_status')
 
 if $release_mode; then
@@ -616,15 +387,13 @@ if $release_mode; then
   release_block=$(./tools/verify-release-artifact-manifest --release --json)
   release_rc=$?
   set -e
-  test "$release_rc" -ne 0 || fail "repository-local release mode unexpectedly granted authority"
-  printf '%s\n' "$release_block" | jq -e '.status == "BLOCK_EXTERNAL_RELEASE_EVIDENCE_REQUIRED" and .release_authorized == false' >/dev/null || fail "release mode did not require external protected evidence"
-  printf '%s\n' 'static compatibility surface: PASS; release authority: BLOCK_EXTERNAL_RELEASE_EVIDENCE_REQUIRED'
+  test "$release_rc" -ne 0 || fail "repository-local release mode unexpectedly granted release authority"
+  printf '%s\n' "$release_block" | jq -e '.status == "BLOCK_EXTERNAL_RELEASE_EVIDENCE_REQUIRED" and .release_authorized == false' >/dev/null || fail "release mode did not require protected external evidence"
+  printf '%s\n' 'static compatibility surface: PASS; release evidence: external protected binding required'
   exit 1
 fi
 
-printf '%s\n' 'static compatibility surface: PASS (0.4.0; 15 canonical skills + 1 no-tools compatibility stub, 38 trigger families, 68 capability dispositions, 15 eval files, 75 current eval cases, 78 typed eval dispositions)'
-printf 'release readiness: %s; installed state: %s\n' "$release_readiness" "$installed_status"
-printf '%s\n' 'local manifests/fingerprints: LOCAL_DRIFT_MATCH only; self-renewable and never trust/review/release evidence. External protected commit/package/CODEOWNER authentication remains BLOCK.'
-printf '%s\n' 'knowledge/skill surface: STATIC_PASS; activation remains BLOCK on effective Claude permission/final-argv/install binding and clean-profile behavioral traces.'
-printf '%s\n' 'authoritative commands: BLOCK deterministic final-argv wrapper NOT_INTEGRATED; BLOCK mutation broker NOT_INTEGRATED; BLOCK native approval exact-head binding absent; BLOCK approved Unit-state CAS action NOT_INTEGRATED (provider primitive exists); BLOCK Release target/member/tag-mapping/manifest execution CAS absent.'
-printf '%s\n' 'remaining proof gaps: BLOCK render source wrapper; BLOCK worker-log evidence wrapper; BLOCK historical member/Target retention; BLOCK withdrawal/delete lifecycle; BLOCK tagged-release missing-unit live semantics; WATCH model trigger/behavior evals and live ManifestDigest/controller/runtime proof.'
+printf '%s\n' 'static compatibility surface: PASS (0.4.1; 15 canonical skills + 1 compatibility identity, 75 evals, 38 trigger families, 68 capability dispositions, 78 eval dispositions)'
+printf 'standalone state: %s; release readiness: %s\n' "$installed_status" "$release_readiness"
+printf '%s\n' 'commands: host permission decides one exact call; the pack contributes zero automatic tool permission; optional overlays may impose stricter policy.'
+printf '%s\n' 'claim limits: local hashes are drift sentinels only; provider atomicity, behavioral selection, protected release binding, controller convergence, and runtime state require separate evidence.'

@@ -8,7 +8,7 @@ read-capability-subset: cub-mutate
 
 # cub-mutate
 
-**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute create, update, approve, promote, publish, withdraw, install, or delete operations. The external mutation broker is `NOT_INTEGRATED`, so every mutation path ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After an exact diff and scope preview, standalone use submits one requested Unit mutation to the host permission system; an external overlay may stop it before Bash.
 
 The get / modify / write-back loop for ConfigHub Units.
 
@@ -78,7 +78,7 @@ An invocation that only works against the data in front of you fails **silently*
 
 The most common reason an invocation stops working elsewhere is a hardcoded index.
 
-```bash
+```text
 # Fragile — whichever container happens to be first in this unit.
 cub function set --space prod --unit backend \
   -- set-string-path apps/v1/Deployment "spec.template.spec.containers.0.image" ghcr.io/acme/api:v2
@@ -161,7 +161,8 @@ Ask only what you need to compose the mutation:
 - What field or behavior changes?
 - Which Space? (Single Space vs. `--space "*"` for fleet-wide.)
 
-Record answers as condensed clarifications for `--change-desc`.
+Keep answers in the shared transcript and reduce them to a short safe
+model-authored `--change-desc` summary; never interpolate them verbatim.
 
 ### 2. Pick the function
 
@@ -189,14 +190,10 @@ Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-u
 
 ### 4. Compose change description
 
-Always required. Format:
-
-```
-<summary line>
-
-User prompt: <verbatim user prompt, trimmed if very long>
-Clarifications: <condensed — one line per resolved ambiguity, or "none">
-```
+Use a short model-authored summary that satisfies the strict safe-character
+rule in `references/execution-modes.md`. Never interpolate the verbatim user
+prompt or clarification text into a shell command. Keep fuller context in the
+shared transcript and result receipt.
 
 For bulk `cub run` / `cub function set` across many Units: phrase the summary so it reads sensibly at the per-unit granularity (the same description is recorded in every affected Unit's head revision).
 
@@ -206,7 +203,7 @@ For bulk `cub run` / `cub function set` across many Units: phrase the summary so
 cub function set \
   --space <space> \
   --unit <slug> \
-  --change-desc "<composed description>" \
+  --change-desc 'Apply reviewed configuration update' \
   -o mutations \
   -- \
   <function-name> [function args]
@@ -214,23 +211,38 @@ cub function set \
 
 Add `--protect` **only** when this value is the variant's own decision, to be held against the next upgrade from upstream. Leave it off when the change is propagating a value chosen elsewhere — a release rollout, a replayed change — because a change that protected everything it wrote would turn upstream content into local overrides and block every later merge. Neither choice is reversible by accident: a change never *removes* protection, `cub unit set-protection --unprotect` does.
 
-`-o mutations` makes an externally authorized execution return the resulting diff. Include it in the proposed command, but do not claim anything landed before the broker executes and a fresh revision read verifies it.
+`-o mutations` makes execution return the resulting diff. Include it in the exact command, but do not claim anything landed until the host permits the call, it succeeds, and a fresh revision read verifies it.
 
-**Approved-state CAS boundary.** The v0.2.11 server does have a transactional Unit primitive: `createUpdateFunction` can compare caller-supplied `HeadRevisionNum` plus `DataHash`/`ContentHash` with the current Unit inside `RunInTx`, and raw patch bodies can carry those fields. The current companion does not have a protected, digest-pinned catalog action that carries the reviewed per-Unit values through final requests and receipts; stock restore/function/run/update convenience commands do not prove that binding. Therefore every authoritative Unit mutation returns `APPROVED_STATE_CAS_NOT_INTEGRATED`. This is an integration gap, not a claim that ConfigHub lacks CAS.
+**Pre-read race.** The last source-reviewed v0.2.11 Unit update path could
+compare caller-supplied head and content fields transactionally. That older
+finding is not projected onto the installed v0.2.21 server. Current stock
+restore/function/run/update convenience commands do not expose proof that the
+values inspected during review were carried into execution. Re-read
+immediately before the one standalone mutation call, disclose the race, and
+do not claim exact reviewed-state binding.
 
 `--dry-run` will return what the modified data would look like, but without persisting the change. It can be used with `-o mutations`.
 
-For a multi-Unit proposal, include `--wait` so the external executor can return completion evidence.
+For a multi-Unit request, include `--wait` so the command result includes
+completion evidence.
 
 ### 6. Whole-unit replacement (fallback)
 
-Only when no function composition does the job:
+Only when no function composition does the job. This is an explicitly coached
+local-file flow because it requires the user to edit a file. Do not combine the
+read, edit, and update in one Bash call. Tell the user that nothing has run,
+then give these as separate terminal steps:
 
-```bash
-cub unit get <slug> --space <space> -o yaml > /tmp/edit.yaml
-# edit /tmp/edit.yaml preserving literal values
-cub unit update --space <space> <slug> /tmp/edit.yaml \
-  --change-desc "<composed description>"
+```text
+cub unit get <slug> --space <space> -o yaml
+```
+
+The user saves and reviews that output in a literal file. Only after they name
+the exact file does the later terminal step become:
+
+```text
+cub unit update --space <space> <slug> <reviewed-file> \
+  --change-desc 'Apply reviewed Unit file update'
 ```
 
 `cub unit update` also supports `-o mutations`, `--dry-run`, and `--wait`.
@@ -239,19 +251,19 @@ cub unit update --space <space> <slug> /tmp/edit.yaml \
 
 ```bash
 cub unit update --space <space> <slug> --restore <rev-num-or-tag> \
-  --change-desc "Restore to rev <N>. User prompt: …  Clarifications: …"
+  --change-desc 'Restore Unit to reviewed prior revision'
 ```
 
 Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisionNum`, `LastAppliedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, `Before:ChangeSet:<name>` (pre-open state), a revision UUID.
 
 ## Proposing a saved Invocation execution
 
-An [Invocation](https://docs.confighub.com/markdown/background/entities/invocation.md) is a saved function call (function name + arguments). Prepare a **mutating** Invocation proposal with:
+An [Invocation](https://docs.confighub.com/markdown/background/entities/invocation.md) is a saved function call (function name + arguments). For a requested mutation, use a **mutating** Invocation with:
 
 ```bash
 cub invocation invoke set <slug> \
   --space <space> --unit <slug-or-where> \
-  --change-desc "<composed description>" \
+  --change-desc 'Run reviewed saved invocation' \
   -o mutations \
   --param <name>=<value>          # repeat per declared parameter
 ```
@@ -279,32 +291,32 @@ Any time a logical change touches more than one Unit (a release, a defaults roll
 - **Atomic rollback.** A single `--restore Before:ChangeSet:<name>` against the Filter rewinds every affected Unit to its pre-open state.
 - **Grouped review, not exact native approval.** The CLI-advertised non-head
   ChangeSet approval selector is retained as `non-head-unit-approval` in the
-  no-loss inventory, not reproduced as selectable guidance here. Server
-  v0.2.11 rejects non-head selectors. Omitted/`HeadRevisionNum` approval has
-  no expected RevisionID/DataHash CAS, so it cannot prove the reviewed
-  ChangeSet heads were the heads approved at execution time. A ChangeSet also
-  does not select or narrow a Space Release.
+  no-loss inventory, not reproduced as a guaranteed current semantic here.
+  Installed v0.2.15 help advertises the selector, while exact v0.2.21 server
+  acceptance and atomic preconditions are not source-reviewed. Confirm help,
+  inspect the result, and do not claim exact reviewed-artifact binding. A
+  ChangeSet also does not select or narrow a Space Release.
 - **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces. The start tag marks each Unit's head as it was *before* the ChangeSet opened, so attaching creates no revision and a Unit that joined but never changed still rewinds with the rest.
 - **The only practical undo for a promotion.** An upgrade walks its range and records one revision per upstream revision that had an effect, so there is no single "before" number to restore to. `--restore Before:ChangeSet:<slug>` is it. See `promote-release`.
 
 Lifecycle:
 
-```bash
+```text
 # 1. Create the ChangeSet (lives in one home Space; Units can be anywhere).
 cub changeset create --space <home-space> <slug> \
-  --description "<one-line release description>"
+  --description 'Prepare reviewed release scope'
 
 # 2. Open: bulk-patch target Units into the ChangeSet via a saved Filter.
 cub unit update --patch --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
-  --change-desc "Starting <slug> rollout"
+  --change-desc 'Start reviewed ChangeSet rollout'
 
 # 3. Mutate: every function set / unit update / run must pass --changeset.
 cub function set --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset <home-space>/<slug> \
-  --change-desc "<summary>. User prompt: <verbatim>. Clarifications: <condensed>" \
+  --change-desc 'Apply reviewed ChangeSet update' \
   -o mutations \
   -- set-container-image <container> <image>:<tag>
 
@@ -313,9 +325,8 @@ cub unit update --patch --space <target-space> \
   --filter <home-space>/<filter-slug> \
   --changeset -
 
-# 5. Hand fresh state to release-publish. It computes the complete EffectiveReleaseSet,
-# separates native revision approval from execution authorization, and emits the
-# whole-Space Release proposal. This companion executes none of these writes.
+# 5. Hand fresh state to release-publish. It computes the complete EffectiveReleaseSet.
+# Each numbered write is a separate host-permission call, verified before the next.
 ```
 
 **Don't** use a ChangeSet for single-Unit edits (overhead without payoff) or for rolling per-Unit releases that need different approvals per Unit. See `references/changesets.md` for rollback via `Before:ChangeSet:<...>`, the merge / rebase pattern around a restored ChangeSet, and listing revisions by ChangeSet membership.
@@ -326,14 +337,14 @@ The `release-publish` skill maps apply/deploy intent to the exact current Space 
 
 ## Tool boundary
 
-- Host-ASK: read-only Unit/function/revision inspection in this skill's declared capability subset; no raw Bash is auto-allowed.
-- Proposal-only: Unit/function/run/ChangeSet writes; include `--change-desc` on configuration-data mutations. Exact native revision approval remains `APPROVAL_HEAD_RACE_BLOCK`; mutation execution remains `APPROVED_STATE_CAS_NOT_INTEGRATED` until a protected action binds the server's existing per-Unit CAS fields to the reviewed artifact and receipt.
-- Not allowed: executing writes without the external broker, `kubectl apply/edit/patch/delete`, controller mutation, or wholesale out-of-band replacement when a function-composed path exists.
+- Host permission: read-only Unit/function/revision inspection in this skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: Unit/function/run/ChangeSet writes each use one exact host-permission call; include `--change-desc` on configuration-data mutations. Native approval is head-at-execution and the stock mutation convenience paths have the pre-read race above, so do not make stronger exact-artifact claims.
+- Not allowed: `kubectl apply/edit/patch/delete`, controller mutation, or wholesale out-of-band replacement when a function-composed path exists. An external governance overlay may impose additional restrictions.
 
 ## Stop conditions
 
 - The change would fill the Unit with a placeholder the user didn't ask for.
-- The chosen function isn't in `cub function list` for `Kubernetes/YAML` (wrong name — re-check via `CONFIGHUB_AGENT=1 cub function list` / `cub function explain`).
+- The chosen function isn't in `cub function list` for `Kubernetes/YAML` (wrong name — re-check via `cub function list` / `cub function explain`).
 - The operation is across `--space "*"` and the user hasn't confirmed the blast radius.
 - An ApplyGate attaches due to validation failure. Stop, diagnose (via `triggers-and-applygates`), and fix the data — do not bypass.
 

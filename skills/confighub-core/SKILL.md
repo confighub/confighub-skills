@@ -8,7 +8,7 @@ read-capability-subset: confighub-core
 
 # confighub-core
 
-**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute create, update, approve, promote, publish, withdraw, install, or delete operations. The external mutation broker is `NOT_INTEGRATED`, so every mutation path ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. Route a concrete change to its owning Skill; in standalone use that Skill submits one exact requested write to the host permission system, while an external overlay may impose a stricter stop.
 
 The foundational skill: **concepts and routing**. It explains ConfigHub's model, carries the doctrine that every other skill assumes (config as data, one resource per Unit, the component model, opt-in protection), and hands the concrete task to the skill that owns it.
 
@@ -30,7 +30,7 @@ Load this first when the intent is broad. Hand off as soon as the task is concre
 
 ## Confirm before you compose
 
-Never compose `cub` commands from memory. Confirm the verb and flags with `cub <verb> --help` (or `CONFIGHUB_AGENT=1 cub <verb> --help`) before a read or mutation proposal. Help is read-only; confirmation does not grant mutation authority.
+Never compose `cub` commands from memory. Confirm the verb and flags with `cub <verb> --help` before a read or requested mutation. Help is read-only; confirmation does not grant mutation permission.
 
 ## The model in one minute
 
@@ -48,7 +48,7 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **Filter** — a saved query. Filters over Units power bulk ops; Filters over Triggers attach to a Space via `TriggerFilterID`.
 - **Link** — a relationship between Units whose resources reference each other (a Deployment's `serviceAccountName` → a ServiceAccount Unit). Enables cross-Unit integrity, needs/provides, and — as an `UpgradeUnit` Link — the upstream relationship a promotion merges along.
 - **ChangeSet** — a name for a set of revisions across many Units, and the practical way to undo a promotion. See [ChangeSets](#changesets-name-the-change-you-may-need-to-undo).
-- **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one **OCI** Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. Earlier ProviderType `ConfigHub` delivery is `VERSIONED_LEGACY/BLOCK`.
+- **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one **OCI** Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. Earlier ProviderType `ConfigHub` delivery is historical and unsupported in the reviewed current profile.
 - **Worker** — backs Target or custom-function operations. Built-in OCI Release delivery uses a **server-worker entity**, so no external process runs. Run an external worker only to host custom worker functions.
 - **ApplyGate** — a block on publish from a failing Trigger or an approval requirement. Fix the data or the rule; never bypass.
 
@@ -56,7 +56,7 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 
 - **Data is authoritative.** Edit the data, not a template. Re-rendering is an onboarding convenience, not an ongoing workflow.
 - **Mutations go through `cub`.** `kubectl` / `argocd` / `flux` are read-only for diagnosis.
-- **Every Unit-data mutation carries `--change-desc`** (summary line, verbatim user prompt, condensed clarifications).
+- **Every Unit-data mutation carries a short safe `--change-desc` summary** as defined in `references/execution-modes.md`; never interpolate the verbatim prompt into shell text.
 - **Every mutating call passes `-o mutations`** to show the diff inline.
 - **Protection is opt-in.** A change claims nothing unless it passes `--protect`.
 - **Critical entities carry Delete Gates (and, for Units, Destroy Gates).**
@@ -129,7 +129,7 @@ Variants of a component are meant to be alike: the same logical software adapted
 
 `cub variant` operates at the variant level; `cub component` is a read/navigate view over the labels.
 
-```bash
+```text
 cub variant upload   # seed a base from rendered manifests, stamping Component/Variant labels
 cub variant create   # clone a variant into a new downstream variant, attaching a Target
 cub variant promote  # bring a downstream variant up to date with its upstream
@@ -168,7 +168,7 @@ ConfigHub makes bulk and cross-Space operations easy — which is also how you a
 - **Delete Gates** — on any entity. Block `cub <entity> delete` until removed.
 - **Destroy Gates** — **Units only**. Protect a Unit's destructive lifecycle operation. Orthogonal to Delete Gates; verify the active CLI before any destructive proposal.
 
-```bash
+```text
 # Unit — protect prod data and its live resources.
 cub unit update --patch --space <component>-prod <unit> --delete-gate prod-critical --destroy-gate prod-critical
 # Space — delete only (Spaces have no destroy).
@@ -203,18 +203,16 @@ The gate **name carries the why** — prefer specific (`used-until-dec25`, `team
 ## Tool boundary
 
 - Orientation/doctrine: read-only. Hand off the task to the dedicated skill.
-- Proposal-only when this skill does prepare something: `cub space create/update`, `cub unit create/update`, `cub function get|set|vet`, `cub run`, `cub link …` (always `--change-desc` + `-o mutations`); `kubectl create --dry-run=client` / `kubectl explain` for scaffolding only.
+- Route writes to their owning Skill: `cub space create/update`, `cub unit create/update`, `cub function set|vet`, `cub run`, and `cub link …` each become one exact host-permission call (always `--change-desc` + `-o mutations` where supported); `kubectl create --dry-run=client` / `kubectl explain` are scaffolding only.
 - Not allowed: `helm install/upgrade`, `kustomize build` piped into ongoing editing, values files, template syntax inside a Unit, mutating `kubectl`/`argocd`/`flux`.
 
 ## Change description
 
-Every mutation passes `--change-desc`:
+Every supported Unit-data mutation passes a short, model-authored
+`--change-desc` that follows `references/execution-modes.md`:
 
 ```
-<summary line>
-
-User prompt: <verbatim user prompt>
-Clarifications: <one line per resolved ambiguity, or "none">
+Set checkout image to v2 for prod rollout
 ```
 
 ## Stop conditions

@@ -1,6 +1,6 @@
 ---
 name: target-bind
-description: 'Prepare OCI Target, Space.ReleaseTargetID, and matching Unit.TargetID membership. Use for "set up a target", "publish this Space to OCI", "attach Units", or "do I need a worker?". ConfigHub-provider delivery remains VERSIONED_LEGACY/BLOCK. Stops before writes.'
+description: 'Prepare OCI Target, Space.ReleaseTargetID, and matching Unit.TargetID membership. Use for "set up a target", "publish this Space to OCI", "attach Units", or "do I need a worker?". Direct ConfigHub-provider delivery is historical and unsupported in the reviewed current profile.'
 phase: act
 allowed-tools: []
 read-capability-subset: target-bind
@@ -8,7 +8,7 @@ read-capability-subset: target-bind
 
 # target-bind
 
-**Authority boundary:** this companion may inspect and prepare an exact Target/Space/Unit proposal. It must not create a worker or Target, update `ReleaseTargetID`, or retarget Units. The external mutation broker is `NOT_INTEGRATED`, so executable binding ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. Standalone use previews the before/after EffectiveReleaseSet, then submits one requested worker, Target, Space, or Unit binding change at a time to the host permission system; an external overlay may stop it before Bash.
 
 ## The current binding has two required layers
 
@@ -21,13 +21,13 @@ The current Release path requires an **OCI** Target. Argo CD or Flux consumes th
 
 `cub variant create ... --target ...` and `cub variant upload ... --target ...` can establish these relationships for new variants. This skill is the explicit repair/setup route for existing Spaces and for auditing ambiguous bindings.
 
-## `VERSIONED_LEGACY`: ConfigHub provider
+## Historical ConfigHub-provider delivery
 
-Earlier surfaces taught a ProviderType `ConfigHub` Target for direct ConfigHub/YAML delivery. Preserve that knowledge, but do not present it as current Release delivery: the reviewed Release implementation rejects a non-OCI `ReleaseTargetID`, and the former per-Unit runtime apply path is retired. Return `BLOCK` with `config_hub_provider_delivery=VERSIONED_LEGACY` until a separately reviewed current catalog action exists.
+Earlier surfaces taught a ProviderType `ConfigHub` Target for direct ConfigHub/YAML delivery. Preserve that fact only as historical context; do not present it as current Release delivery. The reviewed Release implementation rejects a non-OCI `ReleaseTargetID`, and the former per-Unit runtime apply path is retired. Explain that no current supported command provides that route.
 
 ## Read-only preflight
 
-```bash
+```text
 cub auth status
 cub worker list --space <worker-space> -o json
 cub target list --space <target-space> -o json
@@ -37,9 +37,11 @@ cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ApplyGates,
 
 Bind the organization/context, SpaceID, existing `ReleaseTargetID`, every UnitID/TargetID, and the intended target owner/slug. If changing a current target would add or remove Units from the EffectiveReleaseSet, disclose the before/after set and require a fresh release proposal after binding.
 
-## Exact mutation proposal
+## Ordered mutation steps
 
-Confirm every form with installed help immediately before proposing it.
+Confirm every form with installed help immediately before submission. For a
+clear standalone setup request, submit the first missing step through the host
+permission system, verify it, then continue one requested step at a time.
 
 ### 1. Ensure the built-in server worker entity
 
@@ -47,7 +49,8 @@ Confirm every form with installed help immediately before proposing it.
 cub worker create --space <worker-space> --allow-exists --is-server-worker server-worker
 ```
 
-This is a proposal, not permission to create it.
+After the scope preview remains unchanged, submit this one command to the host
+permission system. Do not combine it with Target creation.
 
 ### 2. Create an OCI Target
 
@@ -80,7 +83,7 @@ For an exact reviewed set:
 cub unit set-target <target-space>/<target-slug> --space <app-space> --unit <unit-1>,<unit-2>
 ```
 
-A metadata selector is supported, but resolve it to UnitIDs and show the exact count before proposing it:
+A metadata selector is supported, but resolve it to UnitIDs and show the exact count before submitting it:
 
 ```bash
 cub unit set-target <target-space>/<target-slug> --space <app-space> --where "Labels.Tier = 'backend'"
@@ -88,9 +91,9 @@ cub unit set-target <target-space>/<target-slug> --space <app-space> --where "La
 
 Do not claim “single-Unit delivery” after setting one Unit: a later `release publish` captures every Unit whose TargetID matches the Space's ReleaseTargetID. If other Units already match, show them. If the user's intent is truly isolated, propose a dedicated Variant Space rather than relying on a filter the Release command cannot accept.
 
-## Proposal binding and re-approval
+## Scope binding and changed-scope decisions
 
-The broker subject must bind:
+The scope preview must bind:
 
 - context/organization and compatibility profile;
 - worker ID/type;
@@ -99,23 +102,23 @@ The broker subject must bind:
 - old/new EffectiveReleaseSet as UnitIDs;
 - exact commands and expected postconditions.
 
-Changing the Target, Space, Unit selector, resolved Unit membership, provider, or command creates a new proposal. After an externally authorized binding completes, rebuild the `release-publish` ReleaseProposal from fresh reads; target-binding approval is not release-publication approval.
+Changing the Target, Space, Unit selector, resolved Unit membership, provider, or command creates a new scope. After a binding completes, rebuild the `release-publish` preview from fresh reads; permission for target binding is not permission for release publication.
 
 ## Read-only verification
 
-```bash
+```text
 cub target get <target-slug> --space <target-space> -o json
 cub space get <app-space> -o json
 cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ApplyGates" -o json
 ```
 
-PASS for the binding requires:
+A successful binding requires:
 
 - Target ProviderType is exactly `OCI`;
 - `Space.ReleaseTargetID` equals that TargetID;
 - each intended Unit has the same TargetID;
 - every unintended matching Unit is surfaced, not hidden; and
-- a new release-scope approval is still pending.
+- publication remains a separate user request and host-permission call.
 
 ## Stop conditions
 
@@ -123,7 +126,7 @@ PASS for the binding requires:
 - target owner Space is unknown;
 - selector resolves differently from the reviewed UnitID set;
 - setting/changing `ReleaseTargetID` broadens release scope without explicit re-approval;
-- external mutation broker is unavailable.
+- the host denies the command or an external governance overlay blocks it.
 
 ## Evidence
 

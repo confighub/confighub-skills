@@ -1,18 +1,18 @@
 {
-  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "execution_policy": "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY",
   "skill_name": "import",
   "evals": [
     {
       "id": 1,
       "name": "helm-cert-manager-first-install",
       "prompt": "I want to install cert-manager v1.17.2 into my ConfigHub Space `platform-dev`. I've used helm install before but I'm new to ConfigHub. Walk me through it.",
-      "expected_output": "Explains that current cub helm install would create cert-manager-helm and cert-manager-base, one Unit per chart template file, with an untargeted base. Before rendering, requires a canonical local vendored chart/source closure, exact chart/dependency/values/renderer digests, no remote refresh/plugin/lookup, and explicit byte/resource ceilings. A remote chart/version alone is not pinned content, so returns RENDER_SOURCE_POLICY_BLOCK until the network-off bounded render wrapper exists. Only then describes the install/Variant/Release proposals; executes nothing."
+      "expected_output": "Explains that current cub helm install would create cert-manager-helm and cert-manager-base, one Unit per chart template file, with an untargeted base. Before rendering, requires a canonical local vendored chart/source closure, exact chart/dependency/values/renderer digests, no remote refresh/plugin/lookup, and explicit byte/resource ceilings. A remote chart/version alone is not pinned content, so it stops until a network-off bounded render wrapper exists. Because the prompt asks for an explanation, it makes zero mutations and only then describes the install/Variant/Release sequence."
     },
     {
       "id": 2,
       "name": "helm-upgrade-preserving-customizations",
       "prompt": "I installed prometheus via `cub helm install prom prometheus-community/kube-prometheus-stack` a month ago. I cloned it into `prom-prod` and changed retention to 30d. Now I need to upgrade to 72.4.0. How do I do this without losing my retention change?",
-      "expected_output": "Reads the HelmSource/base/downstream relationship and preflights a canonical local vendored chart closure. Blocks remote/unpinned/plugin/lookup or unbounded render with RENDER_SOURCE_POLICY_BLOCK. After a trusted render receipt, proposes the pinned upgrade, explains base file Unit creates/deletes, then a promotion dry-run/proposal with APPROVED_STATE_CAS_NOT_INTEGRATED. Does not promise edits are preserved without the diff, does not execute, and requires a fresh whole-Space Release proposal."
+      "expected_output": "Reads the HelmSource/base/downstream relationship and preflights a canonical local vendored chart closure. Stops on remote/unpinned/plugin/lookup or unbounded render inputs. After a trusted render receipt, previews the pinned upgrade, explains base file Unit creates/deletes and the promotion pre-read race, and shows the exact sequence without submitting a mutation because `How do I do this` is instructional. It asks a focused mode question before any later execution request. It never promises edits are preserved without the diff; whole-Space publication is a separate preview and decision."
     },
     {
       "id": 3,
@@ -24,13 +24,13 @@
       "id": 4,
       "name": "kustomize-base-plus-overlays",
       "prompt": "I have a repo with `base/` and `overlays/{dev,staging,prod}/` using Kustomize. I want to start managing these with ConfigHub. How do I import them?",
-      "expected_output": "Preflights the canonical local Kustomize source closure without rendering, rejecting remote bases/resources, symlink escapes, exec/alpha plugins, Helm fetches, unpinned inputs, and absent byte/resource ceilings. Returns RENDER_SOURCE_POLICY_BLOCK until a network-off digest-pinned wrapper emits a bounded render receipt; never emits a raw build-to-upload pipeline. Then describes base/overlay Variant uploads bound to exact artifact digests and requires a verified controller binding, returning CONTROLLER_BINDING_UNPROVEN if absent. Executes nothing."
+      "expected_output": "Preflights the canonical local Kustomize source closure without rendering, rejecting remote bases/resources, symlink escapes, exec/alpha plugins, Helm fetches, unpinned inputs, and absent byte/resource ceilings. Stops until a network-off digest-pinned wrapper emits a bounded render receipt and never emits a raw build-to-upload pipeline. Then describes base/overlay Variant uploads bound to exact artifact digests and requires a verified controller binding; if absent, says plainly that delivery remains unproven. The prompt asks for an explanation, so it makes zero mutations."
     },
     {
       "id": 5,
       "name": "kustomize-helm-inflator-redirect",
       "prompt": "My kustomization.yaml uses the helmCharts inflator to render the bitnami/redis chart with an overlay on top. How do I import this into ConfigHub?",
-      "expected_output": "Makes an explicit source-of-truth choice but returns RENDER_SOURCE_POLICY_BLOCK while the Helm inflator can fetch a remote/unpinned chart or execute outside a canonical local source closure. Requires vendored digest-pinned inputs plus the network-off byte/resource-capped render wrapper and receipt before either Helm Component or complete-overlay upload proposals. Warns not to do both and duplicate resources; does not execute."
+      "expected_output": "Makes an explicit source-of-truth choice but stops while the Helm inflator can fetch a remote/unpinned chart or execute outside a canonical local source closure. Requires vendored digest-pinned inputs plus a network-off byte/resource-capped render wrapper and receipt before either Helm Component or complete-overlay upload. Warns not to do both and duplicate resources; this explanatory prompt causes zero mutations."
     },
     {
       "id": 6,
@@ -42,7 +42,7 @@
       "id": 7,
       "name": "helm-values-compatibility",
       "prompt": "Our dev and prod Helm values render materially different resources and we cannot migrate those differences yet. Preserve that behavior while onboarding to ConfigHub.",
-      "expected_output": "Does not force both environments through one shared rendered base. Selects HELM_VALUES_COMPATIBILITY and prepares independent pinned <component>-<environment> HelmSource/base components plus environment Variants, using the explicit Component-only space pattern to avoid a duplicated environment suffix and binding each values-file digest/rendered Unit set. Explains that shared variant promotion is lost, proposes a later config-as-data convergence path, executes nothing, and BLOCKs pending the broker."
+      "expected_output": "Does not force both environments through one shared rendered base. Selects the separate-per-environment compatibility lane and explains independent pinned <component>-<environment> HelmSource/base components plus environment Variants, using the explicit Component-only space pattern to avoid a duplicated environment suffix and binding each values-file digest/rendered Unit set. Because the prompt asks only for an architectural approach, it makes zero mutations, explains that shared variant promotion is lost, and offers a later config-as-data convergence path."
     }
   ]
 }

@@ -8,9 +8,9 @@
   "properties": {
     "schema_version": {"const": "confighub-skills-external-review/v1"},
     "provider": {"const": "github"},
-    "repository": {"const": "confighubai/confighub-skills"},
+    "repository": {"const": "confighub/confighub-skills"},
     "protected_branch": {"const": "main"},
-    "ruleset_url": {"type": "string", "pattern": "^https://github\\.com/confighubai/confighub-skills/settings/rules/[1-9][0-9]*$"},
+    "ruleset_url": {"type": "string", "pattern": "^https://github\\.com/confighub/confighub-skills/settings/rules/[1-9][0-9]*$"},
     "decision": {"const": "APPROVED"},
     "subject": {
       "type": "object",
@@ -27,7 +27,7 @@
       "required": ["review_id", "review_url", "reviewer_identity", "reviewer_role"],
       "properties": {
         "review_id": {"type": "string", "minLength": 1},
-        "review_url": {"type": "string", "pattern": "^https://github\\.com/confighubai/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$"},
+        "review_url": {"type": "string", "pattern": "^https://github\\.com/confighub/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$"},
         "reviewer_identity": {"type": "string", "minLength": 1},
         "reviewer_role": {"const": "CODEOWNER"}
       },

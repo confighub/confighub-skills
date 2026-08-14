@@ -13,7 +13,7 @@ read-capability-subset: <matching skill_id in compatibility/read-capability-subs
 
 # <skill-name>
 
-**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute mutations. The external mutation broker is `NOT_INTEGRATED`, so executable paths end in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](references/execution-modes.md). Keep `allowed-tools: []`, so the Skill preapproves no tool. A standalone requested mutation becomes one exact Bash call submitted to the host permission system; a separately installed governance overlay may stop it before Bash.
 
 One or two sentences on what the skill enables, in plain terms.
 
@@ -39,9 +39,9 @@ If any gate fails, stop and tell the user what's missing.
 
 ## Tool boundary
 
-- Host-ASK: only reads in this skill's declared capability subset; no raw Bash is auto-allowed until a typed final-argv wrapper exists.
-- Proposal-only: every ConfigHub mutation, including native approval and Release publication; bind exact identity/scope and `--change-desc` where supported.
-- Not allowed: credentials/secrets, unbounded files, plugin/exec loading, refresh/network side effects, arbitrary functions, unknown flags, or any mutation without the external broker and provider CAS.
+- Host permission: only reads in this Skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: each ConfigHub mutation, including native approval and Release publication, uses one exact host-permission call; bind exact identity/scope and `--change-desc` where supported.
+- Not allowed: credentials/secrets, unbounded files, plugin/exec loading, refresh/network side effects, arbitrary functions, unknown flags, or stronger atomicity claims than the invoked provider operation supports.
 
 ## The loop
 
@@ -49,16 +49,16 @@ Numbered imperative steps. Explain **why** each step matters, not just what. Kee
 
 ## Change description
 
-Every proposed configuration-data mutation must pass `--change-desc`. Compose it as:
+Every supported configuration-data mutation must pass a short, model-authored
+`--change-desc` following `references/execution-modes.md`:
 
 ```
-<one-line summary>
-
-User prompt: <verbatim user prompt, trimmed if very long>
-Clarifications: <condensed summary of any Q&A — one line per resolved ambiguity, or "none">
+Update reviewed configuration for requested rollout
 ```
 
-For bulk `cub run`, the same description is recorded in every affected unit; phrase it so it makes sense at the per-unit level.
+For bulk `cub run`, the same description is recorded in every affected Unit;
+phrase it so it makes sense at the per-Unit level. Never interpolate verbatim
+prompt or clarification text into shell source.
 
 ## Stop conditions
 
@@ -67,7 +67,7 @@ For bulk `cub run`, the same description is recorded in every affected unit; phr
 
 ## Verify chain
 
-How to prove externally authorized execution landed (not just that a command returned success). Typically a short sequence of read-only commands ending in an immutable ConfigHub identity plus controller/runtime assertions or named gaps.
+How to prove a permitted command landed (not just that it returned success). Typically a short sequence of read-only commands ending in an immutable ConfigHub identity plus controller/runtime assertions or named gaps.
 
 ## Evidence
 
@@ -83,4 +83,4 @@ How to prove externally authorized execution landed (not just that a command ret
 
 ## Evals
 
-Every skill ships with `evals/evals.json` holding realistic end-user prompts and a top-level `execution_policy: "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER"`. Eval names are stable IDs and must appear in `compatibility/no-loss-inventory.v1.json`; renames require explicit `REPLACED_BY` aliases, never deletion. Mutating scenarios must assert proposal/authority behavior as well as command correctness.
+Every skill ships with `evals/evals.json` holding realistic end-user prompts and a top-level `execution_policy: "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY"`. Eval names are stable IDs and must appear in `compatibility/no-loss-inventory.v1.json`; renames require explicit `REPLACED_BY` aliases, never deletion. Mutating scenarios must assert exact scope, one-command host permission, overlay blocking, and postcondition verification as well as command correctness.

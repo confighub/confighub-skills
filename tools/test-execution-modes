@@ -1,0 +1,320 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+contract="$root/compatibility/execution-modes.v1.json"
+
+fail() {
+  printf 'execution modes: FAIL: %s\n' "$*" >&2
+  exit 1
+}
+
+for command_name in jq rg python3; do
+  command -v "$command_name" >/dev/null 2>&1 || fail "required command missing: $command_name"
+done
+
+jq -e '
+  .schema_version == "confighub-skills-execution-modes/v1" and
+  .candidate_plugin_version == "0.4.1" and
+  .default_mode == "standalone" and
+  .pack_permission.allowed_tools_must_be_empty == true and
+  .pack_permission.plugin_autoallow == false and
+  .pack_permission.host_permission_system_is_authority == true and
+  .pack_permission.visible_prompt_is_not_guaranteed == true and
+  .standalone.read == "HOST_ASK_READ" and
+  .standalone.requested_mutation == "HOST_ASK_SINGLE_COMMAND" and
+  .standalone.success_next == "READ_ONLY_VERIFY" and
+  .standalone.denied_or_unavailable == "TERMINAL_HANDOFF_AFTER_ZERO_EXECUTIONS" and
+  .standalone.coached_session == "TERMINAL_HANDOFF_AFTER_ZERO_EXECUTIONS" and
+  .standalone.changed_scope_effect_or_preconditions == "ASK_FOCUSED_QUESTION_BEFORE_BASH" and
+  .optional_external_overlay.explicit_block == "ZERO_BASH" and
+  .optional_external_overlay.pack_default_assumption == "ABSENT" and
+  .destructive.required_first_step == "SAME_SESSION_INSTALLED_HELP_AND_DEPENDENCY_INVENTORY" and
+  .destructive.mutation_step == "SEPARATE_HOST_ASK_SINGLE_COMMAND" and
+  .destructive.help_and_mutation_must_not_share_bash_call == true and
+  .single_command_shape.exact_cub_invocations == 1 and
+  .single_command_shape.literal_quoted_argv == true and
+  .single_command_shape.change_description.source == "MODEL_AUTHORED_SAFE_SUMMARY_NOT_VERBATIM_USER_TEXT" and
+  .single_command_shape.change_description.max_characters == 120 and
+  .single_command_shape.change_description.quoting == "SINGLE_QUOTED_LITERAL" and
+  .single_command_shape.change_description.reject_cr_lf_control_or_shell_metacharacters == true and
+  ([.deterministic_cases[].case_id] | length == (unique | length)) and
+  ([.command_shape_cases[].case_id] | length == (unique | length))
+' "$contract" >/dev/null || fail "machine-readable contract is incomplete"
+
+expected_cases=$(cat <<'EOF'
+coached-mutation
+destructive-withdraw
+optional-overlay-block
+scope-expanded-before-call
+standalone-bash-unavailable
+standalone-create-requested
+standalone-mutation-denied
+standalone-promote-requested
+standalone-publish-requested
+standalone-read
+standalone-rollback-requested
+standalone-update-requested
+EOF
+)
+actual_cases=$(jq -r '.deterministic_cases[].case_id' "$contract" | sort)
+test "$actual_cases" = "$expected_cases" || fail "required deterministic case set changed"
+
+# This state machine is independent from the fixture's expected counters. It
+# proves the declared T0 transition table; it is not a model-behavior trace.
+while IFS= read -r row; do
+  case_id=$(printf '%s' "$row" | jq -r '.case_id')
+  kind=$(printf '%s' "$row" | jq -r '.kind')
+  host_outcome=$(printf '%s' "$row" | jq -r '.host_outcome')
+  overlay=$(printf '%s' "$row" | jq -r '.overlay')
+  scope_changed=$(printf '%s' "$row" | jq -r '.scope_changed // false')
+  help_complete=$(printf '%s' "$row" | jq -r '.same_session_help_complete // false')
+
+  bash_attempts=0
+  mutation_attempts=0
+  executions=0
+  handoffs=0
+  next=""
+
+  if test "$overlay" = explicit-block; then
+    next=REPORT_EXTERNAL_POLICY_STOP
+  elif test "$scope_changed" = true; then
+    next=ASK_FOCUSED_QUESTION
+  elif test "$host_outcome" = unavailable || test "$host_outcome" = coached; then
+    handoffs=1
+    next=REPORT_NOTHING_RAN
+  elif test "$kind" = destructive; then
+    test "$help_complete" = true || fail "$case_id omits destructive help/inventory"
+    bash_attempts=2
+    mutation_attempts=1
+    if test "$host_outcome" = allow; then
+      executions=2
+      next=READ_ONLY_VERIFY
+    else
+      executions=1
+      handoffs=1
+      next=REPORT_NOTHING_RAN
+    fi
+  else
+    bash_attempts=1
+    test "$kind" = mutation && mutation_attempts=1
+    if test "$host_outcome" = allow; then
+      executions=1
+      if test "$kind" = read; then next=REPORT_READ; else next=READ_ONLY_VERIFY; fi
+    else
+      handoffs=1
+      next=REPORT_NOTHING_RAN
+    fi
+  fi
+
+  test "$bash_attempts" -eq "$(printf '%s' "$row" | jq -r '.expected_bash_attempts')" || fail "$case_id Bash-attempt mismatch"
+  test "$mutation_attempts" -eq "$(printf '%s' "$row" | jq -r '.expected_mutation_attempts')" || fail "$case_id mutation-attempt mismatch"
+  test "$executions" -eq "$(printf '%s' "$row" | jq -r '.expected_executions')" || fail "$case_id execution mismatch"
+  test "$handoffs" -eq "$(printf '%s' "$row" | jq -r '.expected_terminal_handoffs')" || fail "$case_id terminal-handoff mismatch"
+  test "$next" = "$(printf '%s' "$row" | jq -r '.expected_next')" || fail "$case_id next-state mismatch"
+done < <(jq -c '.deterministic_cases[]' "$contract")
+
+# Parse fixtures without TSV escaping so embedded CR/LF/control characters
+# reach the classifier exactly as declared. Audit every executable model-facing
+# Bash fence under the same one-simple-command rules.
+python3 - "$root" <<'PY'
+import json
+import re
+import shlex
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+contract = json.loads((root / "compatibility/execution-modes.v1.json").read_text())
+
+required_forbidden = {
+    "ascii-control-character", "carriage-return-or-line-feed",
+    "command-substitution", "backticks",
+    "target-or-value-environment-interpolation", "redirection", "pipeline",
+    "semicolon-list", "and-or-list", "background-list", "loop", "eval",
+    "source", "nested-interpreter",
+}
+if not required_forbidden.issubset(set(contract["single_command_shape"]["forbidden"])):
+    raise SystemExit("execution modes: FAIL: forbidden shell-shape set is incomplete")
+
+safe_desc = re.compile(r"[A-Za-z0-9 .,:/_-]{1,120}\Z")
+
+def classify(command: str, require_cub: bool = True, allow_placeholders: bool = False) -> str:
+    scanned = re.sub(r"<[A-Za-z0-9_.:/-]+>", "PLACEHOLDER", command) if allow_placeholders else command
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in scanned):
+        return "REJECT"
+    if "`" in scanned or "$" in scanned:
+        return "REJECT"
+
+    quote = None
+    escaped = False
+    for ch in scanned:
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\" and quote != "'":
+            escaped = True
+            continue
+        if quote:
+            if ch == quote:
+                quote = None
+            continue
+        if ch in "'\"":
+            quote = ch
+        elif ch in "|;&<>":
+            return "REJECT"
+    if quote or escaped:
+        return "REJECT"
+
+    try:
+        argv = shlex.split(scanned, comments=True, posix=True)
+    except ValueError:
+        return "REJECT"
+    if not argv or (require_cub and argv[0] != "cub"):
+        return "REJECT"
+    if argv[0] in {"env", "eval", "source", ".", "sh", "bash", "zsh", "python", "python3", "node"}:
+        return "REJECT"
+
+    for match in re.finditer(r"(?:^|\s)--change-desc\s+('([^']*)'|\S+)", command):
+        raw, value = match.group(1), match.group(2)
+        if not raw.startswith("'") or value is None or not safe_desc.fullmatch(value):
+            return "REJECT"
+    if "--change-desc" in argv and not re.search(r"(?:^|\s)--change-desc\s+'[A-Za-z0-9 .,:/_-]{1,120}'(?:\s|$)", command):
+        return "REJECT"
+    return "ADMIT"
+
+for case in contract["command_shape_cases"]:
+    actual = classify(case["command"])
+    if actual != case["expected"]:
+        raise SystemExit(
+            f"execution modes: FAIL: {case['case_id']} command-shape mismatch: "
+            f"expected {case['expected']}, got {actual}"
+        )
+
+markdown = [root / "README.md", root / "SKILL_TEMPLATE.md"]
+markdown += sorted((root / "commands").glob("*.md"))
+markdown += sorted((root / "references").glob("*.md"))
+markdown += sorted((root / "skills").glob("*/SKILL.md"))
+
+def bash_blocks(path: Path):
+    lines = path.read_text().splitlines()
+    inside = False
+    start = 0
+    body = []
+    for number, line in enumerate(lines, 1):
+        if not inside and line.strip() == "```bash":
+            inside, start, body = True, number, []
+        elif inside and line.strip() == "```":
+            yield start, body
+            inside = False
+        elif inside:
+            body.append(line)
+    if inside:
+        raise SystemExit(f"execution modes: FAIL: unterminated Bash fence: {path}:{start}")
+
+def one_logical_command(lines):
+    commands = []
+    pending = ""
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        pending += (" " if pending else "") + stripped
+        if pending.endswith("\\"):
+            pending = pending[:-1].rstrip()
+            continue
+        commands.append(pending)
+        pending = ""
+    if pending:
+        commands.append(pending)
+    return commands
+
+for path in markdown:
+    for start, body in bash_blocks(path):
+        commands = one_logical_command(body)
+        if len(commands) != 1:
+            raise SystemExit(
+                f"execution modes: FAIL: executable Bash fence must contain one command: "
+                f"{path.relative_to(root)}:{start} has {len(commands)}"
+            )
+        command = commands[0]
+        if classify(command, require_cub=False, allow_placeholders=True) != "ADMIT":
+            raise SystemExit(
+                f"execution modes: FAIL: unsafe executable Bash fence: "
+                f"{path.relative_to(root)}:{start}: {command}"
+            )
+        try:
+            argv = shlex.split(command, comments=True, posix=True)
+        except ValueError as exc:
+            raise SystemExit(f"execution modes: FAIL: malformed Bash fence {path}:{start}: {exc}")
+        if argv[:3] == ["cub", "function", "set"] and "--" in argv:
+            separator = argv.index("--")
+            cub_flags = {"--change-desc", "--space", "--unit", "--filter", "--where", "--where-resource", "-o", "--dry-run"}
+            for index, arg in enumerate(argv):
+                if arg in cub_flags and index > separator:
+                    raise SystemExit(
+                        f"execution modes: FAIL: cub function-set flag follows -- separator: "
+                        f"{path.relative_to(root)}:{start}: {arg}"
+                    )
+
+print("execution-mode command and Bash-fence audit: PASS")
+PY
+
+# All installed model-facing entrypoints grant zero tools. The host remains the
+# only permission decision point; there is no plugin PreToolUse allow hook.
+while IFS= read -r frontmatter_file; do
+  frontmatter=$("$root/tools/parse-frontmatter" "$frontmatter_file") || fail "invalid frontmatter: ${frontmatter_file#$root/}"
+  printf '%s' "$frontmatter" | jq -e '.["allowed-tools"] == []' >/dev/null || fail "nonempty allowed-tools: ${frontmatter_file#$root/}"
+done < <(find "$root/skills" "$root/commands" -type f \( -name SKILL.md -o -name '*.md' \) | LC_ALL=C sort)
+
+test "$(jq '(.hooks.PreToolUse // []) | length' "$root/hooks/hooks.json")" -eq 0 || fail "plugin PreToolUse hook can influence permission"
+! rg -q 'permissionDecision|allowed-tools:[[:space:]]*\[[^]]' "$root/hooks" "$root/skills" "$root/commands" || fail "plugin-provided allow mechanism reappeared"
+
+hook="$root/hooks/skill-reminder.sh"
+rg -q 'references/execution-modes\.md' "$hook" || fail "global hook does not load the execution contract"
+rg -q 'one Bash tool call' "$hook" || fail "global hook lost single-command standalone behavior"
+rg -q 'host permission system' "$hook" || fail "global hook lost host policy authority"
+rg -q 'host denies it' "$hook" || fail "global hook lost fallback ordering"
+rg -q 'overlay' "$hook" && rg -q 'before Bash' "$hook" || fail "global hook lost optional overlay stop"
+
+for skill_path in "$root"/skills/*/SKILL.md; do
+  rg -q 'references/execution-modes\.md' "$skill_path" || fail "$(basename "$(dirname "$skill_path")") does not inherit the execution-mode contract"
+done
+rg -q 'references/execution-modes\.md' "$root/commands/cub-apply.md" || fail "compatibility command does not inherit the execution-mode contract"
+
+for eval_file in "$root"/skills/*/evals/evals.json; do
+  jq -e '.execution_policy == "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY"' "$eval_file" >/dev/null || fail "stale eval execution policy: ${eval_file#$root/}"
+done
+
+# These strings are machine/history vocabulary only. They must never leak back
+# into current model-facing guidance or eval expectations.
+active_paths=(
+  "$root/README.md" "$root/SKILL_TEMPLATE.md" "$root/.claude-plugin"
+  "$root/.claude" "$root/commands" "$root/hooks" "$root/references" "$root/skills"
+)
+if rg -n -i \
+  -e 'mutation[ -]broker' \
+  -e 'external[ -]broker' \
+  -e 'NOT_INTEGRATED' \
+  -e 'VERSIONED_LEGACY' \
+  -e 'APPROVED_STATE_CAS_NOT_INTEGRATED' \
+  -e 'APPROVAL_HEAD_RACE_BLOCK' \
+  -e 'RELEASE_EXECUTION_CAS_BLOCK' \
+  -e 'RELEASE_TAG_MAPPING_CAS_BLOCK' \
+  -e 'PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER' \
+  -e 'normal permission prompt' \
+  -e 'host-prompted' \
+  "${active_paths[@]}"; then
+  fail "machine-only governance/history jargon leaked into active guidance"
+fi
+
+if rg -n '\b(PASS|WATCH|BLOCK|ASK)[[:alpha:]]*\b' "${active_paths[@]}"; then
+  fail "undefined typed outcome jargon leaked into active guidance"
+fi
+
+if rg -n -- '--change-desc[[:space:]]+"|--change-desc[[:space:]]+.*\$|--change-desc[[:space:]]+.*`' \
+  "$root/README.md" "$root/SKILL_TEMPLATE.md" "$root/commands" "$root/references" "$root/skills"; then
+  fail "unsafe change-description interpolation pattern leaked into model-facing guidance"
+fi
+
+printf '%s\n' 'execution modes: PASS (T0 deterministic contract/state machine, all skills, shell shape, executable fences, optional overlay, and zero autoallow; no behavioral trace claimed)'

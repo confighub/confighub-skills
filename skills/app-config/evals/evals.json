@@ -1,10 +1,10 @@
 {
-  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "execution_policy": "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY",
   "prompts": [
     {
       "name": "properties-for-java-app",
       "prompt": "I have an existing `application.properties` file for a Spring Boot app. I want it as a ConfigMap in ConfigHub, mounted into the container at /etc/app/application.properties. Walk me through it.",
-      "expected_output": "Prepares an AppConfig/Properties Unit, render-configmap Invocation, Upsert link, ConfigMap placeholder, and workload mount proposal with exact Unit/link identities and --change-desc where supported. Explains the rendered file key/mount path, reads existing state first, never executes, and BLOCKs pending the broker."
+      "expected_output": "Treats ‘Walk me through it’ as coached/educational intent: reads existing state if permitted, explains the rendered file key/mount path, and lays out exact AppConfig/Properties Unit, render-configmap Invocation, Upsert link, ConfigMap placeholder, and workload mount steps with --change-desc where supported. It makes zero mutation calls and clearly labels the user-terminal handoff; if the user later asks the agent to perform a step, that exact step goes separately through the host permission system."
     },
     {
       "name": "envfrom-env-injection",

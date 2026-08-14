@@ -16,7 +16,7 @@ done
 jq empty "$contract" >/dev/null 2>&1 || fail "missing or invalid semantic contract"
 jq -e '
   .schema_version == "confighub-skills-semantic-contracts/v1" and
-  .candidate_plugin_version == "0.4.0" and
+  .candidate_plugin_version == "0.4.1" and
   (.purpose | contains("Self-renewable local drift") and contains("not trust")) and
   .minimum_expected_output_chars >= 120 and
   (.skills | length) == 15 and
@@ -63,7 +63,7 @@ while IFS= read -r row; do
   done < <(printf '%s' "$row" | jq -r '.required_eval_anchors[]')
 
   jq -e --argjson minimum "$minimum_expected_output_chars" '
-    .execution_policy == "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER" and
+    .execution_policy == "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY" and
     ((.evals // .prompts) | type == "array" and length > 0) and
     all((.evals // .prompts)[];
       (.name | type == "string" and length > 0) and

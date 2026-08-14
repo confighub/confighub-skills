@@ -22,7 +22,9 @@ if "$checker" --config-dir "$fixture" --project-dir "$project" --json >"$tmp_dir
   exit 1
 fi
 jq -e '
-  .status == "BLOCK_ACTIVATION_PERMISSION_BOUNDARY" and
+  .status == "BLOCK_UNSAFE_PERMISSION_OR_INSTALL_STATE" and
+  .standalone_host_permission_allowed == true and
+  .plugin_autoallow_allowed == false and
   .effective_permissions.default_mode == "auto" and
   (.block_reasons | index("ENABLED_AUTOALLOW_PLUGIN")) != null and
   (.block_reasons | index("PERMISSION_ALLOW_RULES_PRESENT")) != null and
@@ -47,31 +49,37 @@ printf '%s\n' \
   '{"type":"system","subtype":"init","permissionMode":"manual"}' \
   '{"type":"result","subtype":"success","is_error":false,"permission_denials":[]}' \
   >"$tmp_dir/trace.jsonl"
-if "$checker" --config-dir "$fixture" --project-dir "$project" --trace "$tmp_dir/trace.jsonl" --json >"$tmp_dir/unbound.json" 2>/dev/null; then
-  printf '%s\n' 'installed-state test: FAIL unbound installed digest/final argv was accepted' >&2
-  exit 1
-fi
-jq -e '.trace.status == "TRACE_BEHAVIOR_PASS" and .trace.permission_denials == 0 and any(.block_reasons[]; . == "INSTALLED_PLUGIN_DIGEST_UNBOUND")' "$tmp_dir/unbound.json" >/dev/null
+"$checker" --config-dir "$fixture" --project-dir "$project" --trace "$tmp_dir/trace.jsonl" --json >"$tmp_dir/unbound.json"
+jq -e '
+  .status == "STANDALONE_HOST_PERMISSION_READY" and
+  .activation_allowed == true and
+  .trace.status == "TRACE_BEHAVIOR_PASS" and
+  .trace.permission_denials == 0 and
+  .block_reasons == [] and
+  (.claim_limits | index("INSTALLED_PLUGIN_DIGEST_UNBOUND")) != null and
+  (.claim_limits | index("RAW_SHELL_NO_AUTOMATIC_PERMISSION_CLAIM")) != null
+' "$tmp_dir/unbound.json" >/dev/null
 
 digest=$(jq -r '.plugins[0].installed_tree_sha256' "$tmp_dir/unbound.json")
-if "$checker" --config-dir "$fixture" --project-dir "$project" --trace "$tmp_dir/trace.jsonl" --expected-installed-digest "$digest" --json >"$tmp_dir/bound.json" 2>/dev/null; then
-  printf '%s\n' 'installed-state test: FAIL final-argv deny absence was accepted' >&2
-  exit 1
-fi
-jq -e '.plugins[0].digest_binding == "EXTERNAL_DIGEST_MATCH" and .block_reasons == ["DETERMINISTIC_FINAL_ARGV_DENY_NOT_INTEGRATED"]' "$tmp_dir/bound.json" >/dev/null
+"$checker" --config-dir "$fixture" --project-dir "$project" --trace "$tmp_dir/trace.jsonl" --expected-installed-digest "$digest" --json >"$tmp_dir/bound.json"
+jq -e '
+  .status == "STANDALONE_HOST_PERMISSION_READY" and
+  .plugins[0].digest_binding == "EXTERNAL_DIGEST_MATCH" and
+  .block_reasons == [] and
+  .claim_limits == ["RAW_SHELL_NO_AUTOMATIC_PERMISSION_CLAIM"]
+' "$tmp_dir/bound.json" >/dev/null
 
 printf '%s\n' \
   '{"type":"system","subtype":"init","permissionMode":"manual"}' \
   '{"type":"result","subtype":"success","is_error":false,"permission_denials":[{"tool_name":"Bash","tool_use_id":"t","tool_input":{"command":"cub release --help"}}]}' \
   >"$tmp_dir/denied-trace.jsonl"
-if "$checker" --config-dir "$fixture" --project-dir "$project" --trace "$tmp_dir/denied-trace.jsonl" \
-  --expected-installed-digest "$digest" --json >"$tmp_dir/denied.json" 2>/dev/null; then
-  printf '%s\n' 'installed-state test: FAIL permission-denial trace was accepted' >&2
-  exit 1
-fi
+"$checker" --config-dir "$fixture" --project-dir "$project" --trace "$tmp_dir/denied-trace.jsonl" \
+  --expected-installed-digest "$digest" --json >"$tmp_dir/denied.json"
 jq -e '
   .trace.status == "BLOCK_TRACE_BEHAVIOR_REJECTED" and
-  (.block_reasons | index("TRACE_BEHAVIOR_REJECTED")) != null
+  .status == "STANDALONE_HOST_PERMISSION_READY" and
+  .block_reasons == [] and
+  (.claim_limits | index("HOST_PERMISSION_DENIED_IN_TRACE")) != null
 ' "$tmp_dir/denied.json" >/dev/null
 
 printf '%s\n' \
@@ -122,4 +130,4 @@ if "$checker" --config-dir "$fixture" --project-dir "$project" --expected-instal
 fi
 jq -e 'any(.block_reasons[]; . == "INSTALLED_PLUGIN_DIGEST_MISMATCH")' "$tmp_dir/mismatch.json" >/dev/null
 
-printf '%s\n' 'installed-state adversarial tests: PASS (layering/digests plus duplicate/unknown/unsafe/denied/error trace evidence; activation stays BLOCK)'
+printf '%s\n' 'installed-state adversarial tests: PASS (plugin autoallow blocked; safe standalone prompt/allow/deny states remain usable; digest and trace claims stay explicit)'

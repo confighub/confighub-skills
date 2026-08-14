@@ -1,6 +1,6 @@
 # Revisions
 
-**Authority boundary:** revision reads and diffs are evidence. Any command that creates a new Revision, restores a head, approves a revision, or publishes its data is a governed proposal only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`). Native ConfigHub revision approval is policy evidence, not authorization for the companion to execute.
+**Execution mode:** follow [How commands run](execution-modes.md). Revision reads and diffs are evidence. A command that creates a Revision, restores a head, approves a revision, or publishes data is a separate mutation submitted to the host permission system; native ConfigHub revision approval is policy state, not proof that another command ran.
 
 Every Unit-data mutation produces a `Revision`.
 
@@ -38,7 +38,7 @@ Authoritative definition: `Revision` struct in the public SDK at `https://github
 
 | Field | Meaning |
 |---|---|
-| `Description` | The `--change-desc` passed at mutation time, copied from `Unit.LastChangeDescription`. Per the skill convention, this includes a one-line summary, the verbatim user prompt, and a condensed summary of clarifying-question answers. |
+| `Description` | The short safe `--change-desc` passed at mutation time, copied from `Unit.LastChangeDescription`. Fuller request context remains in the shared transcript or receipt; never interpolate it verbatim into shell source. |
 
 The `Description` field is what makes revision history self-explaining later — it carries the *intent* that produced the data change, not just the diff. Skills must compose it carefully (see `references/cub-cli.md` → "Change descriptions on mutations").
 
@@ -71,13 +71,13 @@ Gates and warnings are scoped to a Revision's data, but resolution can update th
 
 | Field | Meaning |
 |---|---|
-| `ApprovedBy` | List of User UUIDs currently recorded as approving this revision. It can accrue after creation. In server v0.2.11, `cub unit approve` accepts only omitted `--revision` or `HeadRevisionNum`; both approve whichever head is current inside the execution transaction, without an expected RevisionID/DataHash precondition. |
+| `ApprovedBy` | List of User UUIDs currently recorded as approving this revision. It can accrue after creation. Installed v0.2.15 help advertises several selectors; exact v0.2.21 acceptance and atomic preconditions are not source-reviewed, so inspect the result and do not claim exact reviewed-artifact binding. |
 
 ### Lifecycle
 
 | Field | Meaning |
 |---|---|
-| `LiveAt` | Bridge-era runtime timestamp. Current v0.2.11 Space Release publication does **not** stamp `LiveAt`, so it cannot establish current OCI Release membership or publication time. Use the Release record, `Revision.Releases`, and the governed publication receipt. |
+| `LiveAt` | Bridge-era runtime timestamp. Do not use it to establish current OCI Release membership or publication time; use the Release record, `Revision.Releases`, and the publication receipt. |
 
 ### Grouping
 
@@ -108,7 +108,7 @@ For the full structure, use `cub revision get <unit> --space <s> --revision <n> 
 
 ## Common audit queries
 
-```bash
+```text
 # Recent revisions across a space, with their descriptions.
 cub revision list --space <s> --where "UpdatedAt > '2026-04-01'"
 

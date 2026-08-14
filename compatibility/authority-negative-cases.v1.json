@@ -1,8 +1,7 @@
 {
   "schema_version": "confighub-skills-authority-negative-cases/v1",
-  "candidate_plugin_version": "0.4.0",
-  "current_boundary": "NO_RAW_BASH_AUTOALLOW_HOST_ASK",
-  "typed_wrapper": "NOT_INTEGRATED",
+  "candidate_plugin_version": "0.4.1",
+  "current_boundary": "NO_PLUGIN_AUTOALLOW_HOST_PERMISSION_DECIDES",
   "cases": [
     {
       "case_id": "validator-side-effect-flag",

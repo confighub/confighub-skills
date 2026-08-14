@@ -8,7 +8,7 @@ read-capability-subset: triggers-and-applygates
 
 # triggers-and-applygates
 
-**Authority boundary:** this companion may inspect policy and prepare exact Trigger, approval, or remediation proposals. It must not create/update policy or approve a Unit. The external mutation broker is `NOT_INTEGRATED`, so executable changes end in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After reading current policy and exact scope, standalone use submits one requested Trigger, Filter, attachment, or native approval command to the host permission system; an external overlay may stop it before Bash.
 
 Make validation enforced, not advisory. Without Triggers, `vet-*` functions are suggestions; with Triggers, they either **block** the apply path (an ApplyGate) or **flag** it without blocking (an ApplyWarning) — see [Blocking vs warning](#blocking-vs-warning-applygates-and-applywarnings).
 
@@ -37,31 +37,37 @@ Make validation enforced, not advisory. Without Triggers, `vet-*` functions are 
 Best practice: one dedicated Space holds Triggers. A Filter selects them. Application Spaces reference that Filter via `TriggerFilterID`. This means you define policy once; every Space that uses the Filter inherits it.
 
 ```bash
-# 1. Platform Space.
-cub space create platform \
-  --change-desc "Create platform space to hold org-wide Triggers. User prompt: <verbatim>. Clarifications: <condensed>"
+cub space create platform
+```
 
-# 2. Baseline vet-* Triggers on Mutation.
-for t in vet-schemas vet-placeholders vet-format vet-merge-keys vet-immutable vet-no-merge-conflicts; do
-  cub trigger create --space platform -o json "$t" Mutation Kubernetes/YAML "$t"
-done
+After verifying the Space, create each Trigger as a separate command. Resolve
+`<validator>` to one literal value such as `vet-schemas`; never submit a loop:
 
-# 3. Filter selecting those Triggers.
+```bash
+cub trigger create --space platform -o json <validator> Mutation Kubernetes/YAML <validator>
+```
+
+After all six Trigger results are verified, create the Filter in its own call:
+
+```bash
 cub filter create --space platform -o json standard-vets Trigger \
   --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
 `vet-no-merge-conflicts` is worth including in any Space that gets promoted into. A merge that could not apply part of what it brought — a protected path, a path it could not locate, a replay that errored — does **not** fail: it applies the rest and records what it withheld on the Unit, where it sits until someone runs `cub unit conflicts`. This Trigger turns that into an ApplyGate so it can't be published past unnoticed. Clear it by applying or dismissing the conflicts, never by dropping the Trigger. See `promote-release`.
 
-Verify flag spellings with `CONFIGHUB_AGENT=1 cub space create --help`, `cub trigger create --help`, `cub filter create --help` — flag names evolve across cub versions.
+Verify flag spellings with `cub space create --help`, `cub trigger create --help`, and `cub filter create --help` — flag names evolve across cub versions.
 
 ## Attaching the filter to Spaces
 
 ```bash
-# New Space using the filter.
 cub space create myapp-prod --trigger-filter platform/standard-vets --where-trigger "-"
+```
 
-# Existing Space — confirm flag spelling first.
+For an existing Space, use this instead as a separate alternative after
+confirming current help:
+
+```bash
 cub space update myapp-prod --trigger-filter platform/standard-vets --where-trigger "-"
 ```
 
@@ -83,7 +89,7 @@ This re-lists the matching Triggers and re-evaluates the Space's existing Units 
 
 `vet-cel` evaluated once per resource (`r` aliases `object`). Return a `bool` for simple pass/fail; return a map with top-level snake_case keys `passed`, `details`, `failed_attributes` for diagnostics. Prefer `failed_attributes` (path-specific, with PascalCase entry keys `ResourceName`/`ResourceType`/`Path`/`Value`) over `details` when you can point at a specific attribute. Full shape and the Kubernetes CEL libraries (`quantity()`, `url()`, `ip()`, `cidr()`, `regex()`, `format()`) are documented in `references/functions-catalog.md` → "`vet-cel` — CEL validator with structured failures".
 
-```bash
+```text
 # Simple bool form.
 cub trigger create --space platform -o json require-ha Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2'
@@ -117,20 +123,23 @@ cub trigger create --space platform -o json require-approval Mutation Kubernetes
   vet-approvedby 1
 ```
 
-The trigger proposal above establishes policy. ConfigHub's native operation is `cub unit approve`, but the reviewed v0.2.11 server has a narrower and weaker contract than its CLI help claims:
+The Trigger above establishes policy. ConfigHub's native operation is
+`cub unit approve`. Installed v0.2.15 help advertises numeric,
+`LiveRevisionNum`, Tag, and ChangeSet selectors as well as the default head.
+Exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed
+here, so confirm the selected form with current help and inspect its result:
 
-```bash
-# These are the only accepted revision forms in v0.2.11; both mean
-# "approve the head that exists at execution time".
+```text
 cub unit approve <unit> --space <space>
-cub unit approve <unit> --space <space> --revision HeadRevisionNum
+cub unit approve <unit> --space <space> --revision <current-help-selector>
 ```
 
-Numeric, `LiveRevisionNum`, `LastAppliedRevisionNum`, Tag, ChangeSet, and RevisionID selectors are advertised by current help but rejected by the server as “approval of non-head revisions is not currently supported.” Preserve them only as `VERSIONED_LEGACY/BLOCK` knowledge.
-
-Even for head, the server accepts no expected HeadRevisionNum, RevisionID, or DataHash precondition. It locks the Unit and approves whichever head is current inside the execution transaction. A pre-read can explain intent but cannot make approval exact: if head changes after review, the new head is what gets approved. Classify this as `APPROVAL_HEAD_RACE_BLOCK`; do not claim the reviewed RevisionID/DataHash was approved. Exact approval needs a server/API compare-and-set precondition.
-
-Native head-at-execution approval may clear `vet-approvedby`; it is **not external authorization to execute** the approval command, a promotion, or a Release. Conversely, external execution authorization does not satisfy `vet-approvedby`. With no external broker and no exact-head CAS, this companion may explain the current operation but must not emit an authoritative exact-revision approval proposal.
+The last source-reviewed v0.2.11 profile accepted only head-oriented forms;
+that discrepancy remains historical evidence and is not projected onto the
+current server. A pre-read still does not prove atomic reviewed-artifact
+binding unless the current operation accepts and checks expected identity/hash
+values. Native approval may clear `vet-approvedby`; it does not publish or
+promote. Host permission likewise does not satisfy `vet-approvedby`.
 
 ## `PostClone` Triggers and protection
 
@@ -170,7 +179,7 @@ cub trigger create --space platform -o json --warn \
 
 ### Querying both tiers
 
-```bash
+```text
 # Blocked Units (gates).
 cub unit list --space <space> --where "LEN(ApplyGates) > 0" --columns Unit.Slug,Unit.ApplyGates
 
@@ -187,7 +196,7 @@ A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` block
 
 1. `cub unit get <slug> --space <space>` — shows attached ApplyGates/ApplyWarnings as `<space>/<trigger>/<function>` keys. The default text view stops at the keys — it does **not** print the failure message.
 1a. **For the actual failure message, read `Unit.ValidationResults`** — a map under the same keys, each entry carrying human-readable `Details[]` and structured `FailedAttributes[]` (e.g. the kyverno policy/rule `Identifier` + `Message`, plus `ResourceType` and `ResourceName`). This is what turns "gated by X" into "here's exactly what X objected to", and it covers warnings too:
-   ```bash
+```text
    cub unit get <slug> --space <space> -o "jq=.Unit.ValidationResults"
    # just one trigger:
    cub unit get <slug> --space <space> \
@@ -200,25 +209,24 @@ A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` block
 
 If the Unit applies but you want to know what's flagged on it, inspect `ApplyWarnings` instead (`cub unit get` shows it, or query with `--where "LEN(ApplyWarnings) > 0"`). Same fix loop — correcting the data re-runs the Trigger and clears the warning — but there's no apply block forcing the issue, so warnings persist until someone chooses to address them.
 
-**Never** bypass a gate by dropping the Trigger, deleting the Filter, demoting it to `--warn`, or editing gate state directly. If a rule is genuinely wrong, fix the Trigger in `platform` (with `--change-desc` recording why) so the whole fleet benefits.
+**Never** bypass a gate by dropping the Trigger, deleting the Filter, demoting it to `--warn`, or editing gate state directly. If a rule is genuinely wrong, fix the Trigger in `platform` so the whole fleet benefits; use the Trigger entity's supported description/history fields rather than the Unit-only `--change-desc` flag.
 
 ## Tool boundary
 
-- Host-ASK: reviewed read-only `cub` help/get/list and named function/evidence reads in this skill's declared capability subset; no raw Bash is auto-allowed.
-- Proposal-only: `cub space/trigger/filter/unit` writes, `cub unit approve`, and Unit-data mutations. Every proposed Unit-data mutation must carry `--change-desc`.
+- Host permission: reviewed read-only `cub` help/get/list and named function/evidence reads in this skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: `cub space/trigger/filter/unit` writes, `cub unit approve`, and Unit-data mutations each use one exact host-permission call. Every Unit-data mutation must carry `--change-desc`.
 - Not allowed: bypassing gates, disabling Triggers to unblock a single Unit, editing ApplyGates by hand.
 
 ## Change description
 
 `--change-desc` is a Unit-data-mutation flag only. It applies to `cub unit update`, `cub function set`, `cub run`, and `cub unit update --patch`. **It does not apply** to `cub space create/update`, `cub trigger create/update/delete`, `cub filter create/update/delete`, `cub target create/update`, or `cub worker create/update` — those entities aren't versioned configuration data and will reject the flag with `unknown flag: --change-desc`. The audit trail for Space/Trigger/Filter/Target/Worker operations is the entity's own history, not a per-call description.
 
-When this skill's flow does cause a Unit-data mutation (e.g., `cub unit update` while resolving a blocked apply), compose the description as:
+When this skill's flow causes a Unit-data mutation (for example, `cub unit
+update` while resolving a blocked apply), use the safe summary rule in
+`references/execution-modes.md`. For example:
 
 ```
-<summary: "Fix placeholder that was blocking vet-placeholders gate">
-
-User prompt: <verbatim>
-Clarifications: <condensed — e.g., "user confirmed the namespace value should be 'prod'">
+Fix prod namespace placeholder blocking vet-placeholders
 ```
 
 ## Stop conditions
@@ -231,7 +239,7 @@ Clarifications: <condensed — e.g., "user confirmed the namespace value should 
 1. `cub trigger list --space platform` — Triggers present.
 2. `cub filter get --space platform standard-vets` — Filter selects the expected Triggers.
 3. `cub space get <app-space>` — `TriggerFilterID` references the Filter.
-4. In an externally authorized test run, deliberately introduce a violation in a disposable Unit, confirm an ApplyGate attaches, fix it, and confirm it releases. The companion only reads the results.
+4. In a user-requested test run, introduce a violation only in a disposable Unit, one host-permission call at a time; confirm an ApplyGate attaches, fix it with a separate permission call, and confirm it releases. Keep all proof steps read-only.
 5. For a `--warn` Trigger, confirm the violation lands in `ApplyWarnings` (not `ApplyGates`) and that Release preflight is not blocked by that warning. Do not infer controller/runtime success from the warning state.
 
 ## Evidence

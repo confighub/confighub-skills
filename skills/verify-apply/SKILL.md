@@ -8,13 +8,13 @@ read-capability-subset: verify-apply
 
 # verify-apply
 
-**Authority boundary:** this skill is read-only. It may identify evidence gaps and route a proposed fix, but it must not mutate ConfigHub, a controller, or a cluster. The external mutation broker is `NOT_INTEGRATED`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill itself is read-only and grants no automatic tool permission. Run scoped proof reads through the host's normal permission flow; route a requested fix to its owning mutation Skill.
 
 Prove the current delivery chain, read-only: **ConfigHub intent → immutable Space Release → controller source/sync → runtime target**. A successful publish alone is not a live deployment.
 
 ## Read the exact release
 
-Start with the Release ID, bundle Digest, and OCI ManifestDigest captured by the externally authorized publish. These are different fields:
+Start with the Release ID, bundle Digest, and OCI ManifestDigest captured by the successful publish. These are different fields:
 
 - `Digest` identifies the bundle content;
 - `ManifestDigest` identifies the OCI manifest the controller consumes; and
@@ -22,7 +22,7 @@ Start with the Release ID, bundle Digest, and OCI ManifestDigest captured by the
 
 Prefer an immutable selector:
 
-```bash
+```text
 cub release get --space <variant-space> <release-id>
 cub release get --space <variant-space> --oci-reference sha256:<manifest-digest>
 cub release get --space <variant-space> --bundle-digest sha256:<bundle-digest>
@@ -36,7 +36,12 @@ cub release get --space <variant-space> --oci-reference latest
 
 Record the SpaceID/slug, ReleaseID/number, UnitCount, TagID if any, bundle Digest, ManifestDigest, repository/reference, and creation time. Do not infer provenance from an invented release-link field. If the user needs a previous immutable release, use its captured ID or digest; never silently substitute `latest`.
 
-The public Release resource exposes no `TargetID` or stored OCI `Manifest`. Exact server v0.2.11 puts `com.confighub.target.id` in the generated manifest and commits that manifest with `ManifestDigest`, so historical Target proof needs the digest-matching manifest/annotation in the governed publication receipt or from a reviewed digest-addressed registry read. Today's `Space.ReleaseTargetID` is current state only. If that attestation is absent, return `HISTORICAL_RELEASE_TARGET_UNPROVEN` rather than guessing the older Target.
+The public Release resource exposes no `TargetID` or stored OCI `Manifest`.
+The last source-reviewed v0.2.11 profile put `com.confighub.target.id` in the
+generated manifest committed by `ManifestDigest`; exact v0.2.21 implementation
+is not source-reviewed here. Historical Target proof therefore needs a
+digest-matching publication/registry receipt. Today's `Space.ReleaseTargetID`
+is current state only.
 
 ## Recover the historical manifest—never substitute today's set
 
@@ -48,7 +53,7 @@ cub revision list --space <variant-space> \
   --select "RevisionID,RevisionNum,DataHash,Releases" -o json
 ```
 
-`Releases` is a UUID-keyed map and `?` tests exact key membership. Do not use current head or current target membership as a substitute. If the receipt is absent, a linked Revision is deleted, the reconstructed set differs, or only UnitCount survives, return `HISTORICAL_RELEASE_MANIFEST_UNPROVEN`. Preserve the receipt because Release deletion removes the row/bundle and later Revision deletion can erase server-side reconstruction evidence.
+`Releases` is a UUID-keyed map and `?` tests exact key membership. Do not use current head or current target membership as a substitute. If the receipt is absent, a linked Revision is deleted, the reconstructed set differs, or only UnitCount survives, say that the historical Release manifest is unproven. Preserve the receipt because Release deletion removes the row/bundle and later Revision deletion can erase server-side reconstruction evidence.
 
 ## Prove every layer
 
@@ -67,28 +72,35 @@ Name each unavailable layer as an explicit proof gap. Do not use successful publ
 ## Classify current failures, not retired ones
 
 - No Release exists after an attempted publish: inspect `Space.ReleaseTargetID`, Target ProviderType, the EffectiveReleaseSet, and each selected revision's ApplyGates. Current publication can fail before a Release record is created.
-- Release exists but controller is behind: `WATCH` while within the documented sync window; `BLOCK` on source/auth/digest mismatch.
-- Controller has the ManifestDigest but runtime is unhealthy: `BLOCK` and report the exact resource/condition (for example ImagePullBackOff, probe failure, or RBAC).
-- Runtime origin differs from the proposed Unit/revision set: `BLOCK`; name the specific provenance divergence.
+- Release exists but controller is behind: report bounded convergence lag while within the documented sync window; report a concrete failure on source/auth/digest mismatch.
+- Controller has the ManifestDigest but runtime is unhealthy: report the concrete resource/condition (for example ImagePullBackOff, probe failure, or RBAC).
+- Runtime origin differs from the expected Unit/revision set: report the specific provenance divergence.
 
-### Versioned-legacy Unit apply/event diagnosis
+### Historical Unit apply/event diagnosis
 
 For historical bridge-era evidence only, preserve the prior diagnostic procedure:
 
-```bash
+```text
 cub unit get <unit> --space <space> -o jq=.UnitStatus
 cub unit get <unit> --space <space> -o jq=.LatestUnitEvent
 cub unit-event list <unit> --space <space> -o json
 cub unit-action list <unit> --space <space> --where "Action = 'Apply'" -o json
 ```
 
-`UnitStatus` and `LatestUnitEvent` are top-level siblings in the extended `cub unit get` envelope, not fields of `Unit`; the focused jq views avoid conflating them. Interpret the latest matching event/action with `UnitStatus.Status` (`Progressing`, `Completed`, `Failed`, or `Aborted`) and the event `Message`; bind its UnitID/action/event number and revision counters. This is useful to diagnose an archived per-Unit Apply or explain old audit history. It is `VERSIONED_LEGACY` and must never be used as the primary proof for current OCI Space Release/controller/runtime convergence.
+`UnitStatus` and `LatestUnitEvent` are top-level siblings in the extended `cub unit get` envelope, not fields of `Unit`; the focused jq views avoid conflating them. Interpret the latest matching event/action with `UnitStatus.Status` (`Progressing`, `Completed`, `Failed`, or `Aborted`) and the event `Message`; bind its UnitID/action/event number and revision counters. This is useful to diagnose an archived per-Unit Apply or explain old audit history. It is historical evidence only and must never be used as the primary proof for current OCI Space Release/controller/runtime convergence.
 
 For a whole-Space/bulk closeout, compare Release `UnitCount` with the receipt/reconstructed historical manifest, separately show current EffectiveReleaseSet drift, then evaluate every controller/runtime resource represented by the historical manifest. Do not use the old `apply-not-completed` Unit filter as if it described current Release/controller convergence.
 
 ## Close out
 
-Only close out `PASS` when the exact Release, digest-attested historical Target, and historical member manifest are identified and all requested layers agree. State the Component, Variant Space, ReleaseID, bundle Digest, ManifestDigest, historical TargetID, historical member set/UnitCount, current desired-set drift, controller result, runtime result, and any omitted proof. Use `WATCH` for explicitly bounded convergence lag, `BLOCK` for a mismatch/failure, and `ASK` when the user must supply an identity or receipt that cannot be discovered safely.
+Close out as successfully proved only when the exact Release,
+digest-attested historical Target, and historical member manifest are
+identified and all requested layers agree. State the Component, Variant Space,
+ReleaseID, bundle Digest, ManifestDigest, historical TargetID, historical
+member set/UnitCount, current desired-set drift, controller result, runtime
+result, and any omitted proof. Otherwise report bounded convergence lag, a
+concrete mismatch/failure, or the focused identity/receipt decision the user
+must supply.
 
 GUI handoffs retain the review experience with supported commands:
 

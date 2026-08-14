@@ -1,5 +1,5 @@
 {
-  "execution_policy": "PROPOSE_ONLY_UNTIL_EXTERNAL_BROKER",
+  "execution_policy": "STANDALONE_HOST_ASK_WITH_OPTIONAL_OVERLAY",
   "skill_name": "confighub-core",
   "evals": [
     {
@@ -13,7 +13,7 @@
       "id": 2,
       "name": "confusing-target-vs-worker",
       "prompt": "What's the difference between a Target and a Worker in ConfigHub? I keep mixing them up.",
-      "expected_output": "Distinguishes the current model: an OCI Target is the Space Release binding named by Space.ReleaseTargetID; matching Unit TargetIDs define release membership. A server-worker entity backs built-in OCI publication without an external process; an external worker hosts custom functions. Labels direct ConfigHub-provider delivery VERSIONED_LEGACY/BLOCK and routes correctly.",
+      "expected_output": "Distinguishes the current model: an OCI Target is the Space Release binding named by Space.ReleaseTargetID; matching Unit TargetIDs define release membership. A server-worker entity backs built-in OCI publication without an external process; an external worker hosts custom functions. Explains in plain language that direct ConfigHub-provider delivery is historical and unsupported in the reviewed current profile, then routes correctly.",
       "files": []
     },
     {
@@ -55,7 +55,7 @@
       "id": 8,
       "name": "protect-prod-space",
       "prompt": "How do I stop someone from accidentally deleting our prod Space and destroying the live resources?",
-      "expected_output": "Explains Delete Gates vs Unit Destroy Gates, confirms exact current flags with help, and prepares a governed proposal with descriptive gate names. It does not execute protection changes or treat a chat confirmation as authority; BLOCKs pending the broker.",
+      "expected_output": "Explains Delete Gates vs Unit Destroy Gates, confirms exact current flags with installed help, and shows descriptive gate names. Because `How do I stop` asks for guidance rather than execution, it makes zero mutation calls and routes the user to the owning Skill or exact next step. A later explicit change request may submit one exact literal gate command through the host permission system after scope is resolved; an explicit external-overlay stop still produces zero Bash calls.",
       "files": []
     }
   ]

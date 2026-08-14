@@ -2,6 +2,14 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
+# A linked worktree stores Git administration as a `.git` pointer file rather
+# than a directory. Release digests must exclude both forms.
+# shellcheck disable=SC1091
+source "$root/tools/release-artifact-lib.sh"
+if release_source_paths "$root" | rg -qx '\.git'; then
+  printf '%s\n' 'release binding test: FAIL source digest includes linked-worktree .git pointer' >&2
+  exit 1
+fi
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 candidate="$tmp_dir/candidate"
@@ -40,7 +48,7 @@ author=$(git -C "$candidate" show -s --format=%ae HEAD)
 
 jq -n \
   --arg commit "$renewed_commit" --arg package "$renewed_package" --arg author "$author" \
-  '{schema_version:"confighub-skills-external-review/v1",provider:"github",repository:"confighubai/confighub-skills",protected_branch:"main",ruleset_url:"https://github.com/confighubai/confighub-skills/settings/rules/123",decision:"APPROVED",subject:{commit_sha:$commit,package_sha256:$package,commit_author_identity:$author},review:{review_id:"R1",review_url:"https://github.com/confighubai/confighub-skills/pull/123#pullrequestreview-456",reviewer_identity:"codeowner@example.invalid",reviewer_role:"CODEOWNER"}}' >"$tmp_dir/review.json"
+  '{schema_version:"confighub-skills-external-review/v1",provider:"github",repository:"confighub/confighub-skills",protected_branch:"main",ruleset_url:"https://github.com/confighub/confighub-skills/settings/rules/123",decision:"APPROVED",subject:{commit_sha:$commit,package_sha256:$package,commit_author_identity:$author},review:{review_id:"R1",review_url:"https://github.com/confighub/confighub-skills/pull/123#pullrequestreview-456",reviewer_identity:"codeowner@example.invalid",reviewer_role:"CODEOWNER"}}' >"$tmp_dir/review.json"
 
 if "$candidate/tools/verify-release-artifact-manifest" --release \
   --expected-commit "$renewed_commit" --expected-package-digest "$baseline_package" \
@@ -86,11 +94,17 @@ assert_review_invalid() {
 }
 
 jq '.repository = "attacker/fork"' "$tmp_dir/review.json" >"$tmp_dir/wrong-repository.json"
+jq '.repository = "confighubai/confighub-skills"' "$tmp_dir/review.json" >"$tmp_dir/legacy-wrong-owner.json"
+jq '.repository = "confighub/confighub-skills-fork"' "$tmp_dir/review.json" >"$tmp_dir/wrong-repository-name.json"
 jq '.protected_branch = "unprotected"' "$tmp_dir/review.json" >"$tmp_dir/wrong-branch.json"
 jq '.ruleset_url = "https://example.invalid/rules/123"' "$tmp_dir/review.json" >"$tmp_dir/wrong-ruleset-host.json"
+jq '.ruleset_url = "https://github.com/confighubai/confighub-skills/settings/rules/123"' "$tmp_dir/review.json" >"$tmp_dir/wrong-ruleset-repository.json"
 jq '.review.review_url = "https://example.invalid/reviews/456"' "$tmp_dir/review.json" >"$tmp_dir/wrong-review-host.json"
+jq '.review.review_url = "https://github.com/confighub/confighub-skills-fork/pull/123#pullrequestreview-456"' "$tmp_dir/review.json" >"$tmp_dir/wrong-review-repository.json"
 jq '.unexpected = true' "$tmp_dir/review.json" >"$tmp_dir/extra-property.json"
-for case_name in wrong-repository wrong-branch wrong-ruleset-host wrong-review-host extra-property; do
+for case_name in wrong-repository legacy-wrong-owner wrong-repository-name wrong-branch \
+  wrong-ruleset-host wrong-ruleset-repository wrong-review-host \
+  wrong-review-repository extra-property; do
   assert_review_invalid "$case_name" "$tmp_dir/$case_name.json"
 done
 

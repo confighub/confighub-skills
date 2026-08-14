@@ -8,11 +8,11 @@ read-capability-subset: skill-examples-bootstrap
 
 # skill-examples-bootstrap
 
-**Authority boundary:** this companion may inspect the playground and prepare an idempotent bootstrap proposal, but it must not create or update it. The external mutation broker is `NOT_INTEGRATED`, so executable setup ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. Standalone use inspects first, then submits one missing or changed playground object at a time to the host permission system; an external overlay may stop it before Bash.
 
-Updates to existing example Units remain `APPROVED_STATE_CAS_NOT_INTEGRATED`: ConfigHub has transactional expected-head/hash checks, but this companion has no protected digest-pinned action and receipt that carries the reviewed values to execution.
+For an existing example Unit, re-read its head and hash before the write and do not claim atomic reviewed-state binding when the stock convenience command does not accept those values as preconditions.
 
-Prepares and explains an idempotent ConfigHub playground proposal so users can exercise the other skills against a well-formed example after externally authorized creation.
+Prepares and explains an idempotent ConfigHub playground so users can exercise the other skills against a well-formed example after the host permits each requested creation step.
 
 ## When to use
 
@@ -47,7 +47,10 @@ Prepares and explains an idempotent ConfigHub playground proposal so users can e
 
 All workload Units get the defaults chain: `set-container-resources-defaults`, `set-container-probe-defaults`, `set-pod-container-security-context-defaults`, `ensure-namespaces`.
 
-Every mutation call passes `--change-desc` with the user prompt verbatim so the revision history demonstrates provenance end-to-end.
+Every supported Unit-data mutation uses a short safe `--change-desc` summary
+from `references/execution-modes.md`. Never interpolate the verbatim prompt
+into shell text; the shared transcript and command result retain fuller
+context.
 
 ## Preflight gates
 
@@ -59,8 +62,13 @@ Every mutation call passes `--change-desc` with the user prompt verbatim so the 
 ### 1. Detect existing state
 
 ```bash
-cub space get skill-examples 2>/dev/null
-cub unit list --space skill-examples 2>/dev/null
+cub space get skill-examples
+```
+
+If the Space exists, inspect Units in a separate read:
+
+```bash
+cub unit list --space skill-examples
 ```
 
 Branch:
@@ -95,19 +103,14 @@ Example YAML files are stored in `skills/skill-examples-bootstrap/examples/`. Ea
 | `hello-hpa.yaml`         | `hello-hpa`         | HorizontalPodAutoscaler                 |
 | `hello-pdb.yaml`         | `hello-pdb`         | PodDisruptionBudget                     |
 
-Upload each:
+Upload one missing or changed Unit at a time. Resolve `<slug>` to one literal
+name from the table; submit and verify each call before moving to the next:
 
 ```bash
-for slug in hello-ns hello-app hello-statefulset hello-daemonset hello-job \
-            hello-cronjob hello-ingress hello-netpol hello-rbac hello-hpa hello-pdb; do
-  cub unit create --space skill-examples "$slug" \
-    "skills/skill-examples-bootstrap/examples/${slug}.yaml" \
-    --merge-external-source "confighub-skills/skills/skill-examples-bootstrap/examples/${slug}.yaml" \
-    --change-desc "Seed ${slug} for the skill-examples playground.
-
-User prompt: <verbatim>
-Clarifications: <condensed or 'none'>"
-done
+cub unit create --space skill-examples <slug> \
+  skills/skill-examples-bootstrap/examples/<slug>.yaml \
+  --merge-external-source confighub-skills/skills/skill-examples-bootstrap/examples/<slug>.yaml \
+  --change-desc 'Seed reviewed Unit in skill examples playground'
 ```
 
 `--merge-external-source` records each file as the Unit's external source, so re-running this against an already-seeded Space merges the new file content rather than replacing the Unit — anything you tinkered with in ConfigHub survives, unless the file changed the same path.
@@ -118,54 +121,40 @@ done
 
 Each function call is hermetic and idempotent, so re-running on an already-seeded Space produces no-op revisions (and no noise in the history if nothing changes).
 
-On workload Units (`hello-app`, `hello-statefulset`, `hello-daemonset`, `hello-job`, `hello-cronjob`):
+On workload Units (`hello-app`, `hello-statefulset`, `hello-daemonset`,
+`hello-job`, `hello-cronjob`), run one function for one Unit per call. Resolve
+`<workload-slug>` and `<defaults-function>` to literal values from those lists,
+then verify before the next call:
 
 ```bash
-for slug in hello-app hello-statefulset hello-daemonset hello-job hello-cronjob; do
-  for fn in set-container-resources-defaults set-container-probe-defaults \
-            set-pod-container-security-context-defaults ensure-namespaces; do
-    cub function set --space skill-examples --unit "$slug" \
-      --change-desc "Apply $fn to $slug.
-
-User prompt: <verbatim>
-Clarifications: <condensed or 'none'>" \
-      -- "$fn"
-  done
-done
+cub function set --space skill-examples --unit <workload-slug> \
+  --change-desc 'Apply reviewed workload defaults in skill examples' \
+  -- <defaults-function>
 ```
 
 On `hello-ns`:
 
 ```bash
 cub function set --space skill-examples --unit hello-ns \
-  --change-desc "Apply pod-security labels to hello namespace.
-
-User prompt: <verbatim>
-Clarifications: <condensed or 'none'>" \
+  --change-desc 'Apply pod security labels to hello namespace' \
   -- set-pod-security-defaults
 ```
 
-On non-workload Units that have namespaced resources (`hello-ingress`, `hello-netpol`, `hello-rbac`, `hello-hpa`, `hello-pdb`):
+On non-workload Units that have namespaced resources (`hello-ingress`,
+`hello-netpol`, `hello-rbac`, `hello-hpa`, `hello-pdb`), resolve
+`<namespaced-slug>` and submit one call at a time:
 
 ```bash
-for slug in hello-ingress hello-netpol hello-rbac hello-hpa hello-pdb; do
-  cub function set --space skill-examples --unit "$slug" \
-    --change-desc "Apply ensure-namespaces to $slug.
-
-User prompt: <verbatim>
-Clarifications: <condensed or 'none'>" \
-    -- ensure-namespaces
-done
+cub function set --space skill-examples --unit <namespaced-slug> \
+  --change-desc 'Apply namespace defaults in skill examples' \
+  -- ensure-namespaces
 ```
 
 On `hello-rbac`, also disable auto-mounted service account tokens:
 
 ```bash
 cub function set --space skill-examples --unit hello-rbac \
-  --change-desc "Disable automountServiceAccountToken on hello-rbac ServiceAccount.
-
-User prompt: <verbatim>
-Clarifications: <condensed or 'none'>" \
+  --change-desc 'Disable token automount on hello rbac ServiceAccount' \
   -- set-automount-service-account-token-false
 ```
 
@@ -180,8 +169,8 @@ Point them at the GUI and the other skills:
 
 ## Tool boundary
 
-- Host-ASK: read-only `cub` evidence in this skill's declared capability subset; no raw Bash is auto-allowed.
-- Proposal-only: Space/Unit create/update and function mutations; the external broker is required.
+- Host permission: read-only `cub` evidence in this skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: Space/Unit create/update and function mutations each use one exact host-permission call after the idempotent read/compare step.
 - Not allowed: `cub * delete *` (users who want to clean up should do it explicitly), any mutating `kubectl`, any `helm`/`kustomize`.
 
 ## Stop conditions

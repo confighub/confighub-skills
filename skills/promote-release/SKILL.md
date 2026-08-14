@@ -8,7 +8,7 @@ read-capability-subset: promote-release
 
 # promote-release
 
-**Authority boundary:** this companion may run read-only preflight and prepare an exact promotion or approval proposal. It must not execute create, update, approve, promote, or publish operations. The external mutation broker is `NOT_INTEGRATED`, so executable steps end in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After fresh preflight and an exact source/destination/scope preview, standalone use submits one requested promotion to the host permission system; publication is a later, separate host-permission call. An external overlay may stop either step before Bash.
 
 Promote a release forward. There are two mechanisms; pick by scope:
 
@@ -59,7 +59,8 @@ cub mutation list --space <variant-space> <unit> --select "*" \
 
 **Two consequences for the proposal.** One promotion produces *many* revisions per Unit, so there is no single "the revision before the promotion" to restore to — always wrap a promotion in a ChangeSet (below). And an invocation replayed across several variants must select what it changes by name rather than position.
 
-`--squash` gives up both: the range arrives as one rebased diff in one revision. Reach for it when the upstream's revision history is noise in this variant, when the Link relies on the subtraction step to preserve downstream differences (replay has no baseline to subtract from, so subtraction only applies to a squashed merge), or when more than one Link is resolved at once. It is a per-request or per-Link choice, not a property of the Units — the same Link can be squashed on one promotion and walked on the next.
+Use the installed v0.2.15 walked-range behavior and inspect conflicts after
+promotion. Do not add flags that are absent from current help.
 
 ### What a merge may overwrite: protection
 
@@ -67,7 +68,7 @@ cub mutation list --space <variant-space> <unit> --select "*" \
 
 That is the right default for a value the variant is only carrying: a replica count copied down from the base should follow the base when the base changes its mind. It is the wrong default for a value the variant *chose*, and the variant has to say so:
 
-```bash
+```text
 # As the change is made — every path it writes becomes a protected local override.
 cub function set --space <variant-space> --unit <unit> --protect set-replicas 5
 
@@ -120,7 +121,7 @@ Each conflict names the resource, the path, the withheld value, and a reason:
 
 Resolve by taking the upstream's value after all, or by dropping the report:
 
-```bash
+```text
 # What would taking the upstream's value do here? --dry-run writes nothing.
 cub unit conflicts --space <variant-space> <unit> --apply --dry-run -o mutations
 
@@ -147,7 +148,7 @@ To make outstanding conflicts **block** a publish rather than sit there, attach 
 
 ### 1. Seed a base Space — `cub variant upload`
 
-When a protected renderer has already produced a digest-addressed, byte/resource-bounded manifest plus trusted source-closure receipt, you may prepare an upload proposal for exactly that local artifact. This command does **not** render — it stores what you give it. Do not invoke a renderer or accept remote/unpinned/plugin/exec/unbounded input here; route source inspection to `import` and return `RENDER_SOURCE_POLICY_BLOCK` while its protected render wrapper is absent.
+When a protected renderer has already produced a digest-addressed, byte/resource-bounded manifest plus trusted source-closure receipt, you may prepare an upload for exactly that local artifact. This command does **not** render — it stores what you give it. Do not invoke a renderer or accept remote/unpinned/plugin/exec/unbounded input here; route source inspection to `import` and stop while its bounded render wrapper is absent.
 
 ```bash
 cub variant upload \
@@ -199,24 +200,25 @@ Reconcile a variant Space with its recorded upstream, in one command. Three step
 ```bash
 # Preview first — units that would upgrade (with the diff) and units that would be added.
 cub variant promote web-prod --dry-run -o mutations
-
-# Promote, wrapped in a ChangeSet, with a change description.
-cub variant promote web-prod \
-  --changeset web-home/release-2024-06 \
-  --change-desc "Promote web to prod.
-
-User prompt: <verbatim>
-Clarifications: <condensed or 'none'>"
 ```
 
-**Always pass `--changeset`.** The promotion walks the range and records one revision per upstream revision that had an effect, so `--restore <n>` has nothing meaningful to name; `--restore Before:ChangeSet:<slug>` across the Space is the undo. Two other flags worth knowing:
+After the user requests the previewed scope, submit the promotion separately:
 
-- `--squash` records each Unit's range as one rebased diff in one revision instead of walking it. See [It walks the range](#it-walks-the-range-replaying-functions) for when that is the right trade.
-- `--change-order <slug>` promotes one *named* change rather than everything the upstream has reached. The change order fixed its range when it was created, so the upgrade stops where it ends, a Unit it does not cover is passed over, and a Unit that is not where it starts is an error rather than a merge of a different range. It also undoes in one step: `cub unit update --patch --space <variant> --where "Slug LIKE '%'" --restore Before:ChangeOrder:<space>/<change-order>`.
+```bash
+cub variant promote web-prod \
+  --changeset web-home/release-2024-06 \
+  --change-desc 'Promote web to prod'
+```
+
+**Always pass `--changeset`.** The promotion walks the range and records one
+revision per upstream revision that had an effect, so `--restore <n>` has
+nothing meaningful to name; `--restore Before:ChangeSet:<slug>` across the
+Space is the set-wise undo. Installed v0.2.15 help supports `--changeset`,
+`--change-desc`, and `--dry-run`; use only flags present in that help.
 
 After promoting, check what the merge withheld before calling it done:
 
-```bash
+```text
 cub unit list --space <variant-space> --where "Conflicts.*.Reason = 'ProtectedPath'"
 cub unit conflicts --space <variant-space> <unit>
 ```
@@ -225,7 +227,7 @@ Then hand off to `release-publish`. A ChangeSet remains grouping/rollback eviden
 
 **Use the manual ChangeSet flow below instead when** you need to promote only a subset of a Space, push a shared base across *many* Spaces at once, or want explicit ChangeSet open/close/review/set-wise-restore control beyond what `--changeset` on `variant promote` gives.
 
-**Approved-state CAS boundary.** ConfigHub's update provider has a real transactional primitive: caller-supplied `HeadRevisionNum` plus `DataHash`/`ContentHash` can be compared inside the update transaction, and raw patch bodies can carry the values. Stock `cub variant promote` and the current protected companion do not bind the reviewed per-Unit expected state into a digest-pinned final request/receipt. Promotion execution is therefore `APPROVED_STATE_CAS_NOT_INTEGRATED`; this is not evidence that the server lacks Unit CAS.
+**Pre-read race.** ConfigHub's update provider has a real transactional primitive: caller-supplied `HeadRevisionNum` plus `DataHash`/`ContentHash` can be compared inside the update transaction, and raw patch bodies can carry the values. Stock `cub variant promote` does not prove that the reviewed per-Unit expected state was bound into its final request. Revalidate immediately before the one standalone promotion call, disclose the race, and do not claim exact reviewed-state binding. This is not evidence that the server lacks Unit CAS.
 
 ---
 
@@ -237,9 +239,9 @@ For partial scopes or a base→fleet push that spans Spaces. Wrap any multi-Unit
 
 Produce a concrete go / no-go. `--where` is AND-only (run one query per condition, union in the report); `cub unit list` takes at most one `--filter`.
 
-**A. Source is proved** — promoting an unproved env ships problems forward. Read the newest immutable Release and exact Unit heads, then require `verify-apply` PASS (or an explicitly accepted proof gap) for its ManifestDigest/controller/runtime chain:
+**A. Source is proved** — promoting an unproved env ships problems forward. Read the newest immutable Release and exact Unit heads, then require a successful `verify-apply` result (or an explicitly accepted proof gap) for its ManifestDigest/controller/runtime chain:
 
-```bash
+```text
 cub release get --space <app>-<source> --oci-reference latest
 cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
   --select "HeadRevisionNum,LastAppliedRevisionNum,TargetID,ApplyGates" -o json
@@ -259,19 +261,22 @@ Output: **Scope** (exact `--space`/`--filter`/`--where`), **Count**, **Blockers*
 
 ### Proposed sequence — open, upgrade, close
 
+Resolve every placeholder to a literal value before submission. Submit and
+verify each of these as a separate host-permission call; never send the whole
+sequence as one Bash call.
+
 ```bash
-HOME_SPACE=<app>-home ; CHANGESET_REF=$HOME_SPACE/release-$(date +%Y%m%d)-<shortref>
+cub changeset create --space <app>-home release-<YYYYMMDD>-<shortref> --description 'Prepare reviewed promotion'
+```
 
-cub changeset create --space $HOME_SPACE release-<YYYYMMDD>-<shortref> --description "<release desc>"
+```bash
+cub unit update --patch --space <scope-space> <scope-selector> \
+  --changeset <app>-home/release-<YYYYMMDD>-<shortref> --upgrade -o mutations \
+  --change-desc 'Upgrade reviewed scope to upstream head'
+```
 
-cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> \
-  --changeset $CHANGESET_REF --upgrade -o mutations \
-  --change-desc "Upgrade to upstream head as part of <changeset>.
-
-User prompt: <verbatim>
-Clarifications: <condensed>"
-
-cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> --changeset -   # close
+```bash
+cub unit update --patch --space <scope-space> <scope-selector> --changeset -
 ```
 
 **Selectors:**
@@ -287,30 +292,34 @@ If `vet-approvedby` gates the promoted revisions, do not reproduce or propose
 the non-head ChangeSet approval selector retained as
 `non-head-unit-approval` in `compatibility/no-loss-inventory.v1.json`.
 
-The reviewed server rejects every nonempty selector except `HeadRevisionNum`.
-Omitted/`HeadRevisionNum` approval approves each selected Unit's head at
-execution time and has no expected RevisionID/DataHash CAS. That cannot bind
-the earlier reviewed ChangeSet set across a race. Return
-`APPROVAL_HEAD_RACE_BLOCK`; preserve the reviewed UnitID/RevisionID/DataHash
-set as evidence, not as proof of what native approval will approve. Exact
-ChangeSet approval needs a server-side expected-head precondition.
+Installed v0.2.15 help advertises numeric, `LiveRevisionNum`, Tag, and
+ChangeSet selectors. The exact v0.2.21 server implementation is not available
+in this checkout, so confirm the current selector with installed help and
+inspect the result. Do not claim that native approval atomically bound the
+earlier reviewed UnitID/RevisionID/DataHash set unless the provider operation
+actually accepts and verifies those expected values.
 
-Next hand off to `release-publish`, which computes all Units whose TargetID equals the destination Space's `ReleaseTargetID`. If that EffectiveReleaseSet contains Units outside the promoted Filter/ChangeSet, return `ASK` with the broadened set and create a new whole-Space review subject. The future provider-CAS-capable execution shape is:
+Next hand off to `release-publish`, which computes all Units whose TargetID equals the destination Space's `ReleaseTargetID`. If that EffectiveReleaseSet contains Units outside the promoted Filter/ChangeSet, show the broadened set and ask the user to decide before submission. The current publication command shape is:
 
 ```bash
 cub release publish <destination-variant-space>
 ```
 
-Do not self-approve or execute either command. Exact native approval remains head-racy, the existing Unit update CAS is not integrated into a protected approved-state action, Release provider CAS is absent, and the external broker is unavailable. The companion returns `BLOCK` after producing advisory proposals. Only after protected promotion plus provider-CAS-capable, externally authorized publication may `verify-apply` own immutable Release/controller/runtime proof.
+Do not silently combine approval, promotion, and publication. Native approval is head-racy, stock promotion does not bind the pre-read Unit state, and Release publication has no expected-manifest/target precondition. In standalone mode each explicitly requested step is one separate host-permission call after a fresh preview. Only after successful promotion and publication may `verify-apply` gather immutable Release/controller/runtime proof.
 
 ## Rollback
 
-`cub variant promote` and the ChangeSet flow both roll back by moving heads back, followed by a newly reviewed advisory Space Release proposal:
+`cub variant promote` and the ChangeSet flow both roll back by moving heads back, followed by a separately reviewed Space publication:
 
 ```bash
 cub unit update --patch --space <SCOPE_SPACE> <SCOPE_SELECTOR> \
-  --restore "Before:ChangeSet:$CHANGESET_REF" \
-  --change-desc "Rollback <changeset>. User prompt: <verbatim>. Clarifications: <condensed>"
+  --restore 'Before:ChangeSet:<app>-home/<changeset-slug>' \
+  --change-desc 'Rollback reviewed ChangeSet'
+```
+
+After verifying the restore, the user may separately request publication:
+
+```bash
 cub release publish <destination-variant-space>
 ```
 
@@ -318,9 +327,9 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 
 ## Tool boundary
 
-- Host-ASK: read-only preflight/evidence in this skill's declared capability subset; no raw Bash is auto-allowed.
-- Proposal-only: `cub variant upload/create/promote`, ChangeSet/Tag/Filter/Unit upgrade operations, and Release publication. Native approval is `APPROVAL_HEAD_RACE_BLOCK`; promotion/update execution is `APPROVED_STATE_CAS_NOT_INTEGRATED` until the existing server CAS fields are bound through a protected action.
-- Not allowed: retired per-Unit runtime delivery, `kubectl apply`, controller mutation, or any write without the external broker. Hand publication to `release-publish`; merge-conflict changes go through the `cub-mutate` proposal path.
+- Host permission: read-only preflight/evidence in this skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: `cub variant upload/create/promote`, ChangeSet/Tag/Filter/Unit upgrade operations, and Release publication each use one exact host-permission call. Native approval is head-at-execution and stock promotion has the pre-read race above, so do not make stronger exact-artifact claims.
+- Not allowed: retired per-Unit runtime delivery, `kubectl apply`, or controller mutation. Hand publication to `release-publish`; merge-conflict changes go through `cub-mutate`. An external governance overlay may impose additional restrictions.
 
 ## Stop conditions
 
@@ -336,7 +345,7 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 - Variant: `cub variant promote <space> --dry-run` reports zero would-upgrade / would-add after a successful promote; `cub unit list --space <space> --filter platform/needs-upgrade` is empty.
 - Conflicts: `cub unit list --space <space> --where "Conflicts.*.Reason = 'ProtectedPath'"` returns nothing outstanding, or every entry is a deliberate protection the user has seen.
 - Protection held: `cub unit get --space <space> <unit> -o mutations` still lists the variant's own values under **Locally overridden**.
-- ChangeSet: scoped Units no longer match `platform/needs-upgrade`; `cub revision list --space <SCOPE_SPACE> --where "ChangeSet.Slug = '<slug>'"` shows the tagged revisions; `cub changeset get --space $HOME_SPACE <slug>` shows start+end tags (closed).
+- ChangeSet: scoped Units no longer match `platform/needs-upgrade`; `cub revision list --space <scope-space> --where "ChangeSet.Slug = '<slug>'"` shows the tagged revisions; `cub changeset get --space <app>-home <slug>` shows start+end tags (closed).
 
 ## Evidence
 
@@ -351,5 +360,5 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 - `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `not-approved` recipes.
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close, and "Protection and merge conflicts".
 - `references/revisions.md` — `ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`.
-- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated advisory Release proposal), `rollback-revision`, `verify-apply`.
+- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated whole-Space publication), `rollback-revision`, `verify-apply`.
 - `https://docs.confighub.com/markdown/guide/variants.md`, `.../guide/advanced-merging.md`, `.../background/concepts/mutation-sources.md`, `.../background/concepts/component.md`, `.../guide/dependencies.md`.
