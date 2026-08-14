@@ -7,7 +7,7 @@ ConfigHub supports two query languages:
 
 Plus free-text search via `--contains`, and named `Filter` entities that persist queries and can be reused or attached to Spaces.
 
-Always verify flag spellings against `CONFIGHUB_AGENT=1 cub <command> --help` on the current cub version.
+Always verify flag spellings against `cub <command> --help` on the current cub version.
 
 ## `--where` — entity metadata filtering
 
@@ -49,7 +49,7 @@ Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRev
 
 ### Examples
 
-```bash
+```text
 # Identity
 --where "Slug = 'myapp'"
 --where "Slug LIKE 'app-%'"
@@ -108,7 +108,7 @@ Dot-separated paths into the YAML/JSON structure:
 
 ### Examples
 
-```bash
+```text
 # Simple value check
 --where-data "spec.replicas > 1"
 
@@ -150,9 +150,9 @@ cub filter create --space <space> <slug> <From> --where-field "<expr>"
 
 ### Operational Unit-filter recipes
 
-These filters describe ConfigHub revision/policy state. They do **not** prove a current Space Release, controller sync, or runtime convergence. Filter creation is proposal-only while the external broker is absent.
+These filters describe ConfigHub revision/policy state. They do **not** prove a current Space Release, controller sync, or runtime convergence. Filter creation is a separate mutation submitted to the host permission system.
 
-```bash
+```text
 # Unit head differs from the revision most recently captured by publication.
 cub filter create --space "$space" unreleased-head Unit \
   --where-field "HeadRevisionNum != LastAppliedRevisionNum AND TargetID IS NOT NULL"
@@ -176,21 +176,18 @@ cub filter create --space "$space" has-upstream Unit \
 
 The Release EffectiveReleaseSet cannot be inferred from these generic Filters. Read the Space's exact `ReleaseTargetID`, list Units with TargetID selected, and compare equality. `cub release publish` accepts no Filter.
 
-`VERSIONED_LEGACY`: the old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and `unapplied-changes` (`HeadRevisionNum > LiveRevisionNum`) recipes are retained in the no-loss inventory as historical Unit-runtime views. Do not use them for Release/controller/runtime proof.
+The old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and `unapplied-changes` (`HeadRevisionNum > LiveRevisionNum`) recipes are retained in the machine no-loss inventory as historical Unit-runtime views. Do not use them for Release/controller/runtime proof.
 
 ### Using a named Filter
 
-```bash
+```text
 # List.
 cub unit list --space "*" --filter platform/has-apply-gates
 cub unit list --space "$app_space" --filter platform/needs-upgrade
 
 # Act in bulk only on the selected set.
 cub unit update --patch --space "*" --filter platform/needs-upgrade --upgrade \
-  --change-desc "Upgrade all downstream Units to upstream head.
-
-User prompt: <verbatim>
-Clarifications: <condensed>"
+  --change-desc 'Upgrade reviewed downstream Units to upstream head'
 ```
 
 ### As a Trigger scope
@@ -201,7 +198,7 @@ A Filter over `Trigger` entities (not Units) is what gets attached to a Space vi
 
 Change descriptions composed by the mutation skills make revision lookup self-explaining:
 
-```bash
+```text
 cub revision list --space "$space" --where "UpdatedAt > '2026-04-01'"
 cub revision list <unit-slug> --space "$space"
 ```
@@ -210,9 +207,9 @@ The full Revision data model — fields, per-path `MutationSources`, `ApplyGates
 
 ## Getter functions for content extraction
 
-For questions `--where-data` cannot answer cleanly, a specifically reviewed getter function may help. Do not treat `cub function get` as a safe arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output. Name the exact function and flags, ensure it belongs to the active skill's capability subset, and leave execution at host `ASK`; unknown functions are `BLOCK` pending the typed registry/wrapper. Never substitute `function set`, `function do`, or `run`, which can mutate.
+For questions `--where-data` cannot answer cleanly, a specifically reviewed getter function may help. Do not treat `cub function get` as a safe arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output. Name the exact function and flags, ensure it belongs to the active Skill's capability subset, and submit the read to the host permission system. Stop on an unknown function or flag. Never substitute `function set`, `function do`, or `run`, which can mutate.
 
-```bash
+```text
 # Current image for every Deployment across all spaces.
 cub function get --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \

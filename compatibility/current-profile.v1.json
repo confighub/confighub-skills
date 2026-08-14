@@ -1,34 +1,35 @@
 {
   "schema_version": "confighub-skills-compatibility/v1",
-  "plugin_version": "0.4.0",
-  "candidate_base_commit": "de74ac357b88e4a39b22b2afb6a6ff232d91ded5",
-  "profile_id": "cub-0.2.11_server-0.2.15_helm-0.1.0",
-  "reviewed_at": "2026-08-04",
-  "status": "BLOCK_ACTIVATION_STATIC_ONLY",
+  "plugin_version": "0.4.1",
+  "candidate_base_commit": "700fcb3",
+  "profile_id": "cub-0.2.15_server-0.2.21_helm-0.1.0",
+  "reviewed_at": "2026-08-14",
+  "status": "STANDALONE_SOURCE_CANDIDATE",
   "authority": {
-    "knowledge_and_read_only": "AVAILABLE_WITH_HOST_ASK",
-    "raw_bash_autoallow": "BLOCK",
-    "typed_final_argv_wrapper": "NOT_INTEGRATED",
-    "mutation_execution": "BLOCK",
-    "external_approval_broker": "NOT_INTEGRATED",
-    "rule": "The companion may inspect and prepare exact mutation proposals. It must not execute mutations or treat chat approval, ConfigHub revision approval, or a local confirmation flag as execution authorization."
+    "standalone_reads": "HOST_PERMISSION",
+    "standalone_mutations": "HOST_PERMISSION_SINGLE_COMMAND",
+    "plugin_autoallow": false,
+    "optional_governance_overlay": "ABSENT_BY_DEFAULT",
+    "rule": "The standalone pack submits one exact literal command to the host permission system and contributes no allow rule. The host may prompt, allow, or deny it. A separately installed overlay may impose a stricter stop before Bash."
   },
   "installed_profile": {
     "cub_client": {
-      "version": "v0.2.11",
-      "commit": "683dce12c2f26ad151aa9e5763e60b0ac66172a4",
-      "binary_sha256": "0729618f9a6c22dd646e2ef003cc5103206e9fc2c5abdae1c2b444b1f0534553",
-      "binary_path": "/Users/alexis/.confighub/bin/cub",
+      "version": "v0.2.15",
+      "commit": "3e0cad345fbcc60d4761d928f02fccb8dc5def4f",
+      "binary_sha256": "adc0c6cd53e24d91145eacf40947f929d041613393d4afa36e7d009520133051",
+      "binary_name": "cub",
       "go_module_version": "(devel)",
       "build_vcs_modified": true,
       "code_signature": "ADHOC_NO_TEAM_IDENTIFIER",
       "package_manager_receipt": "NOT_FOUND",
-      "provenance_status": "DIRTY_LOCAL_BUILD_NOT_VERIFIED_OFFICIAL_RELEASE_ASSET",
-      "provenance_caveat": "cub version and Go build metadata bind the advertised v0.2.11 commit and this exact binary hash, but go version -m reports vcs.modified=true, the module version is (devel), signing is ad hoc, and no Homebrew receipt or official release-asset checksum was found. Treat source semantics as reviewed for this hash, not the binary as an authenticated official release asset."
+      "provenance_status": "LOCAL_BUILD_NOT_VERIFIED_AS_OFFICIAL_RELEASE_ASSET",
+      "provenance_caveat": "cub version and Go build metadata bind the advertised v0.2.15 commit and reviewed binary hash, but go version -m reports vcs.modified=true, the module version is (devel), signing is ad hoc, and no package-manager receipt or official release checksum was found. Treat installed help and exact local client source as command-shape evidence for this hash, not as official-release provenance."
     },
     "confighub_server": {
-      "version": "v0.2.15",
-      "commit": "eebd77551316efc8c58028f6d4275ab504e17ce7"
+      "version": "v0.2.21",
+      "commit": "770cce6816ad8cbc7169272cbf08277eab0f0eb0",
+      "review_boundary": "RUNTIME_IDENTITY_AND_INSTALLED_CLIENT_HELP_ONLY",
+      "source_checkout_available": false
     },
     "cub_helm_addon": {
       "version": "0.1.0",
@@ -37,9 +38,14 @@
   },
   "unselected_profiles": [
     {
+      "profile_id": "cub-0.2.11_server-0.2.15_helm-0.1.0",
+      "status": "HISTORICAL_REVIEWED_PROFILE",
+      "reason": "This tuple supplied earlier static server-source evidence. Its behavior cases remain history and are not projected onto the current v0.2.15/v0.2.21 runtime."
+    },
+    {
       "profile_id": "cub-0.2.10_server-0.2.11_helm-0.1.0",
-      "status": "BLOCK_UNSELECTED",
-      "reason": "The v0.2.10 client / v0.2.11 server tuple is not the installed authoritative profile and must not be selected by this companion."
+      "status": "HISTORICAL_UNSELECTED_PROFILE",
+      "reason": "This older tuple is preserved only so compatibility history is not lost."
     }
   ],
   "surface_counts": {
@@ -55,13 +61,15 @@
     "release_provider": "OCI",
     "release_target_field": "Space.ReleaseTargetID",
     "effective_release_set": "Units in the selected Space whose Unit.TargetID equals Space.ReleaseTargetID",
-    "release_revision_default": "Each effective Unit head",
-    "release_revision_tagged": "At execution, each effective Unit resolves to the highest Revision currently carrying TagID; tag membership is mutable and is not an immutable RevisionID/DataHash pin.",
+    "release_revision_default": "Installed help says each effective Unit head",
+    "release_revision_tagged": "Installed v0.2.15 help says each effective Unit resolves to the highest Revision currently carrying the TagID and a Unit without that tag falls back to head. Tag membership is mutable; exact v0.2.21 provider implementation was not source-reviewed here.",
     "release_command": "cub release publish <space-slug>",
-    "untagged_publish_side_effect": "When --revision is omitted, publication also creates release-<ReleaseNum> and adds that TagID to every bundled Revision.",
-    "scope_rule": "No Unit, Filter, ChangeSet, cross-Space selector, expected TargetID, expected TagID-to-RevisionID/DataHash mapping, or expected ordered manifest is accepted by release publish. Any narrower intent must be re-presented as whole-Space scope, but review still cannot atomically bind provider execution.",
-    "config_hub_provider_delivery": "VERSIONED_LEGACY_BLOCK",
-    "bridge_or_unit_runtime_delivery": "SUNSET_VERSIONED_LEGACY_BLOCK"
+    "untagged_publish_side_effect": "An earlier reviewed server profile created release-<ReleaseNum> and attached that TagID to bundled Revisions. Current v0.2.21 source is unavailable, so do not assert that side effect without observing the current result.",
+    "scope_rule": "Installed publish help exposes no Unit, Filter, ChangeSet, cross-Space, expected TargetID, expected tag mapping, or expected manifest selector. Re-present narrower intent as whole-Space scope before submission and describe the preview-to-execution race.",
+    "historical_delivery_dispositions": [
+      "VERSIONED_LEGACY_CONFIG_HUB_PROVIDER_DELIVERY",
+      "VERSIONED_LEGACY_BRIDGE_OR_UNIT_RUNTIME_DELIVERY"
+    ]
   },
   "helm_contract": {
     "install_shape": "cub helm install <release-name> <chart-ref>",
@@ -75,92 +83,89 @@
   "known_semantic_gaps": [
     {
       "gap_id": "release-tag-missing-unit-semantics",
-      "status": "BLOCK",
-      "client_help_claim": "A Unit with no matching tagged Revision falls back to its head Revision.",
-      "reviewed_source_observation": "The exact installed server commit returns an error when an effective Unit has no Revision carrying the requested Tag, despite its nearby comment and client help describing head fallback.",
-      "source_checkout_commit": "eebd77551316efc8c58028f6d4275ab504e17ce7",
-      "semantic_change_commit": "fb4276af4888d82d2b6565cb1448ff66941169c5",
-      "exact_installed_server_semantics": "STATICALLY_VERIFIED_ERROR_NOT_LIVE_TESTED",
-      "policy": "For --revision release proposals, require every effective Unit to have the exact tag and bind the resulting RevisionID/DataHash set. Otherwise return BLOCK."
+      "status": "CURRENT_SOURCE_UNAVAILABLE",
+      "current_help_claim": "A Unit with no matching tagged Revision falls back to its head Revision.",
+      "historical_source_observation": "An older reviewed server profile returned an error instead.",
+      "current_policy": "Use the installed-help command shape for ordinary requested publication, disclose the fallback claim, inspect the actual result, and do not claim source-proven selection semantics."
     },
     {
       "gap_id": "mutation-approval-broker",
-      "status": "BLOCK",
-      "observation": "No trusted external verifier is integrated to authenticate approval of an exact mutation proposal.",
-      "policy": "Keep all create, update, approve, promote, publish, withdraw, install, and delete operations proposal-only."
+      "status": "HISTORICAL_POLICY_RETIRED",
+      "historical_observation": "Version 0.4.0 incorrectly made an additional approval service a prerequisite for every standalone change.",
+      "current_policy": "Standalone requested changes use the host permission system. No additional approval component is part of this pack; an optional external overlay owns any stricter policy it injects."
     },
     {
       "gap_id": "raw-bash-final-argv-policy",
-      "status": "BLOCK",
-      "observation": "Claude PreToolUse exposes raw shell text, not final argv. The retired regex/prefix autoallow admitted credentials, secrets, file/plugin/refresh side effects and shell expansion while falsely denying legitimate quoted predicates.",
-      "policy": "Grant no Bash autoallow. Preserve skill-specific read UX through host ASK until a typed wrapper receives skill/capability identity and structured final argv or typed fields, rejects unknown values, and produces a receipt."
+      "status": "AUTOALLOW_DISABLED_STANDALONE_USABLE",
+      "observation": "A raw shell string is not a structured final argv boundary, so the plugin must not preapprove Bash.",
+      "current_policy": "Keep allowed-tools empty and submit one literal scoped command to the host permission system. This limits automatic permission claims; it does not make standalone reads or requested changes unavailable."
     },
     {
       "gap_id": "native-approval-expected-head-cas",
-      "status": "BLOCK",
-      "observation": "Server v0.2.11 rejects every nonempty approval selector except HeadRevisionNum. Omitted/HeadRevisionNum approves the head inside the execution transaction with no expected HeadRevisionNum, RevisionID, or DataHash precondition.",
-      "policy": "Describe native approval as head-at-execution only. Mark non-head selectors VERSIONED_LEGACY/BLOCK and exact reviewed-artifact approval APPROVAL_HEAD_RACE_BLOCK until a server/API precondition exists."
+      "status": "CURRENT_SOURCE_UNAVAILABLE",
+      "observation": "Installed v0.2.15 help advertises numeric, LiveRevisionNum, Tag, and ChangeSet selectors. Exact v0.2.21 server acceptance and atomic preconditions were not source-reviewed.",
+      "current_policy": "Confirm the selector with installed help, submit an explicitly requested scoped approval normally, inspect the result, and do not describe it as exact reviewed-artifact compare-and-swap without provider evidence."
     },
     {
       "gap_id": "approved-unit-state-cas-integration",
-      "status": "BLOCK",
-      "observation": "Server v0.2.11 unit_update.go createUpdateFunction can transactionally compare caller-supplied HeadRevisionNum plus DataHash/ContentHash with the current Unit inside RunInTx. Raw patch bodies can carry those fields. However, the protected companion has no digest-pinned catalog operation that binds the reviewed per-Unit values into final requests and receipts, and stock restore/function/variant-promotion convenience paths do not prove that the approved set was the set checked and mutated.",
-      "policy": "Do not claim the provider lacks a Unit CAS primitive. Return APPROVED_STATE_CAS_NOT_INTEGRATED for authoritative restore, update, patch, function/run, and promotion execution until a protected typed action binds every UnitID, expected HeadRevisionNum, DataHash/ContentHash, requested effect, and resulting RevisionID in one reviewed artifact and receipt."
+      "status": "STRONG_BINDING_NOT_PROVEN",
+      "historical_observation": "An older reviewed Unit update path could compare caller-supplied head and content fields transactionally, while convenience paths did not prove that reviewed values reached execution.",
+      "current_policy": "A fresh pre-read reduces uncertainty but is not atomic. Ordinary requested updates may use the host permission flow; report only the command result and verified post-state, not exact preview-to-execution binding."
     },
     {
       "gap_id": "release-execution-cas",
-      "status": "BLOCK",
-      "observation": "Release publish re-resolves Space.ReleaseTargetID, membership, revisions, TagID-to-RevisionID/DataHash mapping, and gates during execution but accepts no expected target, expected tag mapping, ordered Unit/revision manifest, or proposal digest. A Tag is mutable and the server chooses the highest Revision currently carrying it. Untagged publication also creates release-<ReleaseNum> and tags every bundled Revision.",
-      "policy": "Treat ReleaseProposal as advisory and return RELEASE_EXECUTION_CAS_BLOCK even if an external broker later approves it. Bind the expected tag mapping and untagged auto-tag side effect in the approval subject, and require provider-atomic expected-target/tag-mapping/manifest preconditions before authoritative execution."
+      "status": "STRONG_BINDING_NOT_PROVEN",
+      "observation": "Installed publish help exposes no expected target, tag mapping, ordered Unit/revision manifest, or proposal digest.",
+      "current_policy": "Ordinary requested publication may proceed after whole-Space scope disclosure and a fresh pre-read. Do not claim that the preview was atomically bound to provider execution."
     },
     {
       "gap_id": "historical-release-manifest-retention",
-      "status": "BLOCK",
-      "observation": "Release.UnitCount and the current EffectiveReleaseSet do not identify historical membership. Revision.Releases can reconstruct members only while all linked Revisions survive. Release deletion removes the row, bundle, and server-held manifest/digests even if stale Revision links survive; Revision deletion can erase membership reconstruction.",
-      "policy": "Persist a governed UnitID/RevisionID/RevisionNum/DataHash publication receipt, cross-check Revision.Releases, and block on same-count swaps, deleted members, or missing receipts."
+      "status": "RECEIPT_REQUIRED_FOR_HISTORICAL_PROOF",
+      "observation": "Release.UnitCount and today's target members do not by themselves identify historical bundle membership.",
+      "current_policy": "Retain a UnitID/RevisionID/RevisionNum/DataHash publication receipt when historical membership must be proven. A missing receipt is a proof gap, not proof that an ordinary publish command is unavailable."
     },
     {
       "gap_id": "historical-release-target-attestation",
-      "status": "BLOCK",
-      "observation": "The public Release resource exposes no TargetID or stored Manifest. Server v0.2.11 writes com.confighub.target.id into the OCI manifest committed by ManifestDigest, but cub release get/list cannot return that annotation. Current Space.ReleaseTargetID is not historical evidence.",
-      "policy": "Require a trusted publication receipt containing the digest-matching OCI manifest and target annotation, or an equivalent reviewed digest-addressed registry proof. Otherwise return HISTORICAL_RELEASE_TARGET_UNPROVEN."
+      "status": "RECEIPT_REQUIRED_FOR_HISTORICAL_PROOF",
+      "observation": "The public Release resource does not expose the historical target or stored manifest.",
+      "current_policy": "Use a digest-matching publication or registry receipt for a historical target claim; otherwise name the target proof gap."
     },
     {
       "gap_id": "withdrawal-current-membership-gates",
-      "status": "BLOCK",
-      "observation": "Server v0.2.11 withdrawal checks DestroyGates on current target membership rather than necessarily the withdrawn Release's original members.",
-      "policy": "Compare receipt/Revision.Releases original membership with the current server gate set and return WITHDRAWAL_MEMBERSHIP_DRIFT_BLOCK on any retargeting or proof gap."
+      "status": "CURRENT_SOURCE_UNAVAILABLE",
+      "historical_observation": "An older reviewed server profile checked DestroyGates against then-current target membership during withdrawal.",
+      "current_policy": "Inventory the selected Release and current dependent Units before withdrawal, submit only the exact ReleaseID, and verify the result. Do not project the older provider behavior onto v0.2.21."
     },
     {
       "gap_id": "release-delete-bypasses-withdrawal-gates",
-      "status": "BLOCK",
-      "observation": "Server v0.2.11 Release Delete hard-deletes the row/bundle without calling Withdraw or checkDestroyGates, including when the Release is still Published.",
-      "policy": "Require a verified Published=false withdrawal receipt plus retained target/member/digest evidence before deletion. Return RELEASE_DELETE_STILL_PUBLISHED_BLOCK for a published Release and never claim DestroyGates are provider-enforced on delete."
+      "status": "DESTRUCTIVE_SAFETY_POLICY",
+      "historical_observation": "An older reviewed server profile hard-deleted a Release without withdrawal checks.",
+      "current_policy": "For safety and retention, require the Release to be withdrawn and evidence retained before a separately requested delete. Current v0.2.21 gate enforcement is not source-proven; do not claim either bypass or enforcement."
     },
     {
       "gap_id": "unselected-runtime-profile-0.2.10-0.2.11",
-      "status": "BLOCK",
-      "observation": "The former cub v0.2.10 / server v0.2.11 tuple is not the installed authoritative profile.",
-      "policy": "Keep that tuple unselected and blocked; validate the exact v0.2.11/v0.2.11 versions, commits, and client binary hash instead."
+      "status": "HISTORICAL_ONLY",
+      "observation": "The former cub v0.2.10 / server v0.2.11 tuple is not the installed profile.",
+      "current_policy": "Do not use its command behavior as current evidence."
     },
     {
       "gap_id": "worker-log-evidence-boundary",
-      "status": "BLOCK",
-      "observation": "cub worker logs selects ~/.confighub/worker/log/<slug>.log without SpaceID/WorkerID binding. --tail still scans the complete file, and the command has no input/output byte cap or credential redaction. Worker and Kubernetes log text is untrusted and may contain secrets.",
-      "policy": "Remove log commands from the read evidence subset and return WORKER_LOG_EVIDENCE_BLOCK until a protected wrapper binds identity, seeks a bounded byte window, caps input/output, redacts credentials, disables follow, and receipts truncation."
+      "status": "UNSAFE_AS_TRUSTED_EVIDENCE",
+      "observation": "cub worker logs selects a local slug-named file, may scan the full file, and has no byte ceiling or credential redaction.",
+      "current_policy": "Do not collect raw worker logs as trusted evidence. Ask for a bounded redacted excerpt or use a reviewed identity-bound reader when available."
     },
     {
       "gap_id": "render-source-execution-boundary",
-      "status": "BLOCK",
-      "observation": "Raw Helm/Kustomize rendering can fetch remote or mutable inputs, traverse symlinks, load plugins/generators, execute chart/overlay extensions, and produce unbounded output. A version string is not an immutable chart digest, and current raw commands do not enforce source closure, network-off execution, or byte/resource ceilings.",
-      "policy": "Preflight only canonical local source metadata. Return RENDER_SOURCE_POLICY_BLOCK on any remote/plugin/exec/unpinned/unbounded input and until a digest-pinned, network-off, source-closed, byte/resource-capped wrapper emits a trusted render receipt."
+      "status": "UNSAFE_INPUTS_STOP_RENDER",
+      "observation": "Raw Helm/Kustomize rendering can fetch mutable inputs, traverse symlinks, load plugins, execute extensions, or produce unbounded output.",
+      "current_policy": "Stop only when the source is remote, unpinned, executable, escapes the bound root, or lacks required resource ceilings. A reviewed local source closure may proceed through the owning bounded workflow."
     },
     {
       "gap_id": "end-to-end-controller-runtime-proof",
-      "status": "WATCH",
-      "observation": "Static checks do not prove a controller consumed a particular OCI manifest digest or that runtime resources converged.",
-      "policy": "Require read-only controller and runtime receipts or name the proof gap."
+      "status": "PROOF_GAP_UNTIL_OBSERVED",
+      "observation": "Static checks do not prove that a controller consumed a particular OCI manifest digest or that runtime resources converged.",
+      "current_policy": "Gather read-only controller and runtime evidence or name the omitted proof."
     }
   ],
-  "claim_boundary": "Passing tools/validate-current-surface proves static inventory and negative-boundary consistency for this exact profile. It does not make the plugin activation-ready, mutation-ready, provider-CAS-safe, behaviorally no-loss, or live-delivery-proven."
+  "claim_boundary": "Passing the local validators proves source structure, inventory, command-policy, and deterministic T0 fixtures for this profile. It does not prove model selection, host behavior, provider atomicity, release publication, controller convergence, or live runtime state."
 }

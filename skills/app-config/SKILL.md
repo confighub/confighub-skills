@@ -8,9 +8,9 @@ read-capability-subset: app-config
 
 # app-config
 
-**Authority boundary:** this companion is knowledge/read-only. It may inspect and prepare an exact proposal, but it must not execute create, update, approve, promote, publish, withdraw, install, or delete operations. The external mutation broker is `NOT_INTEGRATED`, so every mutation path ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. In standalone use, submit each exact requested write once to the host permission system; a stricter external overlay may stop it before Bash.
 
-For any function or Unit update, the reviewed expected Unit state must ultimately bind the server's transactional `HeadRevisionNum` plus `DataHash`/`ContentHash` checks. No protected action/receipt carries that approved state today, so execution is `APPROVED_STATE_CAS_NOT_INTEGRATED` even though the provider primitive exists.
+For an existing Unit, read its current `HeadRevisionNum` and `DataHash`/`ContentHash` immediately before the write and disclose that the stock convenience command does not carry those reviewed values as atomic preconditions. That race limits the claim you can make; it does not make this standalone Skill read-only.
 
 Turn a user's application configuration file — `.env`, `.properties`, `.yaml`, `.json`, `.toml`, `.ini`, or plain text — into a versioned ConfigHub Unit, then render it into a Kubernetes `ConfigMap` via an **Upsert link** carrying a `render-configmap` Invocation. No server worker and no Target are needed — rendering is a normal ConfigHub function that runs during link resolution.
 
@@ -88,10 +88,7 @@ DATABASE_SSL_ENABLED=true
 
 ```bash
 cub unit create --space <space> <config-slug> <file> --toolchain AppConfig/<Fmt> \
-  --change-desc "Seed <config-slug> application config from <file>.
-
-User prompt: <verbatim>
-Clarifications: <e.g. 'source: ./app.env at <git ref>'>"
+  --change-desc 'Seed application config from reviewed file'
 ```
 
 `ToolchainType` is locked in here. Edit later with `cub function set`, not by re-creating (you'd lose history).
@@ -100,11 +97,12 @@ Clarifications: <e.g. 'source: ./app.env at <git ref>'>"
 
 `set-*-path` takes the `configSchema` first, then the dotted path, then the value:
 
-```bash
+```text
 cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Env -o mutations \
-  --change-desc "Point DATABASE_HOST at prod. User prompt: <verbatim>. Clarifications: <condensed>" \
+  --change-desc 'Point DATABASE_HOST at prod' \
   -- set-string-path SimpleApp DATABASE_HOST postgres.prod.internal
 cub function set --space <space> --unit <config-slug> --toolchain AppConfig/Properties \
+  --change-desc 'Disable reviewed database SSL setting' \
   -- set-bool-path SimpleApp database.ssl.enabled false
 ```
 
@@ -116,7 +114,7 @@ cub function vet --space <space> --unit <config-slug> --toolchain AppConfig/INI 
 
 ### 4. Create the downstream ConfigMap Unit and resolve its namespace
 
-```bash
+```text
 cub unit create --space <space> <configmap-slug>
 cub link create --space <space> - <configmap-slug> <namespace-slug>   # Needs/Provides fills the namespace placeholder
 ```
@@ -206,7 +204,7 @@ spec:
                 name: confighubplaceholder
 ```
 
-After externally authorized wiring, delivery uses a whole-Space `release-publish` proposal. This skill stops at the exact AppConfig/render/link/workload proposal and read-only postcondition plan.
+After the host permits and the Skill verifies each wiring step, delivery uses a separate whole-Space `release-publish` call. This Skill owns the AppConfig/render/link/workload steps and their read-only postconditions, not publication.
 
 ## Hashing a hand-authored mutable ConfigMap (`set-hash`)
 
@@ -219,10 +217,7 @@ The rendering path above is for config that lives in an AppConfig Unit. When the
 ```bash
 cub function set --space <space> --unit <configmap-slug> \
   --where-resource "ConfigHub.ResourceType = 'v1/ConfigMap'" \
-  --change-desc "Hash the ConfigMap contents so linked workloads roll when it changes.
-
-User prompt: <verbatim>
-Clarifications: <condensed>" \
+  --change-desc 'Hash ConfigMap contents for linked workload rollout' \
   -o mutations \
   -- set-hash data
 ```
@@ -270,8 +265,8 @@ Resolution replaces the placeholder with the hash. When the ConfigMap's `data` c
 
 ## Tool boundary
 
-- Host-ASK: read-only Unit/function/controller/runtime inspection in this skill's declared capability subset; no raw Bash is auto-allowed.
-- Proposal-only: Unit/function/Invocation/Link/Trigger writes; bind exact inputs and use `--change-desc` where supported.
+- Host permission: read-only Unit/function/controller/runtime inspection in this Skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: Unit/function/Invocation/Link/Trigger writes each use one exact host-permission call; bind exact inputs and use `--change-desc` where supported.
 - Not allowed: `kubectl create/edit configmap` (bypasses ConfigHub), raw `ConfigMap` YAML in an `AppConfig/*` Unit (wrong toolchain), multiple schemas in one Unit (`configSchema` is one per Unit), rendering `Secret`s this way (use a SecretStore).
 
 ## Stop conditions
@@ -285,7 +280,7 @@ Resolution replaces the placeholder with the hash. When the ConfigMap's `data` c
 
 1. `cub unit data --space <space> <configmap-slug>` — the rendered `ConfigMap` resource is present (immutable: hashed-name entries; mutable: one stable-named ConfigMap).
 2. After a value change upstream: `cub unit data <configmap-slug>` reflects it (auto-update re-rendered).
-3. After an externally authorized Space Release and controller sync: `kubectl get configmap -n <ns>` shows the hashed name (immutable) or stable name (mutable); mutable-mode pod template `confighub.com/Hash` matches the ConfigMap's hash. Bind this runtime read to the Release/manifest through `verify-apply`.
+3. After a successful Space Release and controller sync: `kubectl get configmap -n <ns>` shows the hashed name (immutable) or stable name (mutable); mutable-mode pod template `confighub.com/Hash` matches the ConfigMap's hash. Bind this runtime read to the Release/manifest through `verify-apply`.
 
 ## Evidence
 

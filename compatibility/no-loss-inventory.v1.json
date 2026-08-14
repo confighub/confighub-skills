@@ -6,16 +6,16 @@
     "skill_count": 15,
     "eval_case_count": 62
   },
-  "candidate_plugin_version": "0.4.0",
+  "candidate_plugin_version": "0.4.1",
   "candidate_base_commit": "de74ac357b88e4a39b22b2afb6a6ff232d91ded5",
   "compatibility_profile": "compatibility/current-profile.v1.json",
-  "global_authority_blocks": [
+  "global_claim_limits": [
     {
       "block_id": "approved-unit-state-cas-integration",
-      "status": "BLOCK",
+      "status": "CLAIM_LIMIT",
       "applies_to": ["unit-restore", "unit-update", "unit-patch", "function-or-run-mutation", "variant-promotion"],
-      "reason": "ConfigHub's transactional HeadRevisionNum plus DataHash/ContentHash checks exist, but no protected digest-pinned action binds the approved per-Unit values through final execution and receipt.",
-      "result": "APPROVED_STATE_CAS_NOT_INTEGRATED"
+      "reason": "An older reviewed ConfigHub path had transactional head and content checks, but the current convenience commands do not prove that previewed values were atomically carried through execution.",
+      "result": "PREVIEW_TO_EXECUTION_ATOMICITY_NOT_PROVEN"
     }
   ],
   "disposition_enum": [
@@ -23,8 +23,10 @@
     "MIGRATED_WITH_PARITY",
     "REPLACED_BY",
     "VERSIONED_LEGACY",
-    "BLOCKED_PENDING_BROKER",
-    "BLOCKED_PENDING_PROVIDER_CAS",
+    "STANDALONE_HOST_PERMISSION",
+    "STANDALONE_HOST_PERMISSION_WITH_CLAIM_LIMIT",
+    "COACHED_TERMINAL_EXECUTION",
+    "CLAIM_LIMIT_PENDING_PROVIDER_CAS",
     "BLOCKED_PENDING_EVIDENCE_PROXY"
   ],
   "deleted_surface_dispositions": [
@@ -41,10 +43,10 @@
       "path": "hooks/auto-allow.sh",
       "surface_kind": "unsafe-authority-mechanism",
       "disposition": "REPLACED_BY",
-      "replacement": "host ASK + compatibility/read-capability-subsets.v1.json + tools/check-installed-permission-state; deterministic final-argv wrapper remains BLOCK/NOT_INTEGRATED",
+      "replacement": "allowed-tools: [] + compatibility/read-capability-subsets.v1.json + tools/check-installed-permission-state + host permission decisions",
       "history": "PRESERVED_IN_GIT",
       "parity": "INTENTIONALLY_NOT_PRESERVED",
-      "reason": "The raw-shell regex hook silently granted authority without final-argv semantics and admitted credential, file, plugin, network, expansion, and unknown-flag cases. Current reads remain host-ASK; authoritative execution stays blocked until the explicitly tracked typed wrapper exists."
+      "reason": "The raw-shell regex hook silently granted permission without final-argv semantics and admitted credential, file, plugin, network, expansion, and unknown-flag cases. The replacement grants no automatic permission and submits one literal scoped call to the host policy."
     }
   ],
   "retired_skill_dispositions": [
@@ -90,7 +92,7 @@
       "capability_id": "unit-runtime-apply-single",
       "disposition": "REPLACED_BY",
       "replacement": "release-publish/space-release-proposal",
-      "scope_effect": "A single-Unit intent cannot be preserved by release publish; disclose the effective whole-Space set and ASK again."
+      "scope_effect": "A single-Unit intent cannot be preserved by release publish; disclose the effective whole-Space set and obtain a focused decision on the changed scope."
     },
     {
       "capability_id": "unit-runtime-apply-filtered-or-cross-space",
@@ -107,7 +109,7 @@
     {
       "capability_id": "changeset-revision-apply",
       "disposition": "MIGRATED_WITH_PARITY",
-      "replacement": "closed ChangeSet plus exact Space Release proposal",
+      "replacement": "closed ChangeSet plus scoped Space Release workflow",
       "scope_effect": "The ChangeSet remains grouping/rollback evidence; it is not a release selector."
     },
     {
@@ -119,8 +121,8 @@
     {
       "capability_id": "apply-specific-revision",
       "disposition": "MIGRATED_WITH_PARITY",
-      "replacement": "advisory release tag proposal with complete tag coverage and expected mutable tag mapping",
-      "scope_effect": "BLOCK unless every effective Unit resolves to a reviewed tagged RevisionID/DataHash, and remain RELEASE_TAG_MAPPING_CAS_BLOCK because the TagID-to-Revision mapping is re-resolved at execution."
+      "replacement": "tagged Space Release with complete tag-resolution preview and mutable-mapping disclosure",
+      "scope_effect": "Installed help says a missing Unit tag falls back to head and tag membership is re-resolved at execution. Disclose both facts and do not claim atomic preview binding without provider evidence."
     },
     {
       "capability_id": "cancel-inflight-unit-apply",
@@ -132,19 +134,19 @@
       "capability_id": "confighub-provider-delivery",
       "disposition": "VERSIONED_LEGACY",
       "replacement": "none in the reviewed current Release path",
-      "scope_effect": "Current release publication requires an OCI provider; preserve knowledge and return BLOCK."
+      "scope_effect": "Current release publication requires an OCI provider; preserve the retired provider knowledge without offering an obsolete execution path."
     },
     {
       "capability_id": "bridge-or-unit-runtime-delivery",
       "disposition": "VERSIONED_LEGACY",
-      "replacement": "release-publish/space-release-proposal",
-      "scope_effect": "ConfigHub v0.2.11 has sunset bridge/per-Unit deploy verbs. Preserve read/diagnostic vocabulary only; never grant execution authority."
+      "replacement": "release-publish/space-release-workflow",
+      "scope_effect": "The last source-reviewed v0.2.11 profile had sunset bridge/per-Unit deploy verbs. Preserve read/diagnostic history only; use current Space Releases for execution."
     },
     {
       "capability_id": "native-revision-approval",
-      "disposition": "BLOCKED_PENDING_PROVIDER_CAS",
-      "replacement": "head-at-execution cub unit approve knowledge only",
-      "scope_effect": "Server v0.2.11 accepts only omitted/HeadRevisionNum and no expected RevisionID/DataHash CAS. Non-head selectors are VERSIONED_LEGACY/BLOCK; exact artifact approval requires a provider precondition."
+      "disposition": "STANDALONE_HOST_PERMISSION_WITH_CLAIM_LIMIT",
+      "replacement": "installed-help-scoped cub unit approve operation",
+      "scope_effect": "Installed v0.2.15 help advertises head, numeric, Live, Tag, and ChangeSet selectors. Current server acceptance and atomic binding are not source-reviewed, so inspect the result and avoid exact-artifact claims."
     }
   ],
   "skills": [
@@ -188,7 +190,7 @@
         {"eval_id": "first-real-layout", "disposition": "PRESERVED"},
         {"eval_id": "suffix-naming-migration", "disposition": "PRESERVED"},
         {"eval_id": "one-resource-per-unit", "disposition": "PRESERVED"},
-        {"eval_id": "protect-prod-space", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "protect-prod-space", "disposition": "PRESERVED"}
       ]
     },
     {
@@ -200,21 +202,21 @@
         {"trigger_id": "apply-preview", "phrases": ["dry-run what would change"], "disposition": "REPLACED_BY", "replacement": "release-publish/fully-enumerated-advisory-preview"},
         {"trigger_id": "publish-release", "phrases": ["publish a release", "cut a release", "pin a release to a tag"], "disposition": "PRESERVED"},
         {"trigger_id": "inspect-release", "phrases": ["get a release", "list releases", "find a release by digest"], "disposition": "PRESERVED"},
-        {"trigger_id": "withdraw-release", "phrases": ["withdraw a release", "unpublish the OCI bundle"], "disposition": "BLOCKED_PENDING_BROKER"},
+        {"trigger_id": "withdraw-release", "phrases": ["withdraw a release", "unpublish the OCI bundle"], "disposition": "STANDALONE_HOST_PERMISSION"},
         {"trigger_id": "cancel-inflight-unit-apply", "phrases": ["cancel the in-flight apply", "stop the stuck apply"], "disposition": "VERSIONED_LEGACY"},
-        {"trigger_id": "delete-release", "phrases": ["permanently delete a release", "delete the stored release bundle"], "disposition": "BLOCKED_PENDING_BROKER"}
+        {"trigger_id": "delete-release", "phrases": ["permanently delete a release", "delete the stored release bundle"], "disposition": "STANDALONE_HOST_PERMISSION"}
       ],
       "capability_dispositions": [
         {"capability_id": "space-release-proposal", "disposition": "MIGRATED_WITH_PARITY"},
-        {"capability_id": "exact-release-subject", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
+        {"capability_id": "exact-release-subject", "disposition": "CLAIM_LIMIT_PENDING_PROVIDER_CAS"},
         {"capability_id": "tagged-release", "disposition": "MIGRATED_WITH_PARITY"},
         {"capability_id": "cancel-inflight", "disposition": "VERSIONED_LEGACY"},
         {"capability_id": "config-hub-provider-apply", "disposition": "VERSIONED_LEGACY"},
         {"capability_id": "release-identity-read", "disposition": "PRESERVED"},
-        {"capability_id": "release-withdrawal-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "release-withdrawal-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "historical-release-manifest", "disposition": "MIGRATED_WITH_PARITY"},
-        {"capability_id": "withdrawal-original-membership-proof", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
-        {"capability_id": "release-deletion-proposal", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"capability_id": "withdrawal-original-membership-proof", "disposition": "CLAIM_LIMIT_PENDING_PROVIDER_CAS"},
+        {"capability_id": "release-deletion-proposal", "disposition": "STANDALONE_HOST_PERMISSION"}
       ],
       "eval_dispositions": [
         {"eval_id": "single-unit-apply-after-mutate", "disposition": "REPLACED_BY", "current_eval": "publish-variant-release-after-mutate"},
@@ -226,12 +228,12 @@
         {"eval_id": "publish-head-release", "disposition": "PRESERVED"},
         {"eval_id": "publish-pinned-to-tag", "disposition": "MIGRATED_WITH_PARITY"},
         {"eval_id": "publish-no-assigned-units", "disposition": "MIGRATED_WITH_PARITY"},
-        {"eval_id": "withdraw-by-id", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "withdraw-blocked-by-gate", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "withdraw-by-id", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "withdraw-blocked-by-gate", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"eval_id": "list-find-by-digest", "disposition": "PRESERVED"},
         {"eval_id": "cancel-inflight-unit-apply", "disposition": "VERSIONED_LEGACY"},
-        {"eval_id": "withdraw-membership-drift", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
-        {"eval_id": "delete-release-retention-proof", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "withdraw-membership-drift", "disposition": "CLAIM_LIMIT_PENDING_PROVIDER_CAS"},
+        {"eval_id": "delete-release-retention-proof", "disposition": "STANDALONE_HOST_PERMISSION"}
       ]
     },
     {
@@ -243,14 +245,14 @@
         {"trigger_id": "restore-via-mutation", "phrases": ["restore a prior revision"], "disposition": "PRESERVED"}
       ],
       "capability_dispositions": [
-        {"capability_id": "function-first-mutation-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "function-first-mutation-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "changeset-grouping", "disposition": "PRESERVED"},
         {"capability_id": "dry-run-diff", "disposition": "PRESERVED"}
       ],
       "eval_dispositions": [
-        {"eval_id": "single-image-bump", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "bulk-replicas-by-label", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "restore-after-bad-change", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "single-image-bump", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "bulk-replicas-by-label", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "restore-after-bad-change", "disposition": "STANDALONE_HOST_PERMISSION"}
       ]
     },
     {
@@ -329,12 +331,12 @@
       "capability_dispositions": [
         {"capability_id": "literal-yaml-authoring", "disposition": "PRESERVED"},
         {"capability_id": "best-practice-defaults", "disposition": "PRESERVED"},
-        {"capability_id": "unit-create-proposal", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"capability_id": "unit-create-proposal", "disposition": "STANDALONE_HOST_PERMISSION"}
       ],
       "eval_dispositions": [
-        {"eval_id": "statefulset-for-redis", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "lock-down-namespace-networking", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "cronjob-with-rbac", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "statefulset-for-redis", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "lock-down-namespace-networking", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "cronjob-with-rbac", "disposition": "STANDALONE_HOST_PERMISSION"}
       ]
     },
     {
@@ -346,19 +348,19 @@
         {"trigger_id": "base-to-fleet", "phrases": ["push the base to every downstream"], "disposition": "PRESERVED"}
       ],
       "capability_dispositions": [
-        {"capability_id": "variant-create", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "variant-create", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "variant-promote-preview", "disposition": "PRESERVED"},
-        {"capability_id": "variant-promote", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"capability_id": "partial-changeset-upgrade", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"capability_id": "native-unit-approval", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"}
+        {"capability_id": "variant-promote", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"capability_id": "partial-changeset-upgrade", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"capability_id": "native-unit-approval", "disposition": "STANDALONE_HOST_PERMISSION_WITH_CLAIM_LIMIT"}
       ],
       "eval_dispositions": [
         {"eval_id": "ready-to-promote-dev-to-staging", "disposition": "PRESERVED"},
         {"eval_id": "source-not-converged", "disposition": "PRESERVED"},
         {"eval_id": "scope-narrowing", "disposition": "PRESERVED"},
-        {"eval_id": "staging-to-prod-bulk", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "single-unit-promotion", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "base-to-fleet-upgrade", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "staging-to-prod-bulk", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "single-unit-promotion", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "base-to-fleet-upgrade", "disposition": "STANDALONE_HOST_PERMISSION"}
       ]
     },
     {
@@ -368,14 +370,14 @@
         {"trigger_id": "rollback-change", "phrases": ["roll back", "revert the release", "undo the ChangeSet", "restore last applied"], "disposition": "MIGRATED_WITH_PARITY"}
       ],
       "capability_dispositions": [
-        {"capability_id": "head-moving-restore", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"capability_id": "changeset-restore", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "head-moving-restore", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"capability_id": "changeset-restore", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "publish-restored-space", "disposition": "MIGRATED_WITH_PARITY"}
       ],
       "eval_dispositions": [
         {"eval_id": "undo-last-release", "disposition": "MIGRATED_WITH_PARITY"},
         {"eval_id": "apply-revision-is-not-rollback", "disposition": "MIGRATED_WITH_PARITY"},
-        {"eval_id": "single-unit-bad-image", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "single-unit-bad-image", "disposition": "STANDALONE_HOST_PERMISSION"}
       ]
     },
     {
@@ -385,13 +387,13 @@
         {"trigger_id": "bootstrap-playground", "phrases": ["set up skill-examples", "give me a Unit to tinker with", "walk me through an example"], "disposition": "PRESERVED"}
       ],
       "capability_dispositions": [
-        {"capability_id": "example-space-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"capability_id": "idempotent-refresh-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "example-space-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"capability_id": "idempotent-refresh-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "guided-walkthrough", "disposition": "PRESERVED"}
       ],
       "eval_dispositions": [
-        {"eval_id": "first-time-bootstrap", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"eval_id": "idempotent-rerun", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "first-time-bootstrap", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"eval_id": "idempotent-rerun", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"eval_id": "walk-through-example", "disposition": "MIGRATED_WITH_PARITY"}
       ]
     },
@@ -403,7 +405,7 @@
         {"trigger_id": "worker-question", "phrases": ["do I need a worker before a target"], "disposition": "PRESERVED"}
       ],
       "capability_dispositions": [
-        {"capability_id": "oci-target-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "oci-target-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "space-release-target-binding", "disposition": "MIGRATED_WITH_PARITY"},
         {"capability_id": "unit-target-materialization", "disposition": "MIGRATED_WITH_PARITY"},
         {"capability_id": "config-hub-provider-target", "disposition": "VERSIONED_LEGACY"}
@@ -422,15 +424,15 @@
         {"trigger_id": "diagnose-gate", "phrases": ["why is this Unit blocked", "what warnings exist"], "disposition": "PRESERVED"}
       ],
       "capability_dispositions": [
-        {"capability_id": "trigger-filter-policy-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "trigger-filter-policy-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"capability_id": "gate-diagnosis", "disposition": "PRESERVED"},
-        {"capability_id": "native-unit-approval", "disposition": "BLOCKED_PENDING_PROVIDER_CAS"},
+        {"capability_id": "native-unit-approval", "disposition": "STANDALONE_HOST_PERMISSION_WITH_CLAIM_LIMIT"},
         {"capability_id": "warning-vs-gate", "disposition": "PRESERVED"}
       ],
       "eval_dispositions": [
-        {"eval_id": "bootstrap-platform-space", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "bootstrap-platform-space", "disposition": "STANDALONE_HOST_PERMISSION"},
         {"eval_id": "diagnose-blocked-apply", "disposition": "PRESERVED"},
-        {"eval_id": "add-custom-policy-no-latest", "disposition": "BLOCKED_PENDING_BROKER"}
+        {"eval_id": "add-custom-policy-no-latest", "disposition": "STANDALONE_HOST_PERMISSION"}
       ]
     },
     {
@@ -466,19 +468,19 @@
         {"trigger_id": "custom-function-worker", "phrases": ["host custom worker functions", "diagnose external worker"], "disposition": "MIGRATED_WITH_PARITY", "evidence_delta": "The job remains visible and produces metadata-grounded diagnosis plus a concrete governed remedy proposal, but raw worker status/log evidence was removed and is dispositioned separately."}
       ],
       "capability_dispositions": [
-        {"capability_id": "server-worker-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
-        {"capability_id": "external-worker-proposal", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"capability_id": "server-worker-proposal", "disposition": "STANDALONE_HOST_PERMISSION"},
+        {"capability_id": "external-worker-proposal", "disposition": "COACHED_TERMINAL_EXECUTION"},
         {"capability_id": "external-worker-read-diagnosis", "disposition": "MIGRATED_WITH_PARITY", "scope_effect": "Use ConfigHub worker metadata and Kubernetes get/describe only; classify no cause that those records do not prove."},
         {"capability_id": "worker-local-status-diagnosis", "disposition": "BLOCKED_PENDING_EVIDENCE_PROXY", "scope_effect": "cub worker status reads local daemon/PID state and is not authoritative worker/controller evidence; a typed identity-bound status adapter is required."},
         {"capability_id": "worker-log-diagnosis", "disposition": "BLOCKED_PENDING_EVIDENCE_PROXY", "scope_effect": "Worker and Kubernetes logs remain blocked until an identity-bound, seek-bounded, byte-capped, redacting, receipted non-follow proxy exists."},
-        {"capability_id": "worker-upgrade-remedy", "disposition": "BLOCKED_PENDING_BROKER", "scope_effect": "A version mismatch may yield an exact cub worker upgrade --dry-run/proposal after same-session help; execution is never implied."},
-        {"capability_id": "worker-credential-remedy", "disposition": "BLOCKED_PENDING_BROKER", "scope_effect": "A missing-secret event may yield a SecretStore/operator provisioning proposal without reading or exposing credential bytes."},
+        {"capability_id": "worker-upgrade-remedy", "disposition": "COACHED_TERMINAL_EXECUTION", "scope_effect": "After same-session help, a version mismatch may yield one exact dry-run step and then a separately coached worker upgrade. Long-running local worker lifecycle stays in the user's terminal."},
+        {"capability_id": "worker-credential-remedy", "disposition": "COACHED_TERMINAL_EXECUTION", "scope_effect": "A missing-secret event routes to operator-owned SecretStore provisioning without reading or exposing credential bytes."},
         {"capability_id": "config-hub-provider-worker", "disposition": "VERSIONED_LEGACY"},
         {"capability_id": "worker-run-positional-slug", "disposition": "PRESERVED"}
       ],
       "eval_dispositions": [
         {"eval_id": "do-i-need-to-run-a-worker", "disposition": "MIGRATED_WITH_PARITY"},
-        {"eval_id": "external-worker-for-custom-functions", "disposition": "BLOCKED_PENDING_BROKER"},
+        {"eval_id": "external-worker-for-custom-functions", "disposition": "COACHED_TERMINAL_EXECUTION"},
         {"eval_id": "diagnose-crashing-external-worker", "disposition": "MIGRATED_WITH_PARITY", "evidence_delta": "Preserves the diagnosis-and-remedy job with metadata-grounded causes and governed proposals; raw status/log evidence is explicitly blocked rather than falsely preserved."}
       ]
     }

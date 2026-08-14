@@ -1,11 +1,11 @@
 # Kubernetes/YAML functions worth knowing
 
-**Authority boundary:** getters, validators, and explain/help calls are read-only. Setters and every `cub function set` or `cub run` example are proposal material only. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`).
+**Execution mode:** follow [How commands run](execution-modes.md). Getters, validators without side-effect flags, and explain/help calls are reads. Setters and every `cub function set` or `cub run` example are separate mutations submitted to the host permission system. This pack preapproves none of them.
 
 Discover full semantics with:
 
 ```bash
-CONFIGHUB_AGENT=1 cub function explain --toolchain Kubernetes/YAML <name>
+cub function explain --toolchain Kubernetes/YAML <name>
 ```
 
 Prefer a function over a hand-edit whenever one fits — functions are hermetic, idempotent, and preserve comments.
@@ -19,7 +19,7 @@ propagating a release — so the path stays eligible for the next upgrade. See
 Get the full built-in function list with:
 
 ```bash
-CONFIGHUB_AGENT=1 cub function list --toolchain Kubernetes/YAML <name>
+cub function list --toolchain Kubernetes/YAML <name>
 ```
 
 ## Getters
@@ -126,7 +126,7 @@ If an entry sets just the minimum (`ResourceName`, `ResourceType`, `Path`, `Valu
 
 ### Examples
 
-```bash
+```text
 # Simple bool.
 cub function vet --space "$s" --where "Slug = '$u'" \
   -- vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2'
@@ -185,7 +185,7 @@ a **mutable ConfigMap you author by hand** rather than render from an AppConfig 
 ```bash
 cub function set --space <space> --unit <configmap-unit> \
   --where-resource "ConfigHub.ResourceType = 'v1/ConfigMap'" \
-  --change-desc "Hash the ConfigMap contents so linked workloads roll on change." \
+  --change-desc 'Hash ConfigMap contents for linked workload rollout' \
   -o mutations \
   -- set-hash data
 ```
@@ -203,14 +203,14 @@ Prefer a purpose-built function when one exists (`set-container-image`, `set-rep
 
 Examples:
 
-```bash
+```text
 # Read — get-yq, non-mutating.
 cub function get --space "$space" --where "Slug = '$unit'" \
   --show output -- get-yq '.spec.template.spec.containers[0].image'
 
 # Write — set-yq, mutating. Always pass --change-desc.
 cub function set --space "$space" --where "Slug = '$unit'" \
-  --change-desc "Bump replicas to 7. User prompt: … Clarifications: …" \
+  --change-desc 'Bump reviewed replicas to 7' \
   -- set-yq '.spec.replicas = 7'
 
 # Subset of documents.
@@ -218,7 +218,7 @@ cub function get --space "$space" --where "Slug = '$unit'" \
   --show output -- get-yq 'select(.kind == "Deployment") | .spec.replicas'
 
 cub function set --space "$space" --where "Slug = '$unit'" \
-  --change-desc "… " \
+  --change-desc 'Apply reviewed Deployment replica update' \
   -- set-yq 'with(select(.kind == "Deployment"); .spec.replicas = 3)'
 ```
 

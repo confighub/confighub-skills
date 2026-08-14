@@ -5,6 +5,7 @@ release_source_paths() {
   (
     cd "$artifact_root" || exit 1
     find . -type f \
+      ! -path './.git' \
       ! -path './.git/*' \
       ! -path './compatibility/release-artifact-manifest.v1.json' \
       -print |

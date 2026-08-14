@@ -1,0 +1,317 @@
+{
+  "schema_version": "confighub-skills-execution-modes/v1",
+  "candidate_plugin_version": "0.4.1",
+  "default_mode": "standalone",
+  "pack_permission": {
+    "allowed_tools_must_be_empty": true,
+    "plugin_autoallow": false,
+    "host_permission_system_is_authority": true,
+    "visible_prompt_is_not_guaranteed": true
+  },
+  "standalone": {
+    "read": "HOST_ASK_READ",
+    "requested_mutation": "HOST_ASK_SINGLE_COMMAND",
+    "success_next": "READ_ONLY_VERIFY",
+    "denied_or_unavailable": "TERMINAL_HANDOFF_AFTER_ZERO_EXECUTIONS",
+    "coached_session": "TERMINAL_HANDOFF_AFTER_ZERO_EXECUTIONS",
+    "changed_scope_effect_or_preconditions": "ASK_FOCUSED_QUESTION_BEFORE_BASH"
+  },
+  "optional_external_overlay": {
+    "explicit_block": "ZERO_BASH",
+    "policy_owner": "external_overlay",
+    "pack_default_assumption": "ABSENT"
+  },
+  "destructive": {
+    "required_first_step": "SAME_SESSION_INSTALLED_HELP_AND_DEPENDENCY_INVENTORY",
+    "mutation_step": "SEPARATE_HOST_ASK_SINGLE_COMMAND",
+    "help_and_mutation_must_not_share_bash_call": true
+  },
+  "single_command_shape": {
+    "exact_cub_invocations": 1,
+    "literal_quoted_argv": true,
+    "change_description": {
+      "source": "MODEL_AUTHORED_SAFE_SUMMARY_NOT_VERBATIM_USER_TEXT",
+      "max_characters": 120,
+      "allowed_characters": "A-Za-z0-9 .,:/_-",
+      "quoting": "SINGLE_QUOTED_LITERAL",
+      "reject_cr_lf_control_or_shell_metacharacters": true
+    },
+    "forbidden": [
+      "ascii-control-character",
+      "carriage-return-or-line-feed",
+      "command-substitution",
+      "backticks",
+      "target-or-value-environment-interpolation",
+      "redirection",
+      "pipeline",
+      "semicolon-list",
+      "and-or-list",
+      "background-list",
+      "loop",
+      "eval",
+      "source",
+      "nested-interpreter"
+    ]
+  },
+  "command_shape_cases": [
+    {
+      "case_id": "literal-single-cub",
+      "command": "cub function set --space myapp-prod --unit checkout -o mutations --change-desc 'Bump checkout image' -- set-container-image checkout ghcr.io/acme/checkout:v0.4.2",
+      "expected": "ADMIT"
+    },
+    {
+      "case_id": "command-substitution",
+      "command": "cub unit update --space $(whoami) checkout ./checkout.yaml",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "backticks",
+      "command": "cub release publish `printf web-prod`",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "environment-target",
+      "command": "cub release publish $TARGET_SPACE",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "pipeline",
+      "command": "cub unit list --space web-prod | cub unit update --patch --space web-prod --where 'Slug LIKE checkout'",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "semicolon-list",
+      "command": "cub variant promote web-prod; cub release publish web-prod",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "and-list",
+      "command": "cub variant promote web-prod && cub release publish web-prod",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "redirection",
+      "command": "cub release publish web-prod > release.txt",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "nested-interpreter",
+      "command": "sh -c 'cub release publish web-prod'",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "or-list",
+      "command": "cub release publish web-prod || cub release publish fallback-prod",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "bare-background",
+      "command": "cub release publish web-prod &",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "embedded-line-feed",
+      "command": "cub release publish web-prod\ncub release publish fallback-prod",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "embedded-carriage-return",
+      "command": "cub release publish web-prod\rcub release publish fallback-prod",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "embedded-control",
+      "command": "cub release publish web-prod\u0007",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "loop",
+      "command": "for space in web-prod api-prod; do cub release publish $space; done",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "source",
+      "command": "source ./scope.sh && cub release publish web-prod",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "eval",
+      "command": "eval 'cub release publish web-prod'",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "safe-model-authored-description",
+      "command": "cub unit update --space web-prod checkout checkout.yaml --change-desc 'Apply reviewed checkout update'",
+      "expected": "ADMIT"
+    },
+    {
+      "case_id": "change-description-command-substitution",
+      "command": "cub unit update --space web-prod checkout checkout.yaml --change-desc 'Apply update '$(whoami)",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "change-description-backticks",
+      "command": "cub unit update --space web-prod checkout checkout.yaml --change-desc 'Apply `whoami` update'",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "change-description-semicolon",
+      "command": "cub unit update --space web-prod checkout checkout.yaml --change-desc 'Apply update; publish next'",
+      "expected": "REJECT"
+    },
+    {
+      "case_id": "change-description-line-feed",
+      "command": "cub unit update --space web-prod checkout checkout.yaml --change-desc 'Apply update\npublish next'",
+      "expected": "REJECT"
+    }
+  ],
+  "deterministic_cases": [
+    {
+      "case_id": "standalone-create-requested",
+      "skill_id": "kubernetes-resources",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 1,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "READ_ONLY_VERIFY"
+    },
+    {
+      "case_id": "standalone-update-requested",
+      "skill_id": "cub-mutate",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 1,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "READ_ONLY_VERIFY"
+    },
+    {
+      "case_id": "standalone-promote-requested",
+      "skill_id": "promote-release",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 1,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "READ_ONLY_VERIFY"
+    },
+    {
+      "case_id": "standalone-publish-requested",
+      "skill_id": "release-publish",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 1,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "READ_ONLY_VERIFY"
+    },
+    {
+      "case_id": "standalone-rollback-requested",
+      "skill_id": "rollback-revision",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 1,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "READ_ONLY_VERIFY"
+    },
+    {
+      "case_id": "standalone-read",
+      "skill_id": "cub-query",
+      "kind": "read",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 0,
+      "expected_executions": 1,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "REPORT_READ"
+    },
+    {
+      "case_id": "standalone-mutation-denied",
+      "skill_id": "cub-mutate",
+      "kind": "mutation",
+      "host_outcome": "deny",
+      "overlay": "absent",
+      "expected_bash_attempts": 1,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 0,
+      "expected_terminal_handoffs": 1,
+      "expected_next": "REPORT_NOTHING_RAN"
+    },
+    {
+      "case_id": "standalone-bash-unavailable",
+      "skill_id": "cub-mutate",
+      "kind": "mutation",
+      "host_outcome": "unavailable",
+      "overlay": "absent",
+      "expected_bash_attempts": 0,
+      "expected_mutation_attempts": 0,
+      "expected_executions": 0,
+      "expected_terminal_handoffs": 1,
+      "expected_next": "REPORT_NOTHING_RAN"
+    },
+    {
+      "case_id": "coached-mutation",
+      "skill_id": "cub-mutate",
+      "kind": "mutation",
+      "host_outcome": "coached",
+      "overlay": "absent",
+      "expected_bash_attempts": 0,
+      "expected_mutation_attempts": 0,
+      "expected_executions": 0,
+      "expected_terminal_handoffs": 1,
+      "expected_next": "REPORT_NOTHING_RAN"
+    },
+    {
+      "case_id": "optional-overlay-block",
+      "skill_id": "release-publish",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "explicit-block",
+      "expected_bash_attempts": 0,
+      "expected_mutation_attempts": 0,
+      "expected_executions": 0,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "REPORT_EXTERNAL_POLICY_STOP"
+    },
+    {
+      "case_id": "scope-expanded-before-call",
+      "skill_id": "release-publish",
+      "kind": "mutation",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "scope_changed": true,
+      "expected_bash_attempts": 0,
+      "expected_mutation_attempts": 0,
+      "expected_executions": 0,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "ASK_FOCUSED_QUESTION"
+    },
+    {
+      "case_id": "destructive-withdraw",
+      "skill_id": "release-publish",
+      "kind": "destructive",
+      "host_outcome": "allow",
+      "overlay": "absent",
+      "same_session_help_complete": true,
+      "expected_bash_attempts": 2,
+      "expected_mutation_attempts": 1,
+      "expected_executions": 2,
+      "expected_terminal_handoffs": 0,
+      "expected_next": "READ_ONLY_VERIFY",
+      "expected_call_order": ["READ_HELP_AND_INVENTORY", "MUTATION"]
+    }
+  ]
+}

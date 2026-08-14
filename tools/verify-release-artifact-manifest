@@ -49,20 +49,20 @@ jq -e '
   (.required | sort) == (["schema_version","provider","repository","protected_branch","ruleset_url","decision","subject","review"] | sort) and
   .properties.schema_version.const == "confighub-skills-external-review/v1" and
   .properties.provider.const == "github" and
-  .properties.repository.const == "confighubai/confighub-skills" and
+  .properties.repository.const == "confighub/confighub-skills" and
   .properties.protected_branch.const == "main" and
-  .properties.ruleset_url.pattern == "^https://github\\.com/confighubai/confighub-skills/settings/rules/[1-9][0-9]*$" and
+  .properties.ruleset_url.pattern == "^https://github\\.com/confighub/confighub-skills/settings/rules/[1-9][0-9]*$" and
   .properties.decision.const == "APPROVED" and
   .properties.subject.type == "object" and .properties.subject.additionalProperties == false and
   (.properties.subject.required | sort) == (["commit_sha","package_sha256","commit_author_identity"] | sort) and
   .properties.review.type == "object" and .properties.review.additionalProperties == false and
   (.properties.review.required | sort) == (["review_id","review_url","reviewer_identity","reviewer_role"] | sort) and
-  .properties.review.properties.review_url.pattern == "^https://github\\.com/confighubai/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$" and
+  .properties.review.properties.review_url.pattern == "^https://github\\.com/confighub/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$" and
   .properties.review.properties.reviewer_role.const == "CODEOWNER"
 ' "$review_schema" >/dev/null || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'packaged review attestation schema is not the closed repository/branch/URL contract'
 jq -e '
   .schema_version == "confighub-skills-local-drift-manifest/v2" and
-  .candidate_plugin_version == "0.4.0" and
+  .candidate_plugin_version == "0.4.1" and
   .algorithm == "sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)" and
   .self_exclusion == "compatibility/release-artifact-manifest.v1.json" and
   .plugin_package.roots == [".claude-plugin","commands","compatibility","hooks","references","skills"] and
@@ -130,9 +130,9 @@ jq -e \
   .schema_version == "confighub-skills-external-review/v1" and
   (keys | sort) == (["schema_version","provider","repository","protected_branch","ruleset_url","decision","subject","review"] | sort) and
   .provider == "github" and
-  .repository == "confighubai/confighub-skills" and
+  .repository == "confighub/confighub-skills" and
   .protected_branch == "main" and
-  (.ruleset_url | type == "string" and test("^https://github\\.com/confighubai/confighub-skills/settings/rules/[1-9][0-9]*$")) and
+  (.ruleset_url | type == "string" and test("^https://github\\.com/confighub/confighub-skills/settings/rules/[1-9][0-9]*$")) and
   .decision == "APPROVED" and
   (.subject | keys | sort) == (["commit_sha","package_sha256","commit_author_identity"] | sort) and
   .subject.commit_sha == $commit and
@@ -140,11 +140,11 @@ jq -e \
   .subject.commit_author_identity == $author and
   (.review | keys | sort) == (["review_id","review_url","reviewer_identity","reviewer_role"] | sort) and
   (.review.review_id | type == "string" and length > 0) and
-  (.review.review_url | type == "string" and test("^https://github\\.com/confighubai/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$")) and
+  (.review.review_url | type == "string" and test("^https://github\\.com/confighub/confighub-skills/pull/[1-9][0-9]*(#pullrequestreview-[1-9][0-9]*)?$")) and
   .review.reviewer_role == "CODEOWNER" and
   (.review.reviewer_identity | type == "string" and length > 0) and
   .review.reviewer_identity != .subject.commit_author_identity
-' "$review_attestation" >/dev/null || emit_block BLOCK_EXTERNAL_REVIEW_EVIDENCE_INVALID 'attestation does not match the closed confighubai/confighub-skills main-branch schema or exact commit/package/distinct APPROVED CODEOWNER review'
+' "$review_attestation" >/dev/null || emit_block BLOCK_EXTERNAL_REVIEW_EVIDENCE_INVALID 'attestation does not match the closed confighub/confighub-skills main-branch schema or exact commit/package/distinct APPROVED CODEOWNER review'
 
 # This repository-local program can validate structure and binding, but it
 # cannot authenticate that the GitHub review/ruleset record came from a

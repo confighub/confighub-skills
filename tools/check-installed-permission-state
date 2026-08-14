@@ -236,33 +236,50 @@ if test -n "$trace_file"; then
 fi
 
 : >"$tmp_dir/block-reasons"
+: >"$tmp_dir/claim-limits"
 test ! -s "$tmp_dir/errors" || printf '%s\n' PERMISSION_STATE_UNREADABLE >>"$tmp_dir/block-reasons"
 mode=$(printf '%s' "$effective" | jq -r '.default_mode // "unset"')
 case "$mode" in auto|bypassPermissions|acceptEdits) printf 'UNSAFE_DEFAULT_PERMISSION_MODE:%s\n' "$mode" >>"$tmp_dir/block-reasons" ;; esac
 test "$(printf '%s' "$effective" | jq '.allow | length')" -eq 0 || printf '%s\n' PERMISSION_ALLOW_RULES_PRESENT >>"$tmp_dir/block-reasons"
 test "$(printf '%s' "$effective" | jq -r '.skip_auto_permission_prompt')" = false || printf '%s\n' SKIP_AUTO_PERMISSION_PROMPT_ENABLED >>"$tmp_dir/block-reasons"
 test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .unsafe_autoallow)] | length')" -eq 0 || printf '%s\n' ENABLED_AUTOALLOW_PLUGIN >>"$tmp_dir/block-reasons"
-test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .digest_binding == "UNBOUND")] | length')" -eq 0 || printf '%s\n' INSTALLED_PLUGIN_DIGEST_UNBOUND >>"$tmp_dir/block-reasons"
+test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .digest_binding == "UNBOUND")] | length')" -eq 0 || printf '%s\n' INSTALLED_PLUGIN_DIGEST_UNBOUND >>"$tmp_dir/claim-limits"
 test "$(printf '%s' "$plugins" | jq '[.[] | select(.active_or_implicitly_active and .digest_binding == "EXTERNAL_DIGEST_MISMATCH")] | length')" -eq 0 || printf '%s\n' INSTALLED_PLUGIN_DIGEST_MISMATCH >>"$tmp_dir/block-reasons"
 trace_mode=$(printf '%s' "$trace" | jq -r '.permission_mode // "unset"')
 case "$trace_mode" in auto|bypassPermissions|acceptEdits) printf 'UNSAFE_TRACE_PERMISSION_MODE:%s\n' "$trace_mode" >>"$tmp_dir/block-reasons" ;; esac
 test "$(printf '%s' "$trace" | jq -r '.status')" != BLOCK_TRACE_SCHEMA_INVALID || printf '%s\n' TRACE_SCHEMA_INVALID >>"$tmp_dir/block-reasons"
-test "$(printf '%s' "$trace" | jq -r '.status')" != BLOCK_TRACE_BEHAVIOR_REJECTED || printf '%s\n' TRACE_BEHAVIOR_REJECTED >>"$tmp_dir/block-reasons"
+if test "$(printf '%s' "$trace" | jq -r '.status')" = BLOCK_TRACE_BEHAVIOR_REJECTED; then
+  if test "$(printf '%s' "$trace" | jq -r '.permission_denials // 0')" -gt 0 &&
+    test "$(printf '%s' "$trace" | jq -r '.result_is_error // false')" = false; then
+    printf '%s\n' HOST_PERMISSION_DENIED_IN_TRACE >>"$tmp_dir/claim-limits"
+  else
+    printf '%s\n' TRACE_BEHAVIOR_REJECTED >>"$tmp_dir/block-reasons"
+  fi
+fi
 
-# Even a clean default-mode trace does not prove final argv is denied: Claude
-# exposes raw shell text to hooks and no typed effect proxy is integrated.
-printf '%s\n' DETERMINISTIC_FINAL_ARGV_DENY_NOT_INTEGRATED >>"$tmp_dir/block-reasons"
+# Raw shell text is insufficient for a plugin-provided automatic permission
+# claim. That is a claim ceiling, not a reason to disable normal host-decided
+# standalone commands: this pack contributes no allow rule.
+printf '%s\n' RAW_SHELL_NO_AUTOMATIC_PERMISSION_CLAIM >>"$tmp_dir/claim-limits"
 
 block_reasons=$(sort -u "$tmp_dir/block-reasons" | jq -Rsc 'split("\n") | map(select(length > 0))')
+claim_limits=$(sort -u "$tmp_dir/claim-limits" | jq -Rsc 'split("\n") | map(select(length > 0))')
 state_error=$(jq -Rsc 'split("\n") | map(select(length > 0)) | if length == 0 then null else join("; ") end' "$tmp_dir/errors")
-status=BLOCK_ACTIVATION_PERMISSION_BOUNDARY
-exit_code=1
+if test "$(printf '%s' "$block_reasons" | jq 'length')" -eq 0; then
+  status=STANDALONE_HOST_PERMISSION_READY
+  activation_allowed=true
+  exit_code=0
+else
+  status=BLOCK_UNSAFE_PERMISSION_OR_INSTALL_STATE
+  activation_allowed=false
+  exit_code=1
+fi
 
 result=$(jq -nc \
-  --arg status "$status" --arg config_dir "$config_dir" --arg project_dir "$project_dir" \
+  --arg status "$status" --arg config_dir "$config_dir" --arg project_dir "$project_dir" --argjson activation_allowed "$activation_allowed" \
   --argjson state_error "$state_error" --argjson settings "$settings" --argjson effective "$effective" \
-  --argjson trace "$trace" --argjson plugins "$plugins" --argjson block_reasons "$block_reasons" \
-  '{status:$status,read_only:true,activation_allowed:false,config_dir:$config_dir,project_dir:$project_dir,state_error:$state_error,settings_layers:$settings,effective_permissions:$effective,trace:$trace,plugins:$plugins,block_reasons:$block_reasons}')
+  --argjson trace "$trace" --argjson plugins "$plugins" --argjson block_reasons "$block_reasons" --argjson claim_limits "$claim_limits" \
+  '{status:$status,read_only:true,activation_allowed:$activation_allowed,standalone_host_permission_allowed:true,plugin_autoallow_allowed:false,automatic_permission_claim_allowed:false,config_dir:$config_dir,project_dir:$project_dir,state_error:$state_error,settings_layers:$settings,effective_permissions:$effective,trace:$trace,plugins:$plugins,block_reasons:$block_reasons,claim_limits:$claim_limits}')
 
 if $json_output; then
   printf '%s\n' "$result"
@@ -271,6 +288,7 @@ else
   printf '%s\n' "$result" | jq -r '.settings_layers[] | "- settings[\(.layer)] \(.path): mode=\(.default_mode // "unset") allow=\(.allow|length) deny=\(.deny|length) ask=\(.ask|length) sha256=\(.sha256)"'
   printf '%s\n' "$result" | jq -r '.plugins[] | "- \(.plugin_id) \(.version): enabled=\(.enabled_state), digest=\(.digest_binding), unsafe_autoallow=\(.unsafe_autoallow), path=\(.install_path)"'
   printf '%s\n' "$result" | jq -r '.block_reasons[] | "- BLOCK: \(.)"'
+  printf '%s\n' "$result" | jq -r '.claim_limits[] | "- CLAIM LIMIT: \(.)"'
 fi
 
 exit "$exit_code"

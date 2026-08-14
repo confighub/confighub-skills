@@ -1,7 +1,7 @@
 {
   "name": "confighub-skills",
-  "description": "Evaluation-only 0.4.0 ConfigHub knowledge/read companion: 15 canonical skills plus a no-tools compatibility stub; activation is BLOCK pending external package/review trust, deterministic permission boundaries, and behavioral traces; authoritative commands remain BLOCK.",
-  "version": "0.4.0",
+  "description": "Standalone ConfigHub operating skills: the host permission policy decides reads and exact scoped changes; Pilot may add optional stricter governance; the pack grants no automatic tool permission.",
+  "version": "0.4.1",
   "author": {
     "name": "ConfigHub"
   },

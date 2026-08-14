@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-semantic-contracts/v1",
-  "candidate_plugin_version": "0.4.0",
+  "candidate_plugin_version": "0.4.1",
   "purpose": "Self-renewable local drift sentinels plus semantic anchors. They detect accidental deletion/trivialization but are not trust, review, CODEOWNER, or release-approval evidence.",
   "minimum_expected_output_chars": 120,
   "skills": [
@@ -8,8 +8,8 @@
       "skill_id": "app-config",
       "skill_path": "skills/app-config/SKILL.md",
       "eval_path": "skills/app-config/evals/evals.json",
-      "skill_sha256": "e12ff4fad33dc610b3f5a76e535ebe7eea59b19a629de882732c7808be4ef816",
-      "eval_sha256": "7349a0cb5ea86547a880e6189309cfcf38cd7c365994d09e2d60e5be468238d3",
+      "skill_sha256": "5dc73b4df3437828b337597502576cb5c1e41556ee7880a2f7d4c828401345e1",
+      "eval_sha256": "7c99de791582f9b3cff6ffcf990ac99fa60db16e30180acfd005d659860e93cf",
       "minimum_skill_bytes": 6000,
       "required_skill_anchors": ["AppConfig/Properties", "render-configmap", "set-string-path"],
       "required_eval_anchors": ["properties-for-java-app", "render-configmap"]
@@ -18,8 +18,8 @@
       "skill_id": "confighub-core",
       "skill_path": "skills/confighub-core/SKILL.md",
       "eval_path": "skills/confighub-core/evals/evals.json",
-      "skill_sha256": "4ac04fd3cb0c1c5a6e4b7ed35dfb9e8a43a100c9444e734ca1eb00598db0db52",
-      "eval_sha256": "66d0c0689757a55b9af302b7e66aed5b1f6faac2c015e3eeb179959ac919b1a8",
+      "skill_sha256": "99729360159656fd1d57c0f029b4b128d7cc24a4323334b7411d2895abe58a48",
+      "eval_sha256": "84e83856b03cb3679c93325bd027a6ddc4e2ed87e9f76dea74e699c9e428f424",
       "minimum_skill_bytes": 7500,
       "required_skill_anchors": ["Configuration as data", "one resource per Unit", "ReleaseTargetID"],
       "required_eval_anchors": ["new-user-tour", "one-resource-per-unit"]
@@ -28,18 +28,18 @@
       "skill_id": "cub-mutate",
       "skill_path": "skills/cub-mutate/SKILL.md",
       "eval_path": "skills/cub-mutate/evals/evals.json",
-      "skill_sha256": "7519213a84862d2a4482a20972005342a38d1c2787990e0c4d5cf3ebc5140bbf",
-      "eval_sha256": "d1ce049f19c946f8b37fbdaf65a3f96ff2932b6289f57b2016b5a5c47438edc7",
+      "skill_sha256": "57948c30f1d3c16932b1650400c92f305add83240edd4c27d26fc314d48a11e5",
+      "eval_sha256": "d79435206a23f9525aea9bc71682a3a631ef84899f7ebcb16e233e967b6b3e49",
       "minimum_skill_bytes": 7000,
-      "required_skill_anchors": ["-o mutations", "--change-desc", "NOT_INTEGRATED"],
+      "required_skill_anchors": ["-o mutations", "--change-desc", "references/execution-modes.md"],
       "required_eval_anchors": ["single-image-bump", "-o mutations"]
     },
     {
       "skill_id": "cub-query",
       "skill_path": "skills/cub-query/SKILL.md",
       "eval_path": "skills/cub-query/evals/evals.json",
-      "skill_sha256": "edb9bfae368c122ded8717502b025557e8299962d6a57e3651e88dfcb98135db",
-      "eval_sha256": "9fa4743aa981bc2c281f7cf5e1bc8212032f3dc43bc45a867ef2743cfb3e7838",
+      "skill_sha256": "63d9152b1d26e84f32dd9be98bf75ea6fdadadb4d5e577fc060a43394a93d265",
+      "eval_sha256": "a4071844fc6c76780528bc983db83269a676a220f5b4cca59abebcc7995af74c",
       "minimum_skill_bytes": 7500,
       "required_skill_anchors": ["desired, published, and runtime are separate", "LastAppliedRevisionNum", "verify-apply"],
       "required_eval_anchors": ["find-release-deployments", "currently running image"]
@@ -48,28 +48,28 @@
       "skill_id": "import",
       "skill_path": "skills/import/SKILL.md",
       "eval_path": "skills/import/evals/evals.json",
-      "skill_sha256": "cc507f69194075b7b29784fcb843736a44937576a4d9697676c732d7c2ad968a",
-      "eval_sha256": "60f40db21c88b7669237ab71bdeacb52893ec596ffa06b68582e57504210fbdd",
+      "skill_sha256": "f979f9a4dae698a26032f30a1b3e72422e96812fa8926ac4b49e531caf9c4733",
+      "eval_sha256": "b009ea28c059efa417d2058ad9f587ff6090de8f74a79ae0eb729839fe545482",
       "minimum_skill_bytes": 5500,
-      "required_skill_anchors": ["HELM_VALUES_COMPATIBILITY", "CONTROLLER_BINDING_UNPROVEN", "cub variant upload"],
-      "required_eval_anchors": ["helm-values-compatibility", "CONTROLLER_BINDING_UNPROVEN"]
+      "required_skill_anchors": ["separate-per-environment compatibility lane", "controller delivery remains unproven", "cub variant upload"],
+      "required_eval_anchors": ["helm-values-compatibility", "delivery remains unproven"]
     },
     {
       "skill_id": "incident-management",
       "skill_path": "skills/incident-management/SKILL.md",
       "eval_path": "skills/incident-management/evals/evals.json",
-      "skill_sha256": "0f9a4b2a54af90106ac68b775c1ebea8d636c62ac7d7b156a3ca3f6f16e23931",
-      "eval_sha256": "0f879a2c61c52eb26ece68f074899ad6068913e235d271831301e65f627f01c3",
+      "skill_sha256": "e78c4f65e96c8c7b4f752e4c07cdcbb57a9b96fc78483a14f7fe458b3e1179f0",
+      "eval_sha256": "d1689a2ed710f1cfece69ee25a41d869822e725dd07587fa577aceb99547f570",
       "minimum_skill_bytes": 3800,
-      "required_skill_anchors": ["Incident: <ticket-id or short slug>", "Shared Units must be sequenced or the scope split", "incident-<YYYYMMDD>-<ticket>"],
-      "required_eval_anchors": ["concurrent-incidents-shared-unit", "verbatim prompt"]
+      "required_skill_anchors": ["Incident: INC-512 rollback checkout to prior image", "Shared Units must be sequenced or", "incident-<YYYYMMDD>-<ticket>"],
+      "required_eval_anchors": ["concurrent-incidents-shared-unit", "short safe summary"]
     },
     {
       "skill_id": "kubernetes-resources",
       "skill_path": "skills/kubernetes-resources/SKILL.md",
       "eval_path": "skills/kubernetes-resources/evals/evals.json",
-      "skill_sha256": "561e7fb0c28468a420ad8f2399c0abf7f46740a599a85e18f045c23f5494ad5a",
-      "eval_sha256": "777afde01d43145424c150cee729b07478949f8a8c5a06684ac1e8be9d1a71c8",
+      "skill_sha256": "b674afb332a8b1ea40d6570793fcc897c38773f4f0a3d05f2cf7a794ef82caf5",
+      "eval_sha256": "a61b908ce1a0f7f149b6eb9f196ac28603989984c7d2b4de9cf7ff1745535245",
       "minimum_skill_bytes": 6000,
       "required_skill_anchors": ["literal YAML", "ConfigHub Units are not a secret vault", "Resource type identified"],
       "required_eval_anchors": ["statefulset-for-redis", "lock-down-namespace-networking"]
@@ -78,28 +78,28 @@
       "skill_id": "promote-release",
       "skill_path": "skills/promote-release/SKILL.md",
       "eval_path": "skills/promote-release/evals/evals.json",
-      "skill_sha256": "fb557fbf8b38446597341cba5ca814b1547166ee31154c19ab1f47145b06668f",
-      "eval_sha256": "ad6590c247aba4d49f3a9709f759b1307b9cecabb32dc1c7fa64119605053466",
+      "skill_sha256": "8ec8db403a3f13e5cc82988ea8c52b891a8401ee11ef122d0d7bc6d47f2b7a6f",
+      "eval_sha256": "c0330b022817b5d0a14c3f39017024ad542a9db2901cc50b1a949c47f988f8e0",
       "minimum_skill_bytes": 8000,
-      "required_skill_anchors": ["APPROVAL_HEAD_RACE_BLOCK", "cub variant promote", "--dry-run"],
-      "required_eval_anchors": ["staging-to-prod-bulk", "APPROVAL_HEAD_RACE_BLOCK"]
+      "required_skill_anchors": ["Pre-read race.", "cub variant promote", "--dry-run"],
+      "required_eval_anchors": ["staging-to-prod-bulk", "promotion pre-read race"]
     },
     {
       "skill_id": "release-publish",
       "skill_path": "skills/release-publish/SKILL.md",
       "eval_path": "skills/release-publish/evals/evals.json",
-      "skill_sha256": "89ad51e82407a1a0a8a441a176b2fa505e8f488bd11516d08dea494d57808e9e",
-      "eval_sha256": "545263d67d0562ffdae5ac4467c6e7a59399d9a0f793f97fcc76471cf0671e19",
+      "skill_sha256": "9a9170fb99776ea37e22fd04ccd847ab9f8092a819a9716569713cbb5baa0171",
+      "eval_sha256": "1d9fd994c887ecc48c48ba7eee4e661b3284f2b0c388a35cb35092cca9598db3",
       "minimum_skill_bytes": 7000,
-      "required_skill_anchors": ["EffectiveReleaseSet", "RELEASE_EXECUTION_CAS_BLOCK", "RELEASE_TAG_MAPPING_CAS_BLOCK", "release-<ReleaseNum>"],
-      "required_eval_anchors": ["publish-pinned-to-tag", "RELEASE_TAG_MAPPING_CAS_BLOCK", "release-<ReleaseNum>"]
+      "required_skill_anchors": ["EffectiveReleaseSet", "preview is not atomically bound to execution", "mutable Tag mapping"],
+      "required_eval_anchors": ["publish-pinned-to-tag", "Tag membership is mutable", "release-<ReleaseNum>"]
     },
     {
       "skill_id": "rollback-revision",
       "skill_path": "skills/rollback-revision/SKILL.md",
       "eval_path": "skills/rollback-revision/evals/evals.json",
-      "skill_sha256": "e5d90bd545ed04a1e6ed2092be7c82be25efd0b281f6f9481b4050ae324660c6",
-      "eval_sha256": "c6d080c4a543acd30c20491b298320847e09d6ebc39106eb69862e11882f72df",
+      "skill_sha256": "8b7b2a1cdf6bbf1013c5883a5e89dd3de49afb0a554e0f2122cbef08608fbd3e",
+      "eval_sha256": "52348427edc69156dc93ea26fad16254e817a04aba18f7742f366596932b5fda",
       "minimum_skill_bytes": 5000,
       "required_skill_anchors": ["cub unit update --restore", "retired-unit-runtime-verbs", "not proof of controller consumption or current runtime state"],
       "required_eval_anchors": ["apply-revision-is-not-rollback", "head-moving restore"]
@@ -108,18 +108,18 @@
       "skill_id": "skill-examples-bootstrap",
       "skill_path": "skills/skill-examples-bootstrap/SKILL.md",
       "eval_path": "skills/skill-examples-bootstrap/evals/evals.json",
-      "skill_sha256": "28c11e1122e077f1d402f9f151b20cf9d904ba0dcd990a7e61127cebda52ed67",
-      "eval_sha256": "2b96d60c8c6b130b6ca44339d2171c00a7c30ec65c94ba86a5c0c8d5787bdd80",
+      "skill_sha256": "730a306cde4b3535762d46d38bb28787cd8a0816049621fec444f3e4906b0ca4",
+      "eval_sha256": "697f9ec5725adcf56f05a5b94a752ad5a90314164b11698a0dc20ee6447d21ad",
       "minimum_skill_bytes": 4800,
-      "required_skill_anchors": ["idempotent bootstrap proposal", "skill-examples", "hello-app"],
+      "required_skill_anchors": ["idempotent ConfigHub playground", "skill-examples", "hello-app"],
       "required_eval_anchors": ["idempotent-rerun", "walk-through-example"]
     },
     {
       "skill_id": "target-bind",
       "skill_path": "skills/target-bind/SKILL.md",
       "eval_path": "skills/target-bind/evals/evals.json",
-      "skill_sha256": "0c2d60bb942c13b660471406d4ae6c6b211eeb2958faa00c25bd4ff71c6d4973",
-      "eval_sha256": "d64e6c344e6e04a9ad447738206811899e366996921993fdfffd6b5bdaa98cb1",
+      "skill_sha256": "9bc2b22e4607a1f542b48c3b95c851fd3f875d249174fa37fe9afb5a9f481a80",
+      "eval_sha256": "6981802db400d687fe07d8387b6a6a6c468cd07f7b51bb70e7db37f851c91cf6",
       "minimum_skill_bytes": 3000,
       "required_skill_anchors": ["Space.ReleaseTargetID", "EffectiveReleaseSet", "ProviderType"],
       "required_eval_anchors": ["single-unit-oci-target", "EffectiveReleaseSet"]
@@ -128,31 +128,31 @@
       "skill_id": "triggers-and-applygates",
       "skill_path": "skills/triggers-and-applygates/SKILL.md",
       "eval_path": "skills/triggers-and-applygates/evals/evals.json",
-      "skill_sha256": "03572193b43f7e9aae9cf6197b6cd4966c93e63a942509106ecd220c2597c5b6",
-      "eval_sha256": "4e434db24163f90f31e4011eff257bfc5d5bbc55c644519358a344806c0c9849",
+      "skill_sha256": "81219252de22ac9a7e065ca4f02551fe6d35e8c479a7806ae5c467237eee260e",
+      "eval_sha256": "4ec97ba72b4b6f21966b05fc73f55dff21fea709375dd3fd3a4d2e800178fbc2",
       "minimum_skill_bytes": 8000,
-      "required_skill_anchors": ["cub unit approve", "APPROVAL_HEAD_RACE_BLOCK", "not external authorization"],
-      "required_eval_anchors": ["diagnose-blocked-apply", "APPROVAL_HEAD_RACE_BLOCK"]
+      "required_skill_anchors": ["cub unit approve", "not source-reviewed", "Host permission likewise does not satisfy"],
+      "required_eval_anchors": ["diagnose-blocked-apply", "exact v0.2.21 server acceptance"]
     },
     {
       "skill_id": "verify-apply",
       "skill_path": "skills/verify-apply/SKILL.md",
       "eval_path": "skills/verify-apply/evals/evals.json",
-      "skill_sha256": "a8a0e3f6d86f297c833d45cfc085feb6f2d074bdc14ccb095372270a38638459",
-      "eval_sha256": "7f3874da71764525b219123bd242405d738a5e239a9c8a2f5c14168bdf556047",
+      "skill_sha256": "11ce12a27eef4b9a62550066231cfaadb8632905d7eb516f87410837c7856081",
+      "eval_sha256": "2793b1b60a15b3409d1468ad1951840475e2f429e4b68679c39af644f6fd2aab",
       "minimum_skill_bytes": 4200,
-      "required_skill_anchors": ["Revision.Releases", "HISTORICAL_RELEASE_MANIFEST_UNPROVEN", "LatestUnitEvent"],
+      "required_skill_anchors": ["Revision.Releases", "historical Release manifest is unproven", "LatestUnitEvent"],
       "required_eval_anchors": ["apply-failed-bad-schema", "bulk-post-apply-triage", "Revision.Releases"]
     },
     {
       "skill_id": "worker-bootstrap",
       "skill_path": "skills/worker-bootstrap/SKILL.md",
       "eval_path": "skills/worker-bootstrap/evals/evals.json",
-      "skill_sha256": "5e5be9955230e0d2e292867aef3d47967a410ae8b93873ba46c16827d5bac7c5",
-      "eval_sha256": "1b8136422dae010d73e83e66e4c3da14c43c72b8e66d6e196998d9438bd4a227",
+      "skill_sha256": "2e925960830c405e8ffb8bee46a131e08638085ac9356c3dd630640f5d2be117",
+      "eval_sha256": "817dacadad66fd050a614cb06e3bf650a5c3096ac6fefb5d7a31182cc7038b68",
       "minimum_skill_bytes": 2800,
-      "required_skill_anchors": ["cobra.ExactArgs(1)", "attempts to create", "WORKER_LOG_EVIDENCE_BLOCK"],
-      "required_eval_anchors": ["external-worker-for-custom-functions", "WORKER_LOG_EVIDENCE_BLOCK"]
+      "required_skill_anchors": ["cobra.ExactArgs(1)", "attempts to create", "Worker log content is also outside the evidence subset"],
+      "required_eval_anchors": ["external-worker-for-custom-functions", "credential-bearing long-running local process"]
     }
   ]
 }

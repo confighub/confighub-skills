@@ -8,21 +8,24 @@ read-capability-subset: rollback-revision
 
 # rollback-revision
 
-**Authority boundary:** this companion may identify and diff the exact restore target, but it must not execute the head-moving restore, approval, or release. The external mutation broker is `NOT_INTEGRATED`, so the exact rollback proposal ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After binding and diffing the exact restore target, standalone use submits one requested head-moving restore to the host permission system. The later whole-Space publication is a separate host-permission call; an external overlay may stop either step before Bash.
 
-Prepare an exact proposal to move a Unit head (or a ChangeSet's worth of heads) back to prior revisions, then prepare a new whole-Space Release proposal.
+Resolve and preview the exact Unit head or ChangeSet scope to restore. On a
+clear standalone rollback request, submit one exact restore through the host
+permission system, verify it, and treat the later whole-Space publication as a
+separate request.
 
 ## `cub unit update --restore` is the only rollback mechanism
 
 Rollback always means: create a new head whose data equals a bound prior Revision, then publish that restored desired state through a newly approved Space Release. Every subsequent mutation branches from the restored head, so the bad state stays gone.
 
-Rollback is a governed head-moving `cub unit update --restore` proposal followed, after external authorization and verification, by a separately approved immutable Space Release proposal. Do not try to replay historical runtime data without moving head: the next mutation or promotion would re-introduce the bad state.
+Rollback is a head-moving `cub unit update --restore` followed, after verification, by a separate immutable Space Release. Each is its own host-permission call. Do not try to replay historical runtime data without moving head: the next mutation or promotion would re-introduce the bad state.
 
 Recognize and refuse the `retired-unit-runtime-verbs` anti-pattern retained in
 `compatibility/no-loss-inventory.v1.json`; the active skill deliberately does
-not reproduce its executable spelling. That versioned bridge-era form could
-deploy old bytes without moving head, so it is **not rollback**. In current
-v0.2.11 the per-Unit apply verb is absent. The durable route is to resolve the
+not reproduce its executable spelling. That historical bridge-era form could
+deploy old bytes without moving head, so it is **not rollback**. The current
+OCI Release profile has no per-Unit apply fallback. The durable route is to resolve the
 requested prior revision to RevisionID/DataHash, create a new head with
 `cub unit update --restore 47`, and then prepare a fresh Space Release.
 
@@ -49,7 +52,6 @@ requested prior revision to RevisionID/DataHash, create a new head with
    - `Tag:<home-space>/<tag>` — a named release marker.
    - `ChangeSet:<home-space>/<slug>` — the end of a ChangeSet.
    - `Before:ChangeSet:<home-space>/<slug>` — the ChangeSet's start tag, i.e. the head each Unit had immediately before the ChangeSet opened (the standard "undo release X" target). The start tag marks a revision that already existed rather than one manufactured by attaching, so a Unit that joined the ChangeSet and never changed rewinds cleanly along with the rest.
-   - `ChangeOrder:<space>/<slug>` / `Before:ChangeOrder:<space>/<slug>` — the same for a change order, which is how a `cub variant promote --change-order` promotion is undone in one step.
    - A revision UUID.
    Treat relative, `LiveRevisionNum`, and `LastAppliedRevisionNum` forms only as resolution aids: read what each resolves to and bind the exact RevisionNum, RevisionID, and DataHash before approval.
 4. The destination currently isn't in the middle of *another* open ChangeSet on the same Units.
@@ -57,7 +59,7 @@ requested prior revision to RevisionID/DataHash, create a new head with
 
 ## Pick the right target
 
-```bash
+```text
 # Inspect history to pick a target.
 cub revision list <unit> --space <space>
 # For a bulk rollback scoped to a ChangeSet, list the ChangeSet's revisions:
@@ -67,77 +69,80 @@ cub revision list --space <space> --filter <app>-home/<app>-app \
 
 Named targets (`Tag:` / `Before:ChangeSet:`) are useful resolution aids, but Tags and ChangeSet metadata are not immutable approval subjects. Resolve any selector now and bind the exact RevisionNum, RevisionID, and DataHash before review; re-resolve before any authorized execution.
 
-Server v0.2.11 can transactionally compare caller-supplied `HeadRevisionNum` and `DataHash`/`ContentHash` during a Unit update, and raw patch entries can carry them. The stock restore path and this companion do not yet bind those expected current-state fields from the approved artifact through the final request and receipt. Keep the restore advisory and return `APPROVED_STATE_CAS_NOT_INTEGRATED`; do not misdescribe this as a missing provider CAS primitive.
+The last source-reviewed v0.2.11 Unit update path could transactionally compare
+caller-supplied `HeadRevisionNum` and `DataHash`/`ContentHash`. That older
+finding is not projected onto the installed v0.2.21 server. The stock v0.2.15
+restore command does not expose those expected current-state fields. Re-read
+immediately before the call, name the race, and do not claim exact
+preview-to-execution binding.
 
 ## Shape A — single-Unit rollback
 
 ```bash
 cub unit update --space <space> <unit> \
   --restore <target> \
-  --change-desc "Rollback <unit> to <target>.
-
-User prompt: <verbatim>
-Clarifications: <condensed — e.g. 'reverting 2026-04-15 image bump; cert-manager v1.17.3 crashed on prod'>"
-
-cub unit diff <unit> --space <space>       # proposed postcondition read
+  --change-desc 'Rollback Unit to reviewed revision'
 ```
 
-After externally authorized restore, hand fresh state to `release-publish`. A single-Unit restore does not imply a single-Unit Release; `release-publish` must show the complete EffectiveReleaseSet and obtain a new approval.
+Then verify separately:
+
+```bash
+cub unit diff <unit> --space <space>
+```
+
+After a successful restore, hand fresh state to `release-publish`. A single-Unit restore does not imply a single-Unit Release; `release-publish` must show the complete EffectiveReleaseSet and obtain a separate host permission for publication.
 
 Optionally tag the new head for future reference:
 
 ```bash
-cub tag create --space <home-space> rollback-$(date +%Y%m%d)-<unit> \
-  --annotation "description=Rollback of <unit> to <target>"
-cub unit tag <home-space>/rollback-<...> --space <space> --unit <unit>
+cub tag create --space <home-space> rollback-<YYYYMMDD>-<unit> \
+  --annotation 'description=Record reviewed Unit rollback'
+```
+
+After verifying the Tag, attach it in a separate call:
+
+```bash
+cub unit tag <home-space>/rollback-<YYYYMMDD>-<unit> --space <space> --unit <unit>
 ```
 
 ## Shape B — ChangeSet rollback (standard post-promotion revert)
 
 This is the standard "undo a release" path, and it's one command per step thanks to the ChangeSet.
 
-**A promotion is nearly always Shape B, not Shape A.** An upgrade or `cub variant promote` walks its range and records **one downstream revision per upstream revision that had an effect** — so a single promotion produces many revisions per Unit, and different Units get different numbers of them. There is no revision number that means "just before the promotion" across the set, and `--restore -1` rewinds one hop of the walk rather than the promotion. If the promotion was wrapped in a ChangeSet (or a change order), `Before:ChangeSet:` / `Before:ChangeOrder:` is the rollback. If it was not, there is no set-wise undo: say so plainly, and reconstruct per Unit from `cub revision list` — the last revision before the first one carrying the promotion's change descriptions.
+**A promotion is nearly always Shape B, not Shape A.** An upgrade or `cub variant promote` walks its range and records **one downstream revision per upstream revision that had an effect** — so a single promotion produces many revisions per Unit, and different Units get different numbers of them. There is no revision number that means "just before the promotion" across the set, and `--restore -1` rewinds one hop of the walk rather than the promotion. If the promotion was wrapped in a ChangeSet, `Before:ChangeSet:` is the set-wise rollback target. If it was not, there is no set-wise undo: say so plainly, and reconstruct per Unit from `cub revision list` — the last revision before the first one carrying the promotion's change descriptions.
+
+Resolve the placeholders to literal values. Submit and verify the Tag first:
 
 ```bash
-HOME_SPACE=<app>-home
-TO_SPACE=<app>-<env-being-rolled-back>
-APP_FILTER=$HOME_SPACE/<app>-app
-CHANGESET_SLUG=<the-release-being-rolled-back>
-CHANGESET_REF=$HOME_SPACE/$CHANGESET_SLUG
-ROLLBACK_TAG=rollback-$CHANGESET_SLUG
-
-# 1. Tag the rollback ahead of the restore so every restored head carries the tag.
-cub tag create --space $HOME_SPACE $ROLLBACK_TAG \
-  --annotation "description=Rollback $CHANGESET_SLUG"
-
-# 2. Bulk restore every Unit in the scope to Before:ChangeSet.
-cub unit update --patch --space $TO_SPACE \
-  --filter $APP_FILTER \
-  --restore "Before:ChangeSet:$CHANGESET_REF" \
-  --tag $HOME_SPACE/$ROLLBACK_TAG \
-  --change-desc "Rollback $CHANGESET_SLUG.
-
-User prompt: <verbatim>
-Clarifications: <condensed — e.g. 'cert-manager crash in prod; reverting per incident #512; staging unaffected'>"
-
-# 3. Hand fresh restored state to release-publish for gate assessment,
-# complete EffectiveReleaseSet disclosure, and a distinct Release proposal.
+cub tag create --space <app>-home rollback-<changeset-slug> --annotation 'description=Record reviewed ChangeSet rollback'
 ```
 
-Each proposed Unit head reverts to its pre-ChangeSet data. Current native approval can approve only the head at execution time and has no expected RevisionID/DataHash CAS, so exact approval remains `APPROVAL_HEAD_RACE_BLOCK`; neither native approval nor the restore authorizes publication. The rollback Tag remains a retrieval marker.
+Then submit the restore as one separate call:
+
+```bash
+cub unit update --patch --space <app>-<environment> \
+  --filter <app>-home/<app>-app \
+  --restore 'Before:ChangeSet:<app>-home/<changeset-slug>' \
+  --tag <app>-home/rollback-<changeset-slug> \
+  --change-desc 'Rollback reviewed ChangeSet for incident'
+```
+
+After verifying the restored heads, hand fresh state to `release-publish` for
+complete EffectiveReleaseSet disclosure and a separate publication decision.
+
+Each Unit head reverts to its pre-ChangeSet data. Current native approval can approve only the head at execution time and has no expected RevisionID/DataHash precondition, so it cannot prove that the revision reviewed earlier was the one approved. Neither native approval nor the restore publishes anything. The rollback Tag remains a retrieval marker.
 
 ## Shape C — rollback then reapply held-back changes (merge / rebase)
 
 If changes were made to the affected Units *after* the ChangeSet that you want to keep (e.g., urgent hotfixes applied after the bad release), a plain restore discards them. Use a 3-way merge instead (per `references/changesets.md`):
 
 ```bash
-# Restore per Shape B, then merge back the kept changes.
-cub unit update --patch --space $TO_SPACE \
-  --filter $APP_FILTER \
+cub unit update --patch --space <app>-<environment> \
+  --filter <app>-home/<app>-app \
   --merge-source Self \
-  --merge-base "Before:ChangeSet:$CHANGESET_REF" \
-  --merge-end "ChangeSet:$CHANGESET_REF" \
-  --change-desc "Merge post-$CHANGESET_SLUG changes onto rollback head"
+  --merge-base 'Before:ChangeSet:<app>-home/<changeset-slug>' \
+  --merge-end 'ChangeSet:<app>-home/<changeset-slug>' \
+  --change-desc 'Merge reviewed changes onto rollback head'
 ```
 
 This is an advanced path. Only reach for it when you've verified the hotfixes actually need preserving.
@@ -147,12 +152,12 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 1. `cub unit get <unit> --space <space> -o yaml` — Data matches the target revision's data.
 2. `cub revision list <unit> --space <space>` — the new head revision has the rollback `--change-desc` (and Tag, for Shape B).
 3. `release-publish` captures the restored heads in an exact new Space Release; `verify-apply` binds its ManifestDigest to controller/runtime proof. Legacy BridgeState/LiveRevision is not cluster proof for OCI delivery.
-4. For Shape B: `cub revision list --space $TO_SPACE --filter $APP_FILTER --tag $HOME_SPACE/$ROLLBACK_TAG` lists one restored revision per intended Unit.
+4. For Shape B: `cub revision list --space <app>-<environment> --filter <app>-home/<app>-app --tag <app>-home/rollback-<changeset-slug>` lists one restored revision per intended Unit.
 
 ## Tool boundary
 
-- Host-ASK: read-only Unit/revision/ChangeSet inspection; this candidate has zero raw Bash autoallow pending a typed wrapper.
-- Proposal-only: `cub unit update --restore`, tags, native approval, and the new Release. Restore execution remains `APPROVED_STATE_CAS_NOT_INTEGRATED`; `release-publish` owns exact publication scope.
+- Host permission: read-only Unit/revision/ChangeSet inspection; the pack preapproves no Bash call.
+- Standalone mutation steps: `cub unit update --restore`, tags, native approval, and the new Release are separate one-command host-permission calls. The restore has the pre-read race described above; `release-publish` owns exact publication scope.
 - Not allowed: historical runtime replay as a rollback, manually matching old data, or rolling back across applications in one scope.
 
 ## Stop conditions
@@ -161,7 +166,7 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 - Scope includes Units from multiple apps' `<app>-home`s. Split the rollback per app; one rollback per app.
 - User wants to delete the rolled-back revisions from history. Not possible, and not desirable — restore creates a new head; the "bad" revisions stay in the audit trail.
 - Rollback target is the Unit's current head (no-op). Tell the user and stop.
-- The promotion being rolled back was not wrapped in a ChangeSet or change order. There is no set-wise restore target; confirm the per-Unit targets with the user before proposing a reconstructed scope.
+- The promotion being rolled back was not wrapped in a ChangeSet. There is no set-wise restore target; confirm the per-Unit targets with the user before submitting a reconstructed scope.
 - The restore would rewind past protection or conflict state the user has not seen. Restore rewinds `MutationSources` — including each path's `Protected` flag — along with `Data`, so a restore also restores which paths the variant owned at that point. Read `cub unit get <unit> -o mutations` before and name the difference.
 
 ## Evidence
@@ -172,7 +177,7 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 ## References
 
 - `references/changesets.md` — `Before:ChangeSet:<slug>` target, bulk restore pattern, 3-way merge for held-back changes.
-- `references/revisions.md` — restore-target syntax (`Tag:`, `ChangeSet:`, `ChangeOrder:`, relative / absolute numbers, UUIDs), the empty start revision, and how restore rewinds `MutationSources` with `Data`.
+- `references/revisions.md` — current restore-target syntax (`Tag:`, `ChangeSet:`, relative / absolute numbers, UUIDs), the empty start revision, and how restore rewinds `MutationSources` with `Data`.
 - `references/filters-and-queries.md` — scoping the rollback via Filter.
 - `references/cub-cli.md` — `--change-desc` scope, `-` sentinel for `--changeset` close.
 - Companion skills: `release-publish` (post-restore whole-Space Release), `cub-mutate` (forward fix when clearer), `promote-release` (the forward counterpart), `verify-apply` (post-rollback checks).

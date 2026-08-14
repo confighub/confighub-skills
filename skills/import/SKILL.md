@@ -8,7 +8,7 @@ read-capability-subset: import
 
 # import
 
-**Authority boundary:** this companion is knowledge/read-only. It may inspect local source metadata and prepare an exact onboarding proposal, but it must not execute a renderer, install, upload, create, promote, publish, or other mutation. The protected render wrapper and external mutation broker are `NOT_INTEGRATED`, so rendering returns `RENDER_SOURCE_POLICY_BLOCK` and onboarding mutations end in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. Standalone use submits one exact requested install, upload, create, promote, or publish step at a time to the host permission system. Rendering still requires the source-closure checks below; stop when remote, executable, mutable, or unbounded inputs make the render unsafe.
 
 This skill preserves two onboarding jobs while aligning them to the installed model:
 
@@ -19,7 +19,7 @@ After onboarding, prefer literal configuration-as-data plus ConfigHub functions 
 
 ## Shared preflight
 
-```bash
+```text
 cub auth status
 cub plugin list                 # is the helm plugin installed?
 cub helm version                # only resolves once it is
@@ -34,7 +34,7 @@ cub release publish --help
 [`confighub/cub-helm`](https://github.com/confighub/cub-helm) and has to be installed before any
 of it resolves:
 
-```bash
+```text
 cub plugin install confighub/cub-helm       # latest release for this platform
 cub plugin install confighub/cub-helm@v1.2.0   # or pin the release tag
 cub plugin upgrade helm                     # later, to pick up a new version
@@ -46,7 +46,11 @@ authenticates using the current `cub` session (`cub` passes `CUB_SERVER` / `CUB_
 invokes a plugin), so `cub auth login` must have run first. If `cub helm` is absent, say so and
 propose the install rather than reaching for stock `helm`.
 
-The reviewed profile is exactly cub client v0.2.11, server v0.2.11, and cub helm add-on 0.1.0 (commits and client binary hash in `compatibility/current-profile.v1.json`). A different profile is `WATCH` or `BLOCK` until its help and semantics are reviewed; v0.2.10/v0.2.11 is explicitly unselected.
+The current profile records cub client v0.2.15, server v0.2.21, and cub helm
+add-on 0.1.0 in `compatibility/current-profile.v1.json`. Use installed help for
+current command shape. Exact v0.2.21 server source is unavailable, which limits
+strong provider-semantic claims but does not by itself block an ordinary,
+explicitly requested standalone operation.
 
 Before proposing any write, bind the organization/context, component, release name, chart or overlay source, pinned source revision/version, Variant Space slug, namespace, target, expected Unit set, and proof plan.
 
@@ -54,7 +58,10 @@ Before proposing any write, bind the organization/context, component, release na
 
 Run only the static `tools/check-render-source` preflight over one approved local source root. It canonicalizes the root, inventories regular-file count/bytes, rejects every symlink rather than following it, rejects duplicate YAML keys, and parses the reviewed Helm/Kustomize source fields without executing either renderer. For Helm it scans template actions throughout the tree (including unpacked vendored subcharts), blocks `lookup` and dynamic `tpl`, and refuses opaque dependency archives. For Kustomize it is version-bound to kustomize v5.8.1 / API module v0.21.1: it resolves `openapi.path`, resources/bases/components, CRDs/configurations, patch/replacement paths, and ConfigMap generator files/envs; it rejects unknown top-level or file-bearing nested fields, ambiguous `patchesStrategicMerge`, Secret generators, plugins, validators, and Helm inflators. Stop on any remote, absolute, escaping, missing, wrong-type, or unsupported reference.
 
-A static pass is only `SOURCE_PREFLIGHT_PASS_RENDER_STILL_BLOCKED`. It does not create a trusted source digest or dependency-lock receipt, prove renderer egress is off, inspect a packaged archive, or bound rendered output/resources.
+A successful static preflight proves only the inspected local source metadata.
+It does not create a trusted source digest or dependency-lock receipt, prove
+renderer egress is off, inspect a packaged archive, or bound rendered
+output/resources.
 
 Raw `cub helm template`, `helm template`, `kustomize build`, and `kubectl kustomize` do not enforce that source closure or a rendered-byte/resource ceiling. The future wrapper specified by `compatibility/render-source-policy.v1.json` must run with network off, a read-only source closure, digest-pinned renderer, explicit source/output/document/resource bounds, secret scanning, and a truncation/input receipt. No such wrapper exists in this candidate, so passing static source inspection does not authorize a render.
 
@@ -79,9 +86,9 @@ Rendering is entirely client-side and never contacts a cluster: Helm hooks are d
 
 ### Render remains blocked
 
-After source preflight, record the exact local chart digest, vendored dependency digests, values-file digests, and intended renderer digest. Do not invoke `cub helm template` (the plugin's offline preview of the Units `install` would create) or another Helm renderer from this skill. A remote chart reference or version string alone is not a content pin and may trigger repository/network refresh. Return `RENDER_SOURCE_POLICY_BLOCK` until the protected wrapper exists. A separately supplied render artifact may be inspected as untrusted input, but it is not attributed to these sources without a trusted render receipt.
+After source preflight, record the exact local chart digest, vendored dependency digests, values-file digests, and intended renderer digest. Do not invoke `cub helm template` (the plugin's offline preview of the Units `install` would create) or another Helm renderer from this skill. A remote chart reference or version string alone is not a content pin and may trigger repository/network refresh. Stop before rendering until a network-off, byte/resource-capped wrapper exists. A separately supplied render artifact may be inspected as untrusted input, but it is not attributed to these sources without a trusted render receipt.
 
-### Install proposal
+### Install
 
 ```bash
 cub helm install <release-name> <chart-ref> \
@@ -105,13 +112,13 @@ cub variant create <variant> <component>-base \
 
 The destination slug defaults to `<component>-<variant>`. With an OCI target, the command sets Unit TargetIDs and the new Space's `ReleaseTargetID`. For a target created by `cub cluster up`, current `cub variant create --target` also creates the Argo CD Application unless `--no-argo-app` is explicitly chosen; that is a material side effect and must be in the proposal scope.
 
-For dev, staging, and prod, propose one Variant per environment with its exact namespace/target/gates. Do not re-run Helm install into arbitrary env Spaces.
+For dev, staging, and prod, use one Variant per environment with its exact namespace/target/gates. Do not re-run Helm install into arbitrary env Spaces.
 
 ### Compatibility lane: materially different per-environment values
 
 The shared-base route is correct only when environment differences can be expressed after rendering through namespace substitution and governed ConfigHub mutations. If the user's existing `values-dev.yaml`, `values-staging.yaml`, and `values-prod.yaml` materially change rendered resources and migration is not part of this change, preserve that job through **independent environment components**:
 
-```bash
+```text
 cub helm install <release>-<environment> <chart-ref> \
   --component <component>-<environment> \
   --version <pinned-version> \
@@ -125,15 +132,15 @@ cub variant create <environment> <component>-<environment>-base \
 
 The explicit space pattern keeps the deployment Space at `<component>-<environment>`; without it, the independent Component label plus Variant label would default to the duplicate `<component>-<environment>-<environment>`. This is intentionally different from the recommended shared component. Each environment gets its own HelmSource/base and upgrade stream; `cub variant promote` cannot flow one shared base across them. Bind and retain the exact values-file digest, chart digest/version, renderer/add-on version, rendered Unit identities, and environment target in each proposal. Never pretend a values file was absorbed into the ordinary shared Variant when it actually changed the rendered base.
 
-Label this `HELM_VALUES_COMPATIBILITY`, explain the lost shared-promotion benefit, and offer a later migration: establish one common HelmSource/base, express durable environment differences on Variants with ConfigHub functions, diff every resource, then retire the independent components only after equivalence proof.
+Call this the separate-per-environment compatibility lane, explain the lost shared-promotion benefit, and offer a later migration: establish one common HelmSource/base, express durable environment differences on Variants with ConfigHub functions, diff every resource, then retire the independent components only after equivalence proof.
 
-### Publish proposal
+### Publish
 
 ```bash
 cub release publish <component>-<variant>
 ```
 
-Hand off to `release-publish` first: it must compute the exact EffectiveReleaseSet and obtain new whole-Space approval. This skill never executes publication.
+Hand off to `release-publish` first: it must compute the exact EffectiveReleaseSet and obtain a separate whole-Space host permission. This Skill does not own the publication call.
 
 ### Upgrade without losing downstream edits
 
@@ -157,7 +164,7 @@ Then preview each downstream Variant:
 cub variant promote <component>-<variant> --dry-run -o mutations
 ```
 
-If the merge is expected, prepare a governed `cub variant promote <component>-<variant> --changeset <component>-home/<slug>` proposal — the promotion walks the range and records one revision per upstream revision, so the ChangeSet is what makes it undoable. Downstream ConfigHub edits are merge inputs, and what the merge withheld shows up in `cub unit conflicts` rather than as a failure: check it explicitly before calling the promotion clean. Conflicts are `BLOCK` here, not permission to overwrite. After promotion, build a fresh `release-publish` ReleaseProposal. See `promote-release`.
+If the merge is expected, use `promote-release` to preview and invoke `cub variant promote <component>-<variant> --changeset <component>-home/<slug>` — the promotion walks the range and records one revision per upstream revision, so the ChangeSet is what makes it undoable. Downstream ConfigHub edits are merge inputs, and what the merge withheld shows up in `cub unit conflicts` rather than as a failure: check it explicitly before calling the promotion clean. Conflicts require a stop and decision, not permission to overwrite. After promotion, build a fresh whole-Space preview in `release-publish`.
 
 ### Helm stop conditions
 
@@ -170,7 +177,7 @@ If the merge is expected, prepare a governed `cub variant promote <component>-<v
 - proposed flags are not present in installed help;
 - upgrade would delete or unexpectedly rename file-derived Units;
 - variant promotion conflicts or expands scope;
-- external mutation broker is absent.
+- the host denies the command or an external governance overlay blocks it.
 
 ---
 
@@ -180,7 +187,7 @@ This skill covers a local `kustomization.yaml`, not a Flux `Kustomization` CRD o
 
 ### Kustomize source preflight; render blocked
 
-Inspect `kustomization.yaml` and the enumerated v0.21.1 file-bearing fields as data. The checker resolves every admitted path relative to its Kustomization and inside the canonical root, while unknown fields and unsupported executable/ambiguous forms fail closed. This is conservative static source closure, not a general proof for future Kustomize schemas. `kustomize build` and `kubectl kustomize` remain `RENDER_SOURCE_POLICY_BLOCK` because this companion has no network-off, read-only, byte/resource-capped renderer or trusted render receipt. Rendered Secrets remain out of scope for ConfigHub Units.
+Inspect `kustomization.yaml` and the enumerated v0.21.1 file-bearing fields as data. The checker resolves every admitted path relative to its Kustomization and inside the canonical root, while unknown fields and unsupported executable/ambiguous forms fail closed. This is conservative static source closure, not a general proof for future Kustomize schemas. Do not run `kustomize build` or `kubectl kustomize` until a network-off, read-only, byte/resource-capped renderer can produce a trusted receipt. Rendered Secrets remain out of scope for ConfigHub Units.
 
 ### Recommended migration: one base plus ConfigHub Variants
 
@@ -188,7 +195,7 @@ The future governed shape is: a trusted renderer produces a digest-addressed, bo
 
 Then prepare `cub variant create` proposals per environment, as in the Helm path, and express durable differences through ConfigHub functions/metadata. `--granularity per-resource` preserves the one-resource-per-Unit doctrine; use `per-file` only when the source file boundary is intentionally the ownership boundary.
 
-Before handing any Kustomize Variant to `release-publish`, prove an existing controller binding for that exact Variant/Target (for example, the Argo Application auto-created by a reviewed `cub variant create --target` flow, or an explicitly governed Flux binding) and bind its source/target identity. A Target and Release alone do not prove that a controller watches the artifact. If the binding is absent or cannot be read, return `CONTROLLER_BINDING_UNPROVEN`; do not describe the upload path as deployable or promise runtime verification.
+Before handing any Kustomize Variant to `release-publish`, prove an existing controller binding for that exact Variant/Target (for example, the Argo Application auto-created by a reviewed `cub variant create --target` flow, or an explicitly governed Flux binding) and bind its source/target identity. A Target and Release alone do not prove that a controller watches the artifact. If the binding is absent or cannot be read, say that controller delivery remains unproven; do not describe the upload path as deployable or promise runtime verification.
 
 ### Compatibility path: preserve existing overlays first
 
@@ -196,7 +203,7 @@ When each overlay already contains essential differences that cannot be migrated
 
 For each overlay, require a separate trusted render receipt and prepare a separate upload proposal bound to its artifact digest, Component/Variant/Space, granularity, TargetID, and expected resource identities. Never combine render and upload in a shell pipeline.
 
-Label this `MIGRATED_WITH_PARITY`, not the preferred steady state. Record the source repository, commit, overlay path, renderer version, and rendered content digest in the proposal.
+Describe this as compatibility behavior, not the preferred steady state. Record the source repository, commit, overlay path, renderer version, and rendered content digest in the plan.
 
 If `kustomization.yaml` uses a Helm chart inflator, choose deliberately:
 
@@ -209,16 +216,16 @@ Do not run both and create duplicate resources.
 
 - renderer fails or requires an unreviewed exec plugin;
 - source closure includes a remote base/resource, symlink escape, unpinned dependency, Helm inflator fetch, or executable generator;
-- protected renderer digest, network-off enforcement, output/resource ceilings, or render receipt is missing (`RENDER_SOURCE_POLICY_BLOCK`);
+- renderer digest, network-off enforcement, output/resource ceilings, or render receipt is missing;
 - rendered stream contains Secrets or live-cluster status;
 - base/overlay identity collisions are unresolved;
 - upload would replace an existing Variant without an exact diff;
-- the target Variant lacks a verified Argo CD/Flux controller binding (`CONTROLLER_BINDING_UNPROVEN`);
-- external mutation broker is absent.
+- the target Variant lacks a verified Argo CD/Flux controller binding;
+- the host denies the command or an external governance overlay blocks it.
 
-## Read-only verification after external execution
+## Read-only verification after execution
 
-```bash
+```text
 cub space get <component>-helm -o json
 cub space get <component>-base -o json
 cub unit list --space <component>-base --select "HeadRevisionNum,ToolchainType,TargetID" -o json

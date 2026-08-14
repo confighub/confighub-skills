@@ -47,7 +47,7 @@ jq -e '
   any(.deleted_surface_dispositions[];
     .path == "hooks/auto-allow.sh" and .surface_kind == "unsafe-authority-mechanism" and
     .disposition == "REPLACED_BY" and .parity == "INTENTIONALLY_NOT_PRESERVED" and
-    (.replacement | contains("host ASK") and contains("check-installed-permission-state") and contains("NOT_INTEGRATED")))
+    (.replacement | contains("allowed-tools: []") and contains("check-installed-permission-state") and contains("host permission")))
 ' "$inventory" >/dev/null || fail 'typed deleted-surface schema or required retirement semantics are incomplete'
 
 tmp_dir=$(mktemp -d)

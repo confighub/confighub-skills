@@ -1,6 +1,6 @@
 # Triggers + ApplyGates — the platform-Space recipe
 
-**Authority boundary:** all Trigger, Filter, Space, Unit-approval, and remediation writes in this reference are governed proposals. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`), so it may inspect policy and compose exact steps but must not execute them.
+**Execution mode:** follow [How commands run](execution-modes.md). Trigger, Filter, Space, Unit-approval, and remediation writes are separate exact calls to the host permission system. This pack preapproves none of them.
 
 Triggers run functions automatically on lifecycle events (`Mutation`, `PostClone`). A validating function that returns false attaches an ApplyGate, which blocks apply until the failure is resolved.
 
@@ -16,7 +16,7 @@ When anything mutates a Unit in an application Space, every Trigger selected by 
 
 ## Recipe
 
-```bash
+```text
 # 1. Platform Space to hold triggers.
 cub space create platform
 
@@ -53,7 +53,7 @@ Skills should **never bypass a gate**. Instead, fix the data and let the trigger
 
 Use `vet-cel` for org-specific rules. Expression is evaluated once per resource; access the resource as `r` (alias for `object`). Return a `bool`, or a map with `passed` / `details` / `failed_attributes` for richer diagnostics. See `references/functions-catalog.md` → "`vet-cel` — CEL validator with structured failures" for the full return-value shape (including the PascalCase `failed_attributes` entry keys) and the Kubernetes CEL libraries.
 
-```bash
+```text
 # Require replicas >= 2 for Deployments (simple bool form).
 cub trigger create --space platform -o json require-ha Mutation Kubernetes/YAML \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2'

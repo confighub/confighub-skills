@@ -8,9 +8,9 @@ read-capability-subset: kubernetes-resources
 
 # kubernetes-resources
 
-**Authority boundary:** this companion may author and validate a proposed resource, but it must not create or update the ConfigHub Unit. The external mutation broker is `NOT_INTEGRATED`, so the proposal ends in `ASK` or `BLOCK`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After the literal resource and exact Unit scope are reviewed, standalone use submits one requested create or update to the host permission system; an external overlay may stop it before Bash.
 
-Existing-Unit changes also return `APPROVED_STATE_CAS_NOT_INTEGRATED`: the server can check caller-supplied `HeadRevisionNum` and `DataHash`/`ContentHash` transactionally, but no protected companion action binds those reviewed values through final execution and receipt.
+For an existing Unit, read its current `HeadRevisionNum` and hash immediately before the write and disclose that the stock convenience command does not atomically bind those pre-read values. Do not claim exact reviewed-state protection that the invoked command does not provide.
 
 Author common Kubernetes resource types as ConfigHub Units — literal YAML, best-practice defaults applied via functions, wired into the right Space.
 
@@ -41,7 +41,7 @@ Author common Kubernetes resource types as ConfigHub Units — literal YAML, bes
 Before showing hardcoded YAML, check whether the `skill-examples` Space has a relevant example Unit:
 
 ```bash
-cub unit get <example-slug> --space skill-examples -o yaml 2>/dev/null
+cub unit get <example-slug> --space skill-examples -o yaml
 ```
 
 | Resource type                  | Example slug        | Contents                                                 |
@@ -78,7 +78,7 @@ Ask the user:
 ### 2. Pull or adapt an example
 
 ```bash
-cub unit get <example-slug> --space skill-examples -o yaml 2>/dev/null
+cub unit get <example-slug> --space skill-examples -o yaml
 ```
 
 If the example exists, use it as a starting template. Adapt names, images, ports, and other fields to the user's requirements. If the example doesn't exist, author the YAML from scratch following `references/yaml-patterns.md`.
@@ -99,27 +99,24 @@ Write literal YAML to a temp file. Follow these rules:
 
 ```bash
 cub unit create --space <space> <unit-slug> /tmp/<file>.yaml \
-  --change-desc "<summary>
-
-User prompt: <verbatim>
-Clarifications: <condensed>"
+  --change-desc 'Create reviewed Kubernetes resource Unit'
 ```
 
 ### 5. Apply defaults functions
 
 For workload Units (Deployment, StatefulSet, DaemonSet, Job, CronJob):
 
-```bash
+```text
 cub function set --space <space> --unit <slug> \
-  -- set-container-resources-defaults --change-desc "..."
+  --change-desc 'Apply reviewed container resource defaults' -- set-container-resources-defaults
 cub function set --space <space> --unit <slug> \
-  -- set-container-probe-defaults --change-desc "..."
+  --change-desc 'Apply reviewed container probe defaults' -- set-container-probe-defaults
 cub function set --space <space> --unit <slug> \
-  -- set-pod-container-security-context-defaults --change-desc "..."
+  --change-desc 'Apply reviewed pod security defaults' -- set-pod-container-security-context-defaults
 cub function set --space <space> --unit <slug> \
-  -- set-automount-service-account-token-false --change-desc "..."
+  --change-desc 'Disable reviewed service account token automount' -- set-automount-service-account-token-false
 cub function set --space <space> --unit <slug> \
-  -- ensure-namespaces --change-desc "..."
+  --change-desc 'Apply reviewed namespace defaults' -- ensure-namespaces
 ```
 
 `set-automount-service-account-token-false` sets `automountServiceAccountToken: false` on every pod spec in the Unit. Apply it to every workload; the ServiceAccount-level setting is a defense-in-depth backstop, not a replacement. Only skip (and explicitly set `true` on the pod spec) when the workload genuinely needs to call the Kubernetes API.
@@ -128,9 +125,9 @@ cub function set --space <space> --unit <slug> \
 
 ```bash
 cub function set --space <space> --unit <slug> \
+  --change-desc 'Add reviewed writable container volume mount' \
   -- set-container-volume-mount-path <container-name> <volume-name> <volume-path> \
-     --volume-source=emptyDir \
-     --change-desc "..."
+     --volume-source=emptyDir
 ```
 
 `set-container-volume-mount-path` adds the `volumeMount` to the named container and — if the named volume is not already in the pod spec — adds the volume too. `--volume-source` accepts `emptyDir` (default for scratch), `configMap`, `secret`, or `persistentVolumeClaim`. Use `*` as the container name to apply to all containers in the pod.
@@ -141,21 +138,21 @@ For Namespace Units:
 
 ```bash
 cub function set --space <space> --unit <slug> \
-  -- set-pod-security-defaults --change-desc "..."
+  --change-desc 'Apply reviewed namespace pod security defaults' -- set-pod-security-defaults
 ```
 
 For non-workload namespaced resources (Ingress, NetworkPolicy, RBAC, HPA, PDB):
 
 ```bash
 cub function set --space <space> --unit <slug> \
-  -- ensure-namespaces --change-desc "..."
+  --change-desc 'Apply reviewed namespace defaults' -- ensure-namespaces
 ```
 
 Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containerPort`. For databases and other non-HTTP workloads, override with TCP or exec probes afterward via `set-yq` (`get-yq` is its read-only counterpart; the deprecated spellings are `yq-i` and `yq`).
 
 ### 6. Validate
 
-```bash
+```text
 cub function vet --space <space> --unit <slug> -- vet-schemas
 cub function vet --space <space> --unit <slug> -- vet-placeholders
 cub function vet --space <space> --unit <slug> -- vet-format
@@ -181,8 +178,8 @@ Based on what was created, suggest the logical next skill:
 
 ## Tool boundary
 
-- Host-ASK: read-only `cub` inspection and `kubectl explain` in this skill's declared capability subset; no raw Bash is auto-allowed.
-- Proposal-only: Unit/link create/update and function/run changes. Client-side scaffolding may be shown, but no mutating `kubectl create` permission is granted.
+- Host permission: read-only `cub` inspection and `kubectl explain` in this skill's declared capability subset; the pack preapproves no Bash call.
+- Standalone mutation steps: Unit/link create/update and function/run changes each use one exact host-permission call. Client-side scaffolding may be shown, but do not mutate the cluster with `kubectl create`.
 - Not allowed: `cub * delete *`, mutating `kubectl` (`apply`/`edit`/`patch`/`delete`), `helm`, `kustomize`.
 
 ## Stop conditions

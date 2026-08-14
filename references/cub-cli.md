@@ -2,11 +2,11 @@
 
 ## Agent help mode
 
-Always prefix help queries with `CONFIGHUB_AGENT=1`:
+Always confirm commands with the installed help:
 
-```bash
-CONFIGHUB_AGENT=1 cub <command> --help
-CONFIGHUB_AGENT=1 cub function explain --toolchain Kubernetes/YAML <function-name>
+```text
+cub <command> --help
+cub function explain --toolchain Kubernetes/YAML <function-name>
 ```
 
 The agent mode emits structured, concise help designed for AI consumption.
@@ -138,18 +138,21 @@ Filters are also first-class entities (`cub filter create …`) that can be refe
 
 **`--filter` takes at most one argument per command.** Stacking `--filter a --filter b` is not a conjunction — the second one either errors or wins, depending on the command. To combine a named Filter with additional predicates, use `--filter <slug> --where "<extra-expr>"`. If you need two named Filters ANDed together, create a third Filter whose `--where-field` expresses the intersection, or rephrase one as an inline `--where` clause. Also remember that when `--space <specific-space>` is already set, a "this app's Units" filter is often redundant — the Space itself scopes the selection (per `skills/confighub-core`).
 
-## A Unit's desired view and versioned-legacy bridge views
+## A Unit's desired view and historical bridge views
 
-ConfigHub v0.2.11 has sunset bridge/per-Unit delivery. `Data` remains current desired configuration. The other three commands are preserved for historical diagnosis only and must not be used as current Release/controller/runtime proof.
+The current OCI Release profile does not use bridge/per-Unit delivery. `Data`
+remains current desired configuration. The other three commands are preserved
+for historical diagnosis only and must not be used as current
+Release/controller/runtime proof.
 
 | View            | Command                                   | What it is                                                                                                                                                                                                                                         | When to read it                                                                                                                                                                                                        |
 | --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Data**        | `cub unit data <slug> --space <s>`        | Current head Revision's declared configuration. | Authoring and desired-state review. |
-| **LiveData**    | `cub unit livedata <slug> --space <s>`    | `VERSIONED_LEGACY`: retained/elided data from the former bridge path, when present. | Historical bridge diagnosis only. |
-| **LiveState**   | `cub unit livestate <slug> --space <s>`   | `VERSIONED_LEGACY`: retained unelided former bridge state, when present. | Historical bridge diagnosis only. |
-| **BridgeState** | `cub unit bridgestate <slug> --space <s>` | `VERSIONED_LEGACY`: bridge-implementation blob, when present. | Historical bridge diagnosis only. |
+| **LiveData**    | `cub unit livedata <slug> --space <s>`    | retained/elided data from the former bridge path, when present | Historical bridge diagnosis only. |
+| **LiveState**   | `cub unit livestate <slug> --space <s>`   | retained unelided former bridge state, when present | Historical bridge diagnosis only. |
+| **BridgeState** | `cub unit bridgestate <slug> --space <s>` | bridge-implementation blob, when present | Historical bridge diagnosis only. |
 
-> **Current OCI Release rule.** Legacy LiveData/LiveState/BridgeState are not the running cluster and do not prove a current Space Release. Bind immutable Release/ManifestDigest, controller source, and runtime `confighub.com/origin` plus health through `verify-apply`. Bridge/per-Unit and direct ConfigHub-provider delivery are `VERSIONED_LEGACY/BLOCK`.
+> **Current OCI Release rule.** Historical LiveData/LiveState/BridgeState are not the running cluster and do not prove a current Space Release. Bind immutable Release/ManifestDigest, controller source, and runtime `confighub.com/origin` plus health through `verify-apply`. Bridge/per-Unit and direct ConfigHub-provider delivery are unsupported in the reviewed current profile.
 
 Rules of thumb:
 
@@ -189,7 +192,7 @@ Always **`-o json`** (or `-o jq=<expr>`) first when you don't already know the f
 
 Use `-o jq=<expr>` to drill in:
 
-```bash
+```text
 # One entity field.
 cub unit get <slug> --space <s> -o jq='.Unit.TargetID'
 
@@ -225,7 +228,7 @@ Function output, when formatted structured, is wrapped per Unit so results can b
 
 Reach for `.Output[]` to iterate the underlying list, and `.SpaceSlug` / `.UnitSlug` for identity:
 
-```bash
+```text
 # Validation results with unit identity. `. as $e` binds the envelope so it's visible inside .Output[].
 cub function vet --space "*" vet-cel '<expr>' --show output \
   -o jq='. as $e | .Output[] | select(.Passed == false) | {space: $e.SpaceSlug, unit: $e.UnitSlug, details: .Details}'
@@ -250,7 +253,7 @@ someone here had set that path to something else.
 
 Say a value is this variant's own in one of two ways:
 
-```bash
+```text
 # As you make the change — every path the change writes becomes a protected local override.
 cub function set --space prod --unit backend --protect set-replicas 5
 
@@ -278,7 +281,7 @@ A merge that cannot place part of its patch does not fail and does not apply it 
 the rest and records what it withheld on the Unit, where it stays until dealt with. The next merge
 replaces the set; a merge that lands cleanly clears it.
 
-```bash
+```text
 cub unit conflicts <slug> --space <space>                      # list what is outstanding
 cub unit conflicts <slug> --space <space> --apply --dry-run -o mutations
 cub unit conflicts <slug> --space <space> --apply --reason ProtectedPath
@@ -323,7 +326,7 @@ The `--show` flag applies only to function commands and selects which sub-payloa
 
 ## Showing mutation diffs
 
-Commands that mutate configuration data (`cub unit update` / `cub unit update --patch`, `cub function do|set|exec`, `cub run`) accept `-o mutations`, which makes an externally authorized execution return its configuration diff. Include it in governed proposals by default. `--dry-run -o mutations` is a read-only preview where supported; a non-dry run remains blocked until the broker exists, and only a fresh revision read proves what persisted.
+Commands that mutate configuration data (`cub unit update` / `cub unit update --patch`, `cub function do|set|exec`, `cub run`) accept `-o mutations`, which makes execution return its configuration diff. Include it by default. `--dry-run -o mutations` is a read-only preview where supported; submit a non-dry run as one call to the host permission system, and use a fresh revision read to prove what persisted.
 
 ## Review links in the GUI
 
@@ -331,15 +334,18 @@ Use the current navigation commands rather than constructing URLs: `cub space op
 
 ## Read-only diagnosis tools
 
-- `kubectl get` and `kubectl describe` — permitted metadata reads through host `ASK`. Raw `kubectl logs` is not bounded evidence merely because it has `--tail`/`--since`: it still lacks an output-byte cap and secret redaction. Worker-log diagnosis returns `WORKER_LOG_EVIDENCE_BLOCK` until the protected identity-bound wrapper exists; never follow or request all lines.
+- `kubectl get` and `kubectl describe` — metadata reads submitted to the host permission system. Raw `kubectl logs` is not bounded evidence merely because it has `--tail`/`--since`: it still lacks an output-byte cap and secret redaction. Ask for a bounded redacted excerpt or use a reviewed identity-bound reader; never follow or request all lines.
 - `argocd app get`, `argocd app diff` — permitted for delivery verification.
 - `flux get`, `flux stats` — permitted for delivery verification.
 
-Do **not** use any of these to mutate. This companion prepares `cub` mutation proposals, but execution requires the external approval broker; none is integrated in the reviewed profile.
+Do **not** use any of these to mutate. Route a requested change to the owning mutation Skill, which will use one exact normal host permission call.
 
 ## Permission boundary for `allowed-tools` frontmatter
 
-Version 0.4.0 grants **zero raw Bash autoallow**. Every skill declares `allowed-tools: []`. Read-only evidence commands retain their UX through the host's ordinary permission prompt (`ASK`); they are proposal knowledge, not silently trusted execution. Do not reintroduce Bash patterns until a wrapper receives a skill/capability identity and structured final argv or typed fields.
+Version 0.4.1 grants **zero raw Bash autoallow**. Every Skill declares
+`allowed-tools: []`. Reads and requested changes remain available through the
+host permission system, which may prompt, allow, or deny. Do not add a plugin
+allow rule without a structured argv/effect boundary.
 
 ### Per-skill read-capability subsets
 
@@ -350,11 +356,11 @@ Why enumeration matters:
 - Raw shell matching cannot see final argv after shell expansion. Prefix/regex patterns are not an authority boundary, even for apparently safe `get`, `list`, or `--help` commands.
 - Credentials/secrets, unbounded file reads/writes, plugins/exec, network-source/refresh flags, controller hard refresh, unknown flags, arbitrary `function get|vet`, and every mutation are excluded from any future autoallow.
 - A raw read may still be proposed when it is in the skill's subset, but the host prompts. Data-bearing reads must stop if they could expose a Secret; a future wrapper must inspect typed resource/object identity before execution.
-- GUI navigation remains `--print-url` plus object/org verification; it is also host-ASK.
+- GUI navigation remains `--print-url` plus object/org verification; it also uses the host permission system.
 
 ### Known ambiguity
 
-`cub function do` and `cub run` can invoke mutating functions. Even `cub function get|vet` is not safe as an arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output and validators may have side-effect flags. Skills may name only reviewed functions relevant to their job, execution remains host-ASK, and an unknown function/flag is `BLOCK` pending the typed registry/wrapper.
+`cub function do` and `cub run` can invoke mutating functions. Even `cub function get|vet` is not safe as an arbitrary class: functions such as `generate-kubecontext` can mint credential-bearing output and validators may have side-effect flags. Skills may name only reviewed functions relevant to their job, each call uses the host permission system, and an unknown function or flag is a reason to stop.
 
 ### Do not grant
 
@@ -363,4 +369,4 @@ Why enumeration matters:
 - Any create/update/set-target/approve/promote/publish/install/upgrade/tag/cancel pattern.
 - `kubectl exec|apply|create|rollout`, `argocd app sync`, `flux reconcile`, broad `yq`, shell redirection, pipelines, command substitution, or compound shell commands.
 
-The old `hooks/auto-allow.sh` regex/prefix boundary was removed. It permitted credential, secret, file, plugin, refresh, and shell-expansion cases and falsely denied legitimate quoted predicates. The validator now proves that no skill, hook, or settings file can emit silent Bash allow; semantic execution remains blocked pending a final-argv wrapper rather than patched with more regex.
+The old `hooks/auto-allow.sh` regex/prefix boundary was removed. It permitted credential, secret, file, plugin, refresh, and shell-expansion cases and falsely denied legitimate quoted predicates. The validator now proves that no Skill, hook, or settings file can emit silent Bash allow. Standalone execution uses the host permission system; any future automatic permission needs structured final-argument validation rather than more regex.

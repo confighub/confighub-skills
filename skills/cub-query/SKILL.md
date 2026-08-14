@@ -8,7 +8,7 @@ read-capability-subset: cub-query
 
 # cub-query
 
-**Authority boundary:** this companion is knowledge/read-only. It may inspect and report evidence. Any newly requested create, update, approve, promote, publish, withdraw, install, or delete operation must be handed to a governed proposal path; the external mutation broker is `NOT_INTEGRATED`.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. Run scoped reads through the host's normal permission flow. Route a newly requested write to its owning Skill instead of treating this query Skill as a mutation path.
 
 The database-like query surface of ConfigHub. Most users don't discover this from the CLI help alone; the skill makes it the first-reach tool for any "find / list / audit" intent.
 
@@ -68,7 +68,7 @@ Two read surfaces over the resources **inside** Units. Both filter server-side, 
 
 **`cub k8s get`** names resource types the way `kubectl` does and is the friendlier of the two — reach for it whenever the user's question is phrased in Kubernetes terms:
 
-```bash
+```text
 # Deployments in a Space. Plural, singular, short name, Kind, or full type all resolve.
 cub k8s get deploy --space <space>
 
@@ -95,7 +95,7 @@ Types not built in still resolve by Kind across any API group, so custom resourc
 
 **`cub resource list`** is the general form — no Kubernetes vocabulary, full `--where` reach over resource metadata and data paths. Use it for toolchains other than Kubernetes, and when you want data-path predicates:
 
-```bash
+```text
 # Every Deployment in the organization.
 cub resource list --space "*" --where "ResourceType = 'apps/v1/Deployment'"
 
@@ -123,7 +123,7 @@ Use `cub unit list` (§1–2 below) when the answer is about Units themselves: r
 
 For "what is desired for our frontend in us-east?" / "what image is recorded for our worker?" / "show me the YAML of this workload":
 
-```bash
+```text
 # ConfigHub's latest YAML for a Unit — the content that would be applied. This is the config data at HeadRevisionNum.
 # cub unit get -o data is invalid. cub unit get -o jq='.Unit.Data' will return the configuration data base64 encoded and
 # is not recommended. The best command to use is cub unit data:
@@ -134,8 +134,8 @@ cub unit data <slug> --space <space>
 revision=$(cub unit get --space <space> <slug> -o jq=".Unit.LastAppliedRevisionNum")
 cub revision data --space <space> <unit-slug> $revision
 
-# VERSIONED_LEGACY bridge reads. ConfigHub v0.2.11 has sunset bridge/per-Unit
-# delivery; these may expose retained historical state but are not current runtime proof.
+# Historical bridge reads. The current OCI Release profile does not use
+# bridge/per-Unit delivery; these are not current runtime proof.
 cub unit livedata <slug> --space <space>
 cub unit livestate <slug> --space <space>
 cub unit bridgestate <slug> --space <space>
@@ -145,7 +145,7 @@ For “what is running?”, bind the immutable Release/ManifestDigest, inspect A
 
 For **extracting one field** from one Unit (cleaner than grepping YAML), scope a getter with `--unit`:
 
-```bash
+```text
 # Image of container "worker" in one Unit.
 cub function get --space <space> --unit <slug> get-container-image worker \
   --show values
@@ -174,7 +174,7 @@ See `references/cub-cli.md` (Data / LiveData / LiveState / BridgeState rows) for
 
 ### 1. Metadata queries — `cub unit list`
 
-```bash
+```text
 # All Deployments across all spaces.
 cub unit list --space "*" --resource-type apps/v1/Deployment
 
@@ -191,7 +191,7 @@ Useful current `--where` fields include `Slug`, `DisplayName`, `ToolchainType`, 
 
 Filters on the actual configuration content using path expressions:
 
-```bash
+```text
 # Deployments with more than 5 replicas.
 cub unit list --space "*" --resource-type apps/v1/Deployment \
   --where-data "spec.replicas > 5"
@@ -209,7 +209,7 @@ cub unit list --space "*" \
 
 `--where` and `--where-data` select units (and other entities). To extract values from configuration data, use getter functions. For the **single-Unit** case, scope with `--unit` (see §0). The examples here sweep across Units:
 
-```bash
+```text
 # Get the current image for the "main" container of every Deployment.
 cub function get --space "*" --resource-type apps/v1/Deployment \
   get-container-image main \
@@ -222,7 +222,7 @@ cub function get --space "*" get-placeholders \
 
 ### 4. Linting, Validation, and Policy-style analyses — `vet-` functions
 
-```bash
+```text
 # Run a validator as a one-off audit (without attaching a gate).
 cub function vet --space "*" vet-placeholders \
   --show output -o jq='.Output[] | select(.Passed == false)'
@@ -237,30 +237,34 @@ Each Unit's output is wrapped in an envelope with `SpaceID` / `UnitID` / `SpaceS
 
 ### 5. History + audit
 
-```bash
+```text
 # Recent revisions on a Unit with change descriptions.
 cub revision list <slug> --space <space> --where "UpdatedAt > '2026-04-01'"
 
 # Who changed what, when — across a Space.
 cub revision list --space <space> --where "UpdatedAt > '2026-04-01'"
 
-# VERSIONED_LEGACY: retained bridge/per-Unit action history.
+# Historical only: retained bridge/per-Unit action history.
 cub unit-action list <slug> --space <space> --where "UpdatedAt > '2026-04-01'"
 
-# VERSIONED_LEGACY apply actions across a Space.
+# Historical apply actions across a Space.
 cub unit-action list --space <space> --where "Action = 'Apply'"
 
-# VERSIONED_LEGACY apply progress events across a Space.
+# Historical apply progress events across a Space.
 cub unit-event list --space <space> --where "Action = 'Apply'"
 ```
 
-These historical reads do not describe current v0.2.11 Release/controller/runtime state. The `--change-desc` captured at mutation time (see `cub-mutate`) makes current revision history self-explaining; use Release records for publication history.
+These historical reads do not describe current v0.2.21
+Release/controller/runtime state. The short safe `--change-desc` captured at
+mutation time (see `cub-mutate`) makes revision history scannable; use Release
+records and receipts for publication history and the shared transcript for
+fuller request context.
 
 ### 6. Protection and outstanding merge conflicts
 
 What a variant owns, and what a merge could not deliver to it, are both queryable:
 
-```bash
+```text
 # What does this Unit protect from upstream merges, and what may a merge still update?
 cub unit get <slug> --space <space> -o mutations
 
@@ -289,7 +293,7 @@ cub unit list --space "*" --where "UpstreamRevisionNum < UpstreamUnit.HeadRevisi
 
 ## Tool boundary
 
-- Host-ASK: `cub unit/revision/space/trigger/filter/resource/k8s get/component` reads and specifically named, reviewed `cub function get|vet` getters/validators in this skill's declared capability subset. Arbitrary functions are not permitted; no raw Bash is auto-allowed. `cub k8s source` / `cub k8s collect` reach a cluster and are not part of this skill — route those through `verify-apply`.
+- Host permission: `cub unit/revision/space/trigger/filter/resource/k8s get/component` reads and specifically named, reviewed `cub function get|vet` getters/validators in this Skill's declared capability subset. Arbitrary functions are not permitted; the pack preapproves no Bash call. `cub k8s source` / `cub k8s collect` reach a cluster and are not part of this Skill — route those through `verify-apply`.
 - Not allowed: mutating functions from a query skill. If the answer to a query suggests a fix, hand off to `cub-mutate`.
 
 ## Stop conditions

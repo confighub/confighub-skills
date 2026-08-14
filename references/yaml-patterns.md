@@ -1,6 +1,6 @@
 # Authoring plain, literal Kubernetes YAML
 
-**Authority boundary:** local dry-run rendering is read-only; storing or changing Unit data is a governed proposal. This companion has no mutation auto-allow and no external approval broker (`NOT_INTEGRATED`), so every `cub unit create/update`, setter, or other write shown here must be reviewed and executed outside the companion.
+**Execution mode:** follow [How commands run](execution-modes.md). Local dry-run rendering is read-only; storing or changing Unit data is a mutation. Submit each `cub unit create/update`, setter, or other write shown here as one exact call to the host permission system. This pack preapproves none of them.
 
 Everything here assumes **Configuration as Data**: fully materialized YAML stored in Units. No template syntax, no values-file split.
 
@@ -8,11 +8,11 @@ Everything here assumes **Configuration as Data**: fully materialized YAML store
 
 Use `kubectl create … --dry-run=client -o yaml` (via the `kube-gen` helper or directly) to produce skeletons, then store the result in a Unit. Edit from that point forward via `cub function set` or direct edits — never re-render.
 
-```bash
+```text
 kubectl create deployment my-app --image=confighubplaceholder:confighubplaceholder \
   --dry-run=client -o yaml | egrep -v "creationTimestamp|status" > deploy.yaml
 cub unit create --space myapp-dev my-app deploy.yaml \
-  --change-desc "Bootstrapped my-app deployment from dry-run scaffold"
+  --change-desc 'Bootstrap reviewed deployment scaffold'
 ```
 
 ## Placeholders
@@ -56,13 +56,13 @@ spec:
 
 Then:
 
-```bash
+```text
 cub function set --space myapp-dev --where "Slug = 'my-app'" \
-  set-container-resources-defaults --change-desc "Fill resource defaults"
+  --change-desc 'Fill reviewed resource defaults' -- set-container-resources-defaults
 cub function set --space myapp-dev --where "Slug = 'my-app'" \
-  set-container-probe-defaults --change-desc "Fill probe defaults"
+  --change-desc 'Fill reviewed probe defaults' -- set-container-probe-defaults
 cub function set --space myapp-dev --where "Slug = 'my-app'" \
-  set-pod-container-security-context-defaults --change-desc "Fill security context defaults"
+  --change-desc 'Fill reviewed security context defaults' -- set-pod-container-security-context-defaults
 ```
 
 This produces a full literal manifest without templating — and each step is recorded in the revision history.
@@ -163,20 +163,20 @@ spec:
 
 Then apply defaults:
 
-```bash
+```text
 cub function set --space <space> --where "Slug = 'postgres'" \
-  -- set-container-resources-defaults --change-desc "..."
+  --change-desc 'Apply reviewed postgres resource defaults' -- set-container-resources-defaults
 cub function set --space <space> --where "Slug = 'postgres'" \
-  -- set-container-probe-defaults --change-desc "..."
+  --change-desc 'Apply reviewed postgres probe defaults' -- set-container-probe-defaults
 cub function set --space <space> --where "Slug = 'postgres'" \
-  -- set-pod-container-security-context-defaults --change-desc "..."
+  --change-desc 'Apply reviewed postgres security defaults' -- set-pod-container-security-context-defaults
 ```
 
 Note: `set-container-probe-defaults` adds HTTP GET probes on the first `containerPort`. For databases, override with a TCP probe or exec command afterward via `set-yq`:
 
-```bash
+```text
 cub function set --space <space> --where "Slug = 'postgres'" \
-  --change-desc "Switch to TCP liveness probe for postgres" \
+  --change-desc 'Switch postgres to reviewed TCP probes' \
   -- set-yq '
     with(select(.kind == "StatefulSet");
       .spec.template.spec.containers[0].livenessProbe = {"tcpSocket": {"port": 5432}, "initialDelaySeconds": 15, "periodSeconds": 20} |
@@ -435,7 +435,7 @@ Principles:
 
 ```bash
 cub function set --space <space> --where "Slug = 'myapp'" \
-  -- set-automount-service-account-token-false --change-desc "..."
+  --change-desc 'Disable reviewed service account token automount' -- set-automount-service-account-token-false
 ```
 
 ## HorizontalPodAutoscaler
