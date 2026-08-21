@@ -16,7 +16,7 @@ release_canonical_lines "$root" "$tmp_dir/package.paths" "$tmp_dir/package.lines
 
 jq -n \
   --arg schema_version 'confighub-skills-local-drift-manifest/v2' \
-  --arg candidate_plugin_version '0.4.1' \
+  --arg candidate_plugin_version '0.4.2' \
   --arg algorithm 'sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)' \
   --arg source_path_set_sha256 "$(release_file_sha256 "$tmp_dir/source.paths")" \
   --arg source_tree_sha256 "$(release_file_sha256 "$tmp_dir/source.lines")" \

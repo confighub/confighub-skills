@@ -342,7 +342,7 @@ Do **not** use any of these to mutate. Route a requested change to the owning mu
 
 ## Permission boundary for `allowed-tools` frontmatter
 
-Version 0.4.1 grants **zero raw Bash autoallow**. Every Skill declares
+Version 0.4.2 grants **zero raw Bash autoallow**. Every Skill declares
 `allowed-tools: []`. Reads and requested changes remain available through the
 host permission system, which may prompt, allow, or deny. Do not add a plugin
 allow rule without a structured argv/effect boundary.

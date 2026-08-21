@@ -62,7 +62,7 @@ jq -e '
 ' "$review_schema" >/dev/null || emit_block BLOCK_LOCAL_DRIFT_MISMATCH 'packaged review attestation schema is not the closed repository/branch/URL contract'
 jq -e '
   .schema_version == "confighub-skills-local-drift-manifest/v2" and
-  .candidate_plugin_version == "0.4.1" and
+  .candidate_plugin_version == "0.4.2" and
   .algorithm == "sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)" and
   .self_exclusion == "compatibility/release-artifact-manifest.v1.json" and
   .plugin_package.roots == [".claude-plugin","commands","compatibility","hooks","references","skills"] and
