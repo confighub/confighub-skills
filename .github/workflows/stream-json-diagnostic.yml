@@ -1,6 +1,7 @@
 name: stream-json-diagnostic
 on:
-  workflow_dispatch: {}
+  push:
+    branches: [claude/56-runner-diagnostic]
 jobs:
   diagnose:
     runs-on: ubuntu-24.04
