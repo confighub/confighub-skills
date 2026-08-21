@@ -1,0 +1,17 @@
+name: stream-json-diagnostic
+on:
+  workflow_dispatch: {}
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runner image
+        run: |
+          grep -E "Image|Version" /imagegeneration/imagedata.json 2>/dev/null || true
+          echo "jq: $(jq --version)"; echo "bash: $BASH_VERSION"
+      - name: Run stream-json test with full trace
+        run: |
+          set +e
+          bash -x ./tools/test-claude-stream-json
+          echo "exit=$?"
