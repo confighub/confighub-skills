@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-semantic-contracts/v1",
-  "candidate_plugin_version": "0.4.1",
+  "candidate_plugin_version": "0.4.2",
   "purpose": "Self-renewable local drift sentinels plus semantic anchors. They detect accidental deletion/trivialization but are not trust, review, CODEOWNER, or release-approval evidence.",
   "minimum_expected_output_chars": 120,
   "skills": [
