@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-compatibility/v1",
-  "plugin_version": "0.4.1",
+  "plugin_version": "0.4.2",
   "candidate_base_commit": "700fcb3",
   "profile_id": "cub-0.2.15_server-0.2.21_helm-0.1.0",
   "reviewed_at": "2026-08-14",
