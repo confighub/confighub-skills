@@ -13,7 +13,12 @@ assert_rejected() {
     printf 'claude stream-json adversarial tests: FAIL accepted %s\n' "$case_name" >&2
     exit 1
   fi
-  jq -e --arg status "$expected_status" '.status == $status' "$tmp_dir/$case_name.out" >/dev/null
+  observed_status=$(jq -r '.status // "NO_STATUS"' "$tmp_dir/$case_name.out" 2>/dev/null || printf 'UNPARSEABLE')
+  if [ "$observed_status" != "$expected_status" ]; then
+    printf 'claude stream-json adversarial tests: FAIL %s rejected with %s, want %s\n' \
+      "$case_name" "$observed_status" "$expected_status" >&2
+    exit 1
+  fi
 }
 
 printf '%s\n' \

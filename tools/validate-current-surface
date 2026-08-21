@@ -355,15 +355,15 @@ if command -v cub >/dev/null 2>&1; then
   printf '%s\n' "$cub_build_metadata" | rg -q 'build[[:space:]]+vcs\.modified=true' || fail "cub modified-build caveat differs from profile"
 fi
 
-./tools/test-execution-modes >/dev/null || fail "execution-mode T0 gate failed"
-./tools/validate-semantic-contracts >/dev/null || fail "semantic drift contracts failed"
-./tools/test-semantic-guards >/dev/null || fail "semantic guard metamorphic tests failed"
-./tools/test-no-loss-deletion-dispositions >/dev/null || fail "deleted-surface metamorphic tests failed"
-./tools/test-no-loss-eval-qualification >/dev/null || fail "eval qualification swap test failed"
-./tools/test-frontmatter-policy >/dev/null || fail "frontmatter adversarial tests failed"
-./tools/test-claude-stream-json >/dev/null || fail "Claude stream-json adversarial tests failed"
-./tools/test-installed-permission-state >/dev/null || fail "installed-state adversarial tests failed"
-./tools/test-render-source-policy >/dev/null || fail "render-source adversarial tests failed"
+test_execution_modes_out=$(./tools/test-execution-modes 2>&1) || fail "execution-mode T0 gate failed: ${test_execution_modes_out}"
+validate_semantic_contracts_out=$(./tools/validate-semantic-contracts 2>&1) || fail "semantic drift contracts failed: ${validate_semantic_contracts_out}"
+test_semantic_guards_out=$(./tools/test-semantic-guards 2>&1) || fail "semantic guard metamorphic tests failed: ${test_semantic_guards_out}"
+test_no_loss_deletion_dispositions_out=$(./tools/test-no-loss-deletion-dispositions 2>&1) || fail "deleted-surface metamorphic tests failed: ${test_no_loss_deletion_dispositions_out}"
+test_no_loss_eval_qualification_out=$(./tools/test-no-loss-eval-qualification 2>&1) || fail "eval qualification swap test failed: ${test_no_loss_eval_qualification_out}"
+test_frontmatter_policy_out=$(./tools/test-frontmatter-policy 2>&1) || fail "frontmatter adversarial tests failed: ${test_frontmatter_policy_out}"
+test_claude_stream_json_out=$(./tools/test-claude-stream-json 2>&1) || fail "Claude stream-json adversarial tests failed: ${test_claude_stream_json_out}"
+test_installed_permission_state_out=$(./tools/test-installed-permission-state 2>&1) || fail "installed-state adversarial tests failed: ${test_installed_permission_state_out}"
+test_render_source_policy_out=$(./tools/test-render-source-policy 2>&1) || fail "render-source adversarial tests failed: ${test_render_source_policy_out}"
 
 mkdir -p "$tmp_dir/empty-config" "$tmp_dir/empty-project"
 installed_state=$(CLAUDE_CONFIG_DIR="$tmp_dir/empty-config" ./tools/check-installed-permission-state --project-dir "$tmp_dir/empty-project" --json) || fail "clean standalone installed-state fixture was rejected"
@@ -379,7 +379,7 @@ printf '%s\n' "$installed_state" | jq -e '
 installed_status=$(printf '%s\n' "$installed_state" | jq -r '.status')
 
 artifact_state=$(./tools/verify-release-artifact-manifest --json) || fail "local artifact drift binding failed"
-./tools/test-independent-authority-policy >/dev/null || fail "independent permission/safety policy tests failed"
+test_independent_authority_policy_out=$(./tools/test-independent-authority-policy 2>&1) || fail "independent permission/safety policy tests failed: ${test_independent_authority_policy_out}"
 release_readiness=$(printf '%s\n' "$artifact_state" | jq -r '.release_status')
 
 if $release_mode; then
