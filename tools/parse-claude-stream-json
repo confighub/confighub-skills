@@ -41,11 +41,37 @@ class DuplicateRejectingHash < Hash
   end
 end
 
+# json gem >= 2.21 stopped routing nested object keys through the custom
+# object_class hook, so nested duplicates were silently absorbed and a
+# duplicate-key trace parsed as clean (confighub-skills#56). Which mechanism
+# rejects duplicates is a property of the installed gem, and old gems accept
+# unknown keywords silently -- so probe behaviour, never the API. If no
+# mechanism rejects the probe, refuse to parse at all rather than weaken.
+DUPLICATE_PROBE = '{"probe":{"k":1,"k":2}}'
+parse_opts =
+  begin
+    JSON.parse(DUPLICATE_PROBE, object_class: DuplicateRejectingHash)
+    nil
+  rescue JSON::ParserError
+    { object_class: DuplicateRejectingHash }
+  end
+parse_opts ||=
+  begin
+    JSON.parse(DUPLICATE_PROBE, allow_duplicate_key: false)
+    nil
+  rescue JSON::ParserError
+    { allow_duplicate_key: false }
+  end
+if parse_opts.nil?
+  raise JSON::ParserError,
+        "json gem #{JSON::VERSION} rejects duplicate object keys by no available mechanism"
+end
+
 path = ARGV.fetch(0)
 count = 0
 File.foreach(path).with_index(1) do |line, line_number|
   raise JSON::ParserError, "blank JSONL record at line #{line_number}" if line.strip.empty?
-  value = JSON.parse(line, object_class: DuplicateRejectingHash)
+  value = JSON.parse(line, **parse_opts)
   raise JSON::ParserError, "JSONL record at line #{line_number} is not an object" unless value.is_a?(Hash)
   count += 1
 end
