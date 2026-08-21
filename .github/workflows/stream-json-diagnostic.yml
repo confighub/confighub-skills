@@ -11,8 +11,19 @@ jobs:
         run: |
           grep -E "Image|Version" /imagegeneration/imagedata.json 2>/dev/null || true
           echo "jq: $(jq --version)"; echo "bash: $BASH_VERSION"
-      - name: Run stream-json test with full trace
+      - name: Interpreter inventory
+        run: |
+          for b in jq ruby; do echo "== $b: $(command -v $b)"; $b --version; done
+          ls -la /usr/local/bin/jq /usr/bin/jq 2>/dev/null || true
+          ruby -e 'require "json"; puts "json gem: #{JSON::VERSION}"'
+      - name: Duplicate-nested case in isolation
         run: |
           set +e
-          bash -x ./tools/test-claude-stream-json
-          echo "exit=$?"
+          tmp=$(mktemp -d)
+          printf '%s\n' '{"type":"system","subtype":"init","permissionMode":"manual"}' \
+            '{"type":"result","subtype":"success","is_error":false,"permission_denials":[{"tool_name":"Bash","tool_use_id":"t","tool_input":{"command":"one","command":"two"}}]}' \
+            > "$tmp/duplicate-nested.jsonl"
+          ./tools/parse-claude-stream-json "$tmp/duplicate-nested.jsonl" > "$tmp/out.json" 2> "$tmp/err.txt"
+          echo "parser rc=$?"
+          echo "--- stdout ---"; cat "$tmp/out.json"
+          echo "--- stderr ---"; cat "$tmp/err.txt"
