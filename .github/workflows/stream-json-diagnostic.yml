@@ -27,3 +27,7 @@ jobs:
           echo "parser rc=$?"
           echo "--- stdout ---"; cat "$tmp/out.json"
           echo "--- stderr ---"; cat "$tmp/err.txt"
+      - name: Full adversarial suite
+        run: ./tools/test-claude-stream-json
+      - name: Full validator
+        run: ./tools/validate-current-surface || true
