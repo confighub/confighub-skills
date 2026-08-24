@@ -11,7 +11,7 @@ restore that rewinds past the first change are all the ordinary path rather than
 consequence to remember: **`--restore 1` restores empty**, not the created content. It cannot be
 backfilled, so Units created before this change keep their content on Revision 1 — check
 `cub revision list <unit> --space <s>` rather than assuming.
- A Revision's **configuration snapshot** (`Data` plus `DataHash`) is immutable. The row as a whole is not: approvals, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
+ A Revision's **configuration snapshot** (its configuration data and the `DataHash` over it) is immutable. The row as a whole is not: approvals, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
 
 Authoritative definition: `Revision` struct in the public SDK at `https://github.com/confighub/sdk` (`core/openapi/goclient-new/models.gen.go`).
 
@@ -30,9 +30,13 @@ Authoritative definition: `Revision` struct in the public SDK at `https://github
 
 | Field | Meaning |
 |---|---|
-| `Data` | The **full** configuration data at this revision. Snapshots are immutable — a revision is never re-rendered. |
-| `DataHash` | SHA-256 of `Data`, hex-encoded. Useful for equivalence checks across Units. |
-| `ContentHash` | Deprecated — CRC32 of the same data. Use `DataHash`. |
+| `DataHash` | SHA-256 of the revision's configuration data, hex-encoded. Useful for equivalence checks across Units. |
+| `DataSize` | Byte size of that data. Answers "is there configuration here, and how much?" without fetching it. |
+
+The data itself is **not a field on `Revision`** — it has its own endpoint, so a revision read never
+drags a configuration along. Fetch it with `cub revision data <unit> <revision-num> --space <s>`
+(add `-O <path>` to write a file). It comes back as plain text, not base64. Snapshots are immutable —
+a revision is never re-rendered.
 
 ### Narrative (the "why")
 
@@ -52,7 +56,10 @@ The `Description` field is what makes revision history self-explaining later —
 
 ### Per-path mutation detail
 
-| Field | Meaning |
+Like the data, `MutationSources` is not a field on `Revision`; it has its own endpoint, which
+`cub unit get -o mutations` reads.
+
+| Record | Meaning |
 |---|---|
 | `MutationSources` | Per-path index of which change last set each configuration value: the mutation type (`Add` / `Update` / `Delete`), a reference to the Mutation (and so the Revision, function, Link, or Trigger) responsible, the value, and a **`Protected`** flag saying whether the path is a local override a merge must not overwrite. It is what powers `compute-mutations` / `patch-mutations`, what the merge engine consults to tell an upstream change from a local one, and what `cub unit get -o mutations` renders. Restore rewinds `MutationSources` along with `Data`, so provenance always matches the state you restored. |
 
@@ -124,8 +131,12 @@ cub revision list --space <s> --where "ChangeSetID = '<uuid>'"
 # Unit's revision history as structured data.
 cub revision list <unit> --space <s> -o json
 
-# Full detail for one revision, including MutationSources and Data.
+# Full metadata for one revision (not its configuration — see below).
 cub revision get <unit> --space <s> --revision <n> -o yaml
+
+# The revision's configuration, and its per-path provenance.
+cub revision data <unit> <n> --space <s>
+cub unit get <unit> --space <s> -o mutations
 ```
 
 ## Related

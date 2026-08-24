@@ -10,7 +10,7 @@ read-capability-subset: app-config
 
 **Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. In standalone use, submit each exact requested write once to the host permission system; a stricter external overlay may stop it before Bash.
 
-For an existing Unit, read its current `HeadRevisionNum` and `DataHash`/`ContentHash` immediately before the write and disclose that the stock convenience command does not carry those reviewed values as atomic preconditions. That race limits the claim you can make; it does not make this standalone Skill read-only.
+For an existing Unit, read its current `HeadRevisionNum` and `DataHash` immediately before the write and disclose that the stock convenience command does not carry those reviewed values as atomic preconditions. That race limits the claim you can make; it does not make this standalone Skill read-only.
 
 Turn a user's application configuration file — `.env`, `.properties`, `.yaml`, `.json`, `.toml`, `.ini`, or plain text — into a versioned ConfigHub Unit, then render it into a Kubernetes `ConfigMap` via an **Upsert link** carrying a `render-configmap` Invocation. No server worker and no Target are needed — rendering is a normal ConfigHub function that runs during link resolution.
 
