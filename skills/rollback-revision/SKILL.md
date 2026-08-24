@@ -70,7 +70,7 @@ cub revision list --space <space> --filter <app>-home/<app>-app \
 Named targets (`Tag:` / `Before:ChangeSet:`) are useful resolution aids, but Tags and ChangeSet metadata are not immutable approval subjects. Resolve any selector now and bind the exact RevisionNum, RevisionID, and DataHash before review; re-resolve before any authorized execution.
 
 The last source-reviewed v0.2.11 Unit update path could transactionally compare
-caller-supplied `HeadRevisionNum` and `DataHash`/`ContentHash`. That older
+caller-supplied `HeadRevisionNum` and `DataHash`. That older
 finding is not projected onto the installed v0.2.21 server. The stock v0.2.15
 restore command does not expose those expected current-state fields. Re-read
 immediately before the call, name the race, and do not claim exact

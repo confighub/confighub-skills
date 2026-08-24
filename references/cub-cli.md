@@ -147,7 +147,7 @@ Release/controller/runtime proof.
 
 | View            | Command                                   | What it is                                                                                                                                                                                                                                         | When to read it                                                                                                                                                                                                        |
 | --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data**        | `cub unit data <slug> --space <s>`        | Current head Revision's declared configuration. | Authoring and desired-state review. |
+| **Data**        | `cub unit data <slug> --space <s>`        | Current head Revision's declared configuration. Add `-O <path>` to write a file, or `cub revision data <slug> <n> --space <s>` for an earlier Revision. | Authoring and desired-state review. |
 | **LiveData**    | `cub unit livedata <slug> --space <s>`    | retained/elided data from the former bridge path, when present | Historical bridge diagnosis only. |
 | **LiveState**   | `cub unit livestate <slug> --space <s>`   | retained unelided former bridge state, when present | Historical bridge diagnosis only. |
 | **BridgeState** | `cub unit bridgestate <slug> --space <s>` | bridge-implementation blob, when present | Historical bridge diagnosis only. |
@@ -156,7 +156,7 @@ Release/controller/runtime proof.
 
 Rules of thumb:
 
-- **Desired config = Data.** Compare heads/revisions inside ConfigHub.
+- **Desired config = Data.** Compare heads/revisions inside ConfigHub. Configuration data is not a field on the Unit or Revision — `cub unit data` / `cub revision data` are the only commands that serve it, and it is plain text, never base64.
 - **Published config = exact Release plus selected RevisionIDs/DataHashes.** `LastAppliedRevisionNum` records the Revision captured by publication, not controller convergence.
 - **Cluster debug = controller reads plus kubectl.** Bind those reads to ManifestDigest and `confighub.com/origin`.
 - **Legacy bridge history = LiveData/LiveState/BridgeState.** Label it historical; never upgrade it into current proof.
@@ -182,7 +182,7 @@ Other:
 Function-command-only: **`--show <section>`** selects a sub-payload of the FunctionInvocationsResponse. Values: `output` (function Outputs), `values` (AttributeValueList Value fields), `data` (modified ConfigData from mutating functions). Combine with `-o` to format the selected section, e.g. `--show output -o json`, `--show output -o jq=<expr>`.
 
 Deprecated but still functional (they print a migration hint when used):
-`--json`, `--yaml`, `--jq`, `--yq`, `--names`, `--no-header` (singular), `--display-mutations`, `--data-only`, `--output-only`, `--output-json`, `--output-jq`, `--output-values-only`.
+`--json`, `--yaml`, `--jq`, `--yq`, `--names`, `--no-header` (singular), `--display-mutations`, `--data-only`, `--output-only`, `--output-json`, `--output-jq`, `--output-values-only`. On `cub unit get` and `cub revision get`, `--data-only` is replaced by `cub unit data` / `cub revision data`; on the function commands it is replaced by `--show data`.
 
 ### `cub get` / `cub list` return an extended envelope — select with `-o jq=<expr>`
 

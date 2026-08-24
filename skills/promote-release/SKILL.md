@@ -227,7 +227,7 @@ Then hand off to `release-publish`. A ChangeSet remains grouping/rollback eviden
 
 **Use the manual ChangeSet flow below instead when** you need to promote only a subset of a Space, push a shared base across *many* Spaces at once, or want explicit ChangeSet open/close/review/set-wise-restore control beyond what `--changeset` on `variant promote` gives.
 
-**Pre-read race.** ConfigHub's update provider has a real transactional primitive: caller-supplied `HeadRevisionNum` plus `DataHash`/`ContentHash` can be compared inside the update transaction, and raw patch bodies can carry the values. Stock `cub variant promote` does not prove that the reviewed per-Unit expected state was bound into its final request. Revalidate immediately before the one standalone promotion call, disclose the race, and do not claim exact reviewed-state binding. This is not evidence that the server lacks Unit CAS.
+**Pre-read race.** ConfigHub's update provider has a real transactional primitive: caller-supplied `HeadRevisionNum` plus `DataHash` can be compared inside the update transaction, and raw patch bodies can carry the values. Stock `cub variant promote` does not prove that the reviewed per-Unit expected state was bound into its final request. Revalidate immediately before the one standalone promotion call, disclose the race, and do not claim exact reviewed-state binding. This is not evidence that the server lacks Unit CAS.
 
 ---
 
