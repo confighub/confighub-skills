@@ -131,7 +131,7 @@ cub unit data <slug> --space <space>
 
 # ConfigHub's data at the revision most recently captured by a Space Release.
 # This is publication state, not proof that a controller or cluster consumed it.
-revision=$(cub unit get --space <space> <slug> -o jq=".Unit.LastAppliedRevisionNum")
+revision=$(cub unit get --space <space> <slug> -o jq=".Unit.LastReleasedRevisionNum")
 cub revision data --space <space> <unit-slug> $revision
 
 # Historical bridge reads. The current OCI Release profile does not use
@@ -141,7 +141,7 @@ cub unit livestate <slug> --space <space>
 cub unit bridgestate <slug> --space <space>
 ```
 
-For “what is running?”, bind the immutable Release/ManifestDigest, inspect Argo CD or Flux, and read the cluster through `verify-apply`. Do not answer from `LastAppliedRevisionNum`, LiveData, LiveState, or BridgeState alone.
+For “what is running?”, bind the immutable Release/ManifestDigest, inspect Argo CD or Flux, and read the cluster through `verify-apply`. Do not answer from `LastReleasedRevisionNum`, LiveData, LiveState, or BridgeState alone.
 
 For **extracting one field** from one Unit (cleaner than grepping YAML), scope a getter with `--unit`:
 
@@ -185,7 +185,7 @@ cub unit list --space "*" --where "Labels.Environment = 'prod'"
 cub unit list --space "*" --where "Space.Slug LIKE 'myapp-%'"
 ```
 
-Useful current `--where` fields include `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LastAppliedRevisionNum` (most recently captured by publication), and `TargetID`. `LiveRevisionNum` is retained legacy bridge state, not current runtime proof. To filter on a Kubernetes resource kind, use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"`; `ResourceType` is not a metadata field. `UnappliedChanges` is not a field.
+Useful current `--where` fields include `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LastReleasedRevisionNum` (most recently captured by publication), and `TargetID`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist. To filter on a Kubernetes resource kind, use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"`; `ResourceType` is not a metadata field. `UnappliedChanges` is not a field.
 
 ### 2. Content queries — `--where-data`
 

@@ -111,7 +111,7 @@ Selects destination Spaces when the filter is being bulk-created. Rarely needed;
 
 ### Attribute vocabulary for `--where` / `--where-field`
 
-Entity metadata attributes are entity-specific. Common current Unit fields include `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`, `ApprovedBy`, and `ApplyGates`. `LiveRevisionNum` is retained legacy bridge-era state, not current runtime proof; `UnappliedChanges` is not a field. Common Trigger fields include `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, and `Disabled`. Confirm with help and structured reads before composing a new query.
+Entity metadata attributes are entity-specific. Common current Unit fields include `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LastReleasedRevisionNum`, `UpstreamRevisionNum`, `ApprovedBy`, and `ApplyGates`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; `UnappliedChanges` is not a field. Common Trigger fields include `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, and `Disabled`. Confirm with help and structured reads before composing a new query.
 
 **`ResourceType` is not a `--where` / `--where-field` attribute.** It's a resource-level pseudo-attribute under `--where-data` as `ConfigHub.ResourceType`, or the dedicated `--resource-type` flag on `cub filter create` Unit filters:
 
@@ -157,7 +157,7 @@ Release/controller/runtime proof.
 Rules of thumb:
 
 - **Desired config = Data.** Compare heads/revisions inside ConfigHub. Configuration data is not a field on the Unit or Revision — `cub unit data` / `cub revision data` are the only commands that serve it, and it is plain text, never base64.
-- **Published config = exact Release plus selected RevisionIDs/DataHashes.** `LastAppliedRevisionNum` records the Revision captured by publication, not controller convergence.
+- **Published config = exact Release plus selected RevisionIDs/DataHashes.** `LastReleasedRevisionNum` records the Revision captured by publication, not controller convergence.
 - **Cluster debug = controller reads plus kubectl.** Bind those reads to ManifestDigest and `confighub.com/origin`.
 - **Legacy bridge history = LiveData/LiveState/BridgeState.** Label it historical; never upgrade it into current proof.
 
@@ -197,7 +197,7 @@ Use `-o jq=<expr>` to drill in:
 cub unit get <slug> --space <s> -o jq='.Unit.TargetID'
 
 # A pick from the core entity.
-cub unit get <slug> --space <s> -o jq='.Unit | {Slug, HeadRevisionNum, LiveRevisionNum, TargetID}'
+cub unit get <slug> --space <s> -o jq='.Unit | {Slug, HeadRevisionNum, LastReleasedRevisionNum, TargetID}'
 
 # Combine the entity with related siblings — .BridgeWorker is a sibling of .Unit, not a field of it.
 cub unit get <slug> --space <s> -o jq='{target: .Unit.TargetID, worker: .BridgeWorker.Slug}'
@@ -206,7 +206,7 @@ cub unit get <slug> --space <s> -o jq='{target: .Unit.TargetID, worker: .BridgeW
 cub unit get <slug> --space <s> -o jq='.Unit'
 
 # List — unwrap per-row.
-cub unit list --space <s> -o jq='.[].Unit | {Slug, HeadRevisionNum, LiveRevisionNum}'
+cub unit list --space <s> -o jq='.[].Unit | {Slug, HeadRevisionNum, LastReleasedRevisionNum}'
 ```
 
 Do **not** write `cub ... -o json | jq '...'` — use `-o jq=<expr>` to avoid the extra pipe and quoting. Do **not** assume bare fields are at top level (`-o jq='.Slug'` on a `cub unit get` response returns `null`; the correct form is `-o jq='.Unit.Slug'`).

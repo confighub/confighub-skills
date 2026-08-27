@@ -122,8 +122,9 @@ Therefore the preview is not atomically bound to execution. In standalone mode, 
 ## Native head approval is separate—and not exact
 
 Installed v0.2.15 help advertises numeric, `LiveRevisionNum`, Tag, and
-ChangeSet approval selectors. Exact v0.2.21 server acceptance and atomic
-preconditions are not source-reviewed here. Confirm the selector with current
+ChangeSet approval selectors; as of v0.4.0 `LiveRevisionNum` is removed and
+`LastAppliedRevisionNum` is renamed `LastReleasedRevisionNum`. Exact server
+acceptance and atomic preconditions are not source-reviewed here. Confirm the selector with current
 help, submit an explicitly requested approval as its own command, inspect the
 result, and do not claim exact reviewed-artifact binding without provider
 evidence. Approval and publication remain separate host-permission calls.

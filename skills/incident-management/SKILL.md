@@ -27,7 +27,7 @@ Stabilize first, but do not sacrifice attribution. Current delivery evidence is 
 
    ```text
    cub space get <variant-space> -o json
-   cub unit list --space <variant-space> --select "TargetID,HeadRevisionNum,LastAppliedRevisionNum,ApplyGates" -o json
+   cub unit list --space <variant-space> --select "TargetID,HeadRevisionNum,LastReleasedRevisionNum,ApplyGates" -o json
    ```
 
    To see the affected workload as a resource rather than as a Unit — the faster read when the

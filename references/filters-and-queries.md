@@ -29,7 +29,7 @@ Attribute names are **case-sensitive PascalCase** as in JSON encoding (`Slug`, `
 
 All entities: `CreatedAt`, `UpdatedAt`, `DisplayName`, `Slug`, ID fields.
 
-Unit-specific: `HeadRevisionNum`, `LastAppliedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ApprovedBy`, `ApplyGates`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. `LiveRevisionNum` is retained bridge-era state and is not current runtime proof.
+Unit-specific: `HeadRevisionNum`, `LastReleasedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ApprovedBy`, `ApplyGates`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; a query naming either is rejected as an unrecognized attribute.
 
 Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRevisionNum` on a Unit that has an upstream.
 
@@ -72,8 +72,8 @@ Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRev
 --where "ApplyGates.require-approval/vet-approvedby = true"
 
 # Revision state
---where "HeadRevisionNum > LiveRevisionNum"   # pending changes
---where "LiveRevisionNum = 0"                 # never applied
+--where "HeadRevisionNum > LastReleasedRevisionNum"   # unreleased changes
+--where "LastReleasedRevisionNum = 0"                # never released
 --where "UpstreamRevisionNum > 0"             # cloned/downstream units
 
 # Conjunction
@@ -155,7 +155,7 @@ These filters describe ConfigHub revision/policy state. They do **not** prove a 
 ```text
 # Unit head differs from the revision most recently captured by publication.
 cub filter create --space "$space" unreleased-head Unit \
-  --where-field "HeadRevisionNum != LastAppliedRevisionNum AND TargetID IS NOT NULL"
+  --where-field "HeadRevisionNum != LastReleasedRevisionNum AND TargetID IS NOT NULL"
 
 # Current Unit revision has no recorded native approver.
 cub filter create --space "$space" not-approved Unit \
@@ -176,7 +176,7 @@ cub filter create --space "$space" has-upstream Unit \
 
 The Release EffectiveReleaseSet cannot be inferred from these generic Filters. Read the Space's exact `ReleaseTargetID`, list Units with TargetID selected, and compare equality. `cub release publish` accepts no Filter.
 
-The old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and `unapplied-changes` (`HeadRevisionNum > LiveRevisionNum`) recipes are retained in the machine no-loss inventory as historical Unit-runtime views. Do not use them for Release/controller/runtime proof.
+The old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and `unapplied-changes` (`HeadRevisionNum > LiveRevisionNum`) recipes are retained in the machine no-loss inventory as historical Unit-runtime views. They are no longer runnable: `LiveRevisionNum` has been removed and `LastAppliedRevisionNum` renamed. Do not use them for Release/controller/runtime proof.
 
 ### Using a named Filter
 
@@ -203,7 +203,7 @@ cub revision list --space "$space" --where "UpdatedAt > '2026-04-01'"
 cub revision list <unit-slug> --space "$space"
 ```
 
-The full Revision data model — fields, per-path `MutationSources`, `ApplyGates`/`ApplyWarnings` snapshots, `ApprovedBy`, `LiveAt`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
+The full Revision data model — fields, per-path `MutationSources`, `ApplyGates`/`ApplyWarnings` snapshots, `ApprovedBy`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
 
 ## Getter functions for content extraction
 
