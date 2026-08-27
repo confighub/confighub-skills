@@ -33,7 +33,7 @@ requested prior revision to RevisionID/DataHash, create a new head with
 
 - User says "roll back", "revert", "undo" — and means it: the restored state should be the new baseline.
 - Post-promotion rollback: a ChangeSet went out, the destination env rejects it, restore every affected Unit to `Before:ChangeSet:<slug>`.
-- Single-Unit revert: one Unit got a bad revision, restore to `LastAppliedRevisionNum` or a specific prior number.
+- Single-Unit revert: one Unit got a bad revision, restore to `LastReleasedRevisionNum` or a specific prior number.
 
 ## Do not load for
 
@@ -47,13 +47,12 @@ requested prior revision to RevisionID/DataHash, create a new head with
 3. The rollback target is explicit. Installed `--restore` selectors include:
    - Absolute revision number (`--restore 42`). **Note `--restore 1` restores *empty*:** every Unit now begins with an empty start revision and its created content lands on Revision 2. Units created before that change kept content on Revision 1, so read `cub revision list` rather than assuming which meaning applies.
    - Relative (`--restore -1` = one before head).
-   - `LastAppliedRevisionNum` — the Revision most recently captured by ConfigHub publication bookkeeping; not proof of controller consumption or current runtime state.
-   - `LiveRevisionNum` — retained bridge-era state only; not current OCI/controller/runtime proof.
+   - `LastReleasedRevisionNum` — the Revision most recently captured by ConfigHub publication bookkeeping; not proof of controller consumption or current runtime state. This is the former `LastAppliedRevisionNum`; the bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` selectors no longer exist.
    - `Tag:<home-space>/<tag>` — a named release marker.
    - `ChangeSet:<home-space>/<slug>` — the end of a ChangeSet.
    - `Before:ChangeSet:<home-space>/<slug>` — the ChangeSet's start tag, i.e. the head each Unit had immediately before the ChangeSet opened (the standard "undo release X" target). The start tag marks a revision that already existed rather than one manufactured by attaching, so a Unit that joined the ChangeSet and never changed rewinds cleanly along with the rest.
    - A revision UUID.
-   Treat relative, `LiveRevisionNum`, and `LastAppliedRevisionNum` forms only as resolution aids: read what each resolves to and bind the exact RevisionNum, RevisionID, and DataHash before approval.
+   Treat relative and `LastReleasedRevisionNum` forms only as resolution aids: read what each resolves to and bind the exact RevisionNum, RevisionID, and DataHash before approval.
 4. The destination currently isn't in the middle of *another* open ChangeSet on the same Units.
 5. User has confirmed the exact resolved revisions and understands that the later Release may include additional Units.
 

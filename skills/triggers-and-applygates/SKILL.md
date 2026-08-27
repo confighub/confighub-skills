@@ -125,8 +125,10 @@ cub trigger create --space platform -o json require-approval Mutation Kubernetes
 
 The Trigger above establishes policy. ConfigHub's native operation is
 `cub unit approve`. Installed v0.2.15 help advertises numeric,
-`LiveRevisionNum`, Tag, and ChangeSet selectors as well as the default head.
-Exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed
+`LiveRevisionNum`, Tag, and ChangeSet selectors as well as the default head; as of
+v0.4.0 `LiveRevisionNum` is removed and `LastAppliedRevisionNum` is renamed
+`LastReleasedRevisionNum`.
+Exact server acceptance and atomic preconditions are not source-reviewed
 here, so confirm the selected form with current help and inspect its result:
 
 ```text

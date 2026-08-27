@@ -84,7 +84,6 @@ Gates and warnings are scoped to a Revision's data, but resolution can update th
 
 | Field | Meaning |
 |---|---|
-| `LiveAt` | Bridge-era runtime timestamp. Do not use it to establish current OCI Release membership or publication time; use the Release record, `Revision.Releases`, and the publication receipt. |
 
 ### Grouping
 
@@ -142,6 +141,6 @@ cub unit get <unit> --space <s> -o mutations
 ## Related
 
 - `references/cub-cli.md` — `--change-desc` composition rule and `-o mutations` for inline diffs at mutation time.
-- `references/filters-and-queries.md` — filter vocabulary including revision-state fields (`HeadRevisionNum`, `LiveRevisionNum`, `LastAppliedRevisionNum`, `UpstreamRevisionNum`) on the Unit side.
+- `references/filters-and-queries.md` — filter vocabulary including revision-state fields (`HeadRevisionNum`, `LastReleasedRevisionNum`, `UpstreamRevisionNum`) on the Unit side.
 - `references/cub-cli.md` → "Protection and merge conflicts" — the `Protected` flag, `cub unit set-protection`, and `cub unit conflicts`.
 - Skills: `cub-mutate` (composes `--change-desc`), `cub-query` (audit queries), `promote-release` (walked merges record one revision per upstream revision), `rollback-revision` (restore targets), `release-publish` (publishes from a tagged revision via `cub release publish --revision <tag>`).

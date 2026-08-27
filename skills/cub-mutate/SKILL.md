@@ -254,7 +254,7 @@ cub unit update --space <space> <slug> --restore <rev-num-or-tag> \
   --change-desc 'Restore Unit to reviewed prior revision'
 ```
 
-Valid `--restore` targets: a number (absolute or negative-relative), `LiveRevisionNum`, `LastAppliedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, `Before:ChangeSet:<name>` (pre-open state), a revision UUID.
+Valid `--restore` targets: a number (absolute or negative-relative), `HeadRevisionNum`, `LastReleasedRevisionNum`, `Tag:<tag>`, `ChangeSet:<name>`, `Before:ChangeSet:<name>` (pre-open state), a revision UUID.
 
 ## Proposing a saved Invocation execution
 

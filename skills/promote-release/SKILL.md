@@ -244,10 +244,10 @@ Produce a concrete go / no-go. `--where` is AND-only (run one query per conditio
 ```text
 cub release get --space <app>-<source> --oci-reference latest
 cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
-  --select "HeadRevisionNum,LastAppliedRevisionNum,TargetID,ApplyGates" -o json
+  --select "HeadRevisionNum,LastReleasedRevisionNum,TargetID,ApplyGates" -o json
 ```
 
-Recompute the source EffectiveReleaseSet from `Space.ReleaseTargetID` equality. Its size must equal the Release `UnitCount`, and every effective Unit's `HeadRevisionNum` must equal the revision captured by that Release (`LastAppliedRevisionNum`) before source desired state can be called aligned with the newest ConfigHub publication. That still does not prove controller consumption or current runtime state; require the `verify-apply` chain above for that claim. Any mismatch is no-go and must be named. An untargeted base Space has no runtime proof; treat base→Variant promotion as reviewed configuration movement, not as a proved live environment. Never ignore an ApplyGate merely because a Unit is in a base.
+Recompute the source EffectiveReleaseSet from `Space.ReleaseTargetID` equality. Its size must equal the Release `UnitCount`, and every effective Unit's `HeadRevisionNum` must equal the revision captured by that Release (`LastReleasedRevisionNum`) before source desired state can be called aligned with the newest ConfigHub publication. That still does not prove controller consumption or current runtime state; require the `verify-apply` chain above for that claim. Any mismatch is no-go and must be named. An untargeted base Space has no runtime proof; treat base→Variant promotion as reviewed configuration movement, not as a proved live environment. Never ignore an ApplyGate merely because a Unit is in a base.
 
 **B. Destination needs it** — `cub unit list --space <app>-<dest> --filter platform/needs-upgrade`. Empty = nothing to promote, stop. Narrow with `--where "Slug LIKE '%-api%'"` for a subset.
 
@@ -293,7 +293,9 @@ the non-head ChangeSet approval selector retained as
 `non-head-unit-approval` in `compatibility/no-loss-inventory.v1.json`.
 
 Installed v0.2.15 help advertises numeric, `LiveRevisionNum`, Tag, and
-ChangeSet selectors. The exact v0.2.21 server implementation is not available
+ChangeSet selectors; as of v0.4.0 `LiveRevisionNum` is removed and
+`LastAppliedRevisionNum` is renamed `LastReleasedRevisionNum`. The exact
+v0.2.21 server implementation is not available
 in this checkout, so confirm the current selector with installed help and
 inspect the result. Do not claim that native approval atomically bound the
 earlier reviewed UnitID/RevisionID/DataHash set unless the provider operation
