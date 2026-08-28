@@ -6,7 +6,7 @@
   "source_tree": {
     "file_count": 263,
     "path_set_sha256": "2d935cd25d43dbab7497782f0e289de3fa9f4956cd0a9d9479a2e4792bbb966d",
-    "content_tree_sha256": "0b61ec43369daa17150133f2bba92cbffbd471e9b80b38ad6d94a71bb43fab9f"
+    "content_tree_sha256": "d91f4e49dee84dc956a59e0475290dc1d7130e7a67475cdb299bc963b0570e55"
   },
   "plugin_package": {
     "roots": [
@@ -19,7 +19,7 @@
     ],
     "file_count": 64,
     "path_set_sha256": "a2235fec273db507204518b3db5c33767fb1c61dc74ce9d091c4fdd917126acc",
-    "content_tree_sha256": "5ce34a3b829f10d81252fda64cdcfe5a8d23464ef9fb8b9927a3d0f4b7127da2"
+    "content_tree_sha256": "f67145240d7084b098d9290aaddb4acf4c6f8451d03798179c5eff2a136ba7b8"
   },
   "authority": {
     "classification": "LOCAL_DRIFT_SENTINEL_ONLY",
