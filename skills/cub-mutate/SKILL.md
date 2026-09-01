@@ -367,6 +367,6 @@ The `release-publish` skill maps apply/deploy intent to the exact current Space 
 - `references/cub-cli.md` → "Protection and merge conflicts" — `--protect`, `cub unit set-protection`, `cub unit conflicts`.
 - `references/filters-and-queries.md` — named Filters (use these with ChangeSets).
 - `references/yaml-patterns.md` — for hand-edit fallback.
-- https://docs.confighub.com/markdown/guide/change-apply.md
+- https://docs.confighub.com/markdown/guide/changes.md
 - https://docs.confighub.com/markdown/guide/functions.md
 - https://docs.confighub.com/markdown/guide/invocations-that-generalize.md

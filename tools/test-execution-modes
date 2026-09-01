@@ -15,7 +15,7 @@ done
 
 jq -e '
   .schema_version == "confighub-skills-execution-modes/v1" and
-  .candidate_plugin_version == "0.4.2" and
+  .candidate_plugin_version == "0.4.3" and
   .default_mode == "standalone" and
   .pack_permission.allowed_tools_must_be_empty == true and
   .pack_permission.plugin_autoallow == false and
