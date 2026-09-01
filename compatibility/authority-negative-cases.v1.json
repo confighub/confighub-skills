@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-authority-negative-cases/v1",
-  "candidate_plugin_version": "0.4.2",
+  "candidate_plugin_version": "0.4.3",
   "current_boundary": "NO_PLUGIN_AUTOALLOW_HOST_PERMISSION_DECIDES",
   "cases": [
     {

@@ -4,7 +4,7 @@ A ChangeSet groups related mutations across multiple Units so they can be review
 
 **Execution mode:** follow [How commands run](execution-modes.md). Every write in this reference is a separate one-command normal host permission call. This pack preapproves none of them.
 
-Canonical doc: `https://docs.confighub.com/markdown/guide/change-apply.md`.
+Canonical doc: `https://docs.confighub.com/markdown/guide/changes.md`.
 
 ## Lifecycle
 

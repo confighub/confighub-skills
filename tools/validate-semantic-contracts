@@ -16,7 +16,7 @@ done
 jq empty "$contract" >/dev/null 2>&1 || fail "missing or invalid semantic contract"
 jq -e '
   .schema_version == "confighub-skills-semantic-contracts/v1" and
-  .candidate_plugin_version == "0.4.2" and
+  .candidate_plugin_version == "0.4.3" and
   (.purpose | contains("Self-renewable local drift") and contains("not trust")) and
   .minimum_expected_output_chars >= 120 and
   (.skills | length) == 15 and

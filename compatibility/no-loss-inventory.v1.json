@@ -6,7 +6,7 @@
     "skill_count": 15,
     "eval_case_count": 62
   },
-  "candidate_plugin_version": "0.4.2",
+  "candidate_plugin_version": "0.4.3",
   "candidate_base_commit": "de74ac357b88e4a39b22b2afb6a6ff232d91ded5",
   "compatibility_profile": "compatibility/current-profile.v1.json",
   "global_claim_limits": [

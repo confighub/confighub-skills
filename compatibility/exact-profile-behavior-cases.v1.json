@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-exact-profile-behavior-cases/v1",
-  "candidate_plugin_version": "0.4.2",
+  "candidate_plugin_version": "0.4.3",
   "status": "HISTORICAL_SOURCE_REVIEW_FIXTURE",
   "scope": "These cases record the older exact-reviewed v0.2.11/v0.2.15 tuple. They preserve safety knowledge but are not current v0.2.15/v0.2.21 execution instructions.",
   "profile_id": "cub-0.2.11_server-0.2.15_helm-0.1.0",

@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-read-capabilities/v1",
-  "candidate_plugin_version": "0.4.2",
+  "candidate_plugin_version": "0.4.3",
   "status": "STANDALONE_HOST_PERMISSION",
   "raw_bash_autoallow": false,
   "enforcement": {

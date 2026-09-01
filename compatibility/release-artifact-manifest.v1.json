@@ -1,12 +1,12 @@
 {
   "schema_version": "confighub-skills-local-drift-manifest/v2",
-  "candidate_plugin_version": "0.4.2",
+  "candidate_plugin_version": "0.4.3",
   "algorithm": "sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)",
   "self_exclusion": "compatibility/release-artifact-manifest.v1.json",
   "source_tree": {
     "file_count": 263,
     "path_set_sha256": "2d935cd25d43dbab7497782f0e289de3fa9f4956cd0a9d9479a2e4792bbb966d",
-    "content_tree_sha256": "d91f4e49dee84dc956a59e0475290dc1d7130e7a67475cdb299bc963b0570e55"
+    "content_tree_sha256": "ddddcbb1c4bc32db50d09c82ad8bbaf0104c1158191e433b157b4e564bdfcbd4"
   },
   "plugin_package": {
     "roots": [
@@ -19,7 +19,7 @@
     ],
     "file_count": 64,
     "path_set_sha256": "a2235fec273db507204518b3db5c33767fb1c61dc74ce9d091c4fdd917126acc",
-    "content_tree_sha256": "f67145240d7084b098d9290aaddb4acf4c6f8451d03798179c5eff2a136ba7b8"
+    "content_tree_sha256": "f29a35c2e508ad25811ae0d83957b82167186000376ff5c85464c45cc18c9c12"
   },
   "authority": {
     "classification": "LOCAL_DRIFT_SENTINEL_ONLY",

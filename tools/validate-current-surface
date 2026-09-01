@@ -88,7 +88,7 @@ jq empty .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.
 jq -e '
   . as $profile |
   .schema_version == "confighub-skills-compatibility/v1" and
-  .plugin_version == "0.4.2" and
+  .plugin_version == "0.4.3" and
   .candidate_base_commit == "700fcb3" and
   .profile_id == "cub-0.2.15_server-0.2.21_helm-0.1.0" and
   .status == "STANDALONE_SOURCE_CANDIDATE" and
@@ -124,7 +124,7 @@ jq -e '
 
 jq -e '
   .schema_version == "confighub-skills-read-capabilities/v1" and
-  .candidate_plugin_version == "0.4.2" and
+  .candidate_plugin_version == "0.4.3" and
   .status == "STANDALONE_HOST_PERMISSION" and
   .raw_bash_autoallow == false and
   .enforcement.current == "NO_PLUGIN_OR_SKILL_BASH_AUTOALLOW" and
@@ -157,7 +157,7 @@ jq -e '
 
 jq -e '
   .schema_version == "confighub-skills-authority-negative-cases/v1" and
-  .candidate_plugin_version == "0.4.2" and
+  .candidate_plugin_version == "0.4.3" and
   .current_boundary == "NO_PLUGIN_AUTOALLOW_HOST_PERMISSION_DECIDES" and
   (.cases | length) == 12 and
   ([.cases[].case_id] | length == (unique | length)) and
@@ -166,7 +166,7 @@ jq -e '
 ' "$authority_cases" >/dev/null || fail "automatic-permission negative case matrix is incomplete"
 
 jq -e '
-  .candidate_plugin_version == "0.4.2" and
+  .candidate_plugin_version == "0.4.3" and
   .status == "HISTORICAL_SOURCE_REVIEW_FIXTURE" and
   (.scope | contains("not current")) and
   .profile_id == "cub-0.2.11_server-0.2.15_helm-0.1.0" and
@@ -178,15 +178,15 @@ jq -e '
   any(.cases[]; .case_id == "worker-run-auto-creates-missing-worker" and .expected == "CLASSIFY_WORKER_RUN_AS_MUTATING")
 ' "$profile_cases" >/dev/null || fail "historical exact-profile fixture is incomplete or presented as current"
 
-jq -e '.version == "0.4.2" and (.description | contains("Standalone") and contains("host permission") and contains("no automatic tool permission"))' \
-  .claude-plugin/plugin.json >/dev/null || fail "plugin metadata does not describe the 0.4.2 standalone contract"
+jq -e '.version == "0.4.3" and (.description | contains("Standalone") and contains("host permission") and contains("no automatic tool permission"))' \
+  .claude-plugin/plugin.json >/dev/null || fail "plugin metadata does not describe the 0.4.3 standalone contract"
 jq -e '.metadata.description | contains("Standalone") and contains("host permission") and contains("no tool is preapproved")' \
   .claude-plugin/marketplace.json >/dev/null || fail "marketplace metadata does not describe the standalone contract"
 jq -e '.permissions.allow == [] and (. ["//"] | contains("grants no Bash auto-allow"))' \
   .claude/settings.local.json.example >/dev/null || fail "settings example grants or implies plugin autoallow"
 
 jq -e '
-  .candidate_plugin_version == "0.4.2" and
+  .candidate_plugin_version == "0.4.3" and
   .candidate_base_commit == "de74ac357b88e4a39b22b2afb6a6ff232d91ded5" and
   .compatibility_profile == "compatibility/current-profile.v1.json" and
   any(.global_claim_limits[]; .block_id == "approved-unit-state-cas-integration" and .status == "CLAIM_LIMIT" and .result == "PREVIEW_TO_EXECUTION_ATOMICITY_NOT_PROVEN") and
@@ -393,7 +393,7 @@ if $release_mode; then
   exit 1
 fi
 
-printf '%s\n' 'static compatibility surface: PASS (0.4.2; 15 canonical skills + 1 compatibility identity, 75 evals, 38 trigger families, 68 capability dispositions, 78 eval dispositions)'
+printf '%s\n' 'static compatibility surface: PASS (0.4.3; 15 canonical skills + 1 compatibility identity, 75 evals, 38 trigger families, 68 capability dispositions, 78 eval dispositions)'
 printf 'standalone state: %s; release readiness: %s\n' "$installed_status" "$release_readiness"
 printf '%s\n' 'commands: host permission decides one exact call; the pack contributes zero automatic tool permission; optional overlays may impose stricter policy.'
 printf '%s\n' 'claim limits: local hashes are drift sentinels only; provider atomicity, behavioral selection, protected release binding, controller convergence, and runtime state require separate evidence.'

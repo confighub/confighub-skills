@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-execution-modes/v1",
-  "candidate_plugin_version": "0.4.2",
+  "candidate_plugin_version": "0.4.3",
   "default_mode": "standalone",
   "pack_permission": {
     "allowed_tools_must_be_empty": true,

@@ -1,7 +1,7 @@
 {
   "name": "confighub-skills",
   "description": "Standalone ConfigHub operating skills: the host permission policy decides reads and exact scoped changes; Pilot may add optional stricter governance; the pack grants no automatic tool permission.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "author": {
     "name": "ConfigHub"
   },

@@ -12,17 +12,58 @@ if release_source_paths "$root" | rg -qx '\.git'; then
 fi
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
+
+# A file Git ignores is machine-local and must not reach either digest: left in, a
+# manifest regenerated on a contributor's checkout disagrees with the one CI computes
+# over the same commit. The fixture is its own repository so the assertion does not
+# depend on what this checkout happens to have lying around, and it covers both roots --
+# a stray file under a packaged root would move the package digest, which is the
+# release-critical one.
+ignore_repo="$tmp_dir/ignored"
+mkdir -p "$ignore_repo/.claude"
+# Every packaged root, so release_package_paths walks the same shape it does here.
+mkdir -p "$ignore_repo"/{.claude-plugin,commands,compatibility,hooks,references,skills}
+git -C "$ignore_repo" init -q
+printf '%s\n' '.claude/settings.local.json' 'skills/scratch.tmp' >"$ignore_repo/.gitignore"
+printf '%s\n' 'tracked' >"$ignore_repo/skills/SKILL.md"
+printf '%s\n' 'local' >"$ignore_repo/.claude/settings.local.json"
+printf '%s\n' 'local' >"$ignore_repo/skills/scratch.tmp"
+if release_source_paths "$ignore_repo" | rg -qx '\.claude/settings\.local\.json|skills/scratch\.tmp'; then
+  printf '%s\n' 'release binding test: FAIL source digest includes a Git-ignored path' >&2
+  exit 1
+fi
+if release_package_paths "$ignore_repo" | rg -qx 'skills/scratch\.tmp'; then
+  printf '%s\n' 'release binding test: FAIL package digest includes a Git-ignored path' >&2
+  exit 1
+fi
+# The tracked file is still there: check-ignore consults the index, so nothing that
+# ships can be dropped by the filter.
+if ! release_source_paths "$ignore_repo" | rg -qx 'skills/SKILL\.md'; then
+  printf '%s\n' 'release binding test: FAIL ignore filter dropped a tracked file' >&2
+  exit 1
+fi
+git -C "$ignore_repo" add -A
+git -C "$ignore_repo" -c user.name=t -c user.email=t@example.invalid commit -qm ignored
+if ! release_source_paths "$ignore_repo" | rg -qx 'skills/SKILL\.md'; then
+  printf '%s\n' 'release binding test: FAIL ignore filter dropped a committed file' >&2
+  exit 1
+fi
 candidate="$tmp_dir/candidate"
 mkdir -p "$candidate"
 rsync -a --exclude .git "$root/" "$candidate/"
+
+# The candidate is a repository before the first manifest is generated, because rsync
+# copies whatever this checkout has lying around -- ignored files included -- and the
+# ignore filter only has rules to read inside a worktree. Generating first and
+# initializing after would digest a different file set than every later command sees.
+git -C "$candidate" init -q
+git -C "$candidate" config user.name 'Artifact Test Author'
+git -C "$candidate" config user.email 'author@example.invalid'
 
 "$candidate/tools/generate-release-artifact-manifest" >"$candidate/compatibility/release-artifact-manifest.v1.json"
 "$candidate/tools/verify-release-artifact-manifest" --json >"$tmp_dir/local.json"
 jq -e '.status == "LOCAL_DRIFT_MATCH" and .authority == "DRIFT_ONLY_SELF_RENEWABLE" and .release_authorized == false' "$tmp_dir/local.json" >/dev/null
 
-git -C "$candidate" init -q
-git -C "$candidate" config user.name 'Artifact Test Author'
-git -C "$candidate" config user.email 'author@example.invalid'
 git -C "$candidate" add .
 git -C "$candidate" commit -qm baseline
 baseline_commit=$(git -C "$candidate" rev-parse HEAD)
