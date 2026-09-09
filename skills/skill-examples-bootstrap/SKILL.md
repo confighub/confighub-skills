@@ -165,7 +165,7 @@ Point them at the GUI and the other skills:
 - `cub unit list --space skill-examples` — overview of all seeded Units.
 - `cub unit open hello-app --space skill-examples --print-url` — inspect the final literal YAML.
 - `cub unit open hello-app --space skill-examples --revisions --print-url` — see the provenance chain.
-- Suggest a concrete next move: "Try `cub-mutate` to bump the image tag", "Try `cub-query` to find all Deployments in `skill-examples`", "Set up `triggers-and-applygates` against `skill-examples` to see an ApplyGate in action", "Use `kubernetes-resources` to create a new resource — it'll pull from these examples."
+- Suggest a concrete next move: "Try `cub-mutate` to bump the image tag", "Try `cub-query` to find all Deployments in `skill-examples`", "Set up `triggers-and-applygates` against `skill-examples` to see a ValidationError in action", "Use `kubernetes-resources` to create a new resource — it'll pull from these examples."
 
 ## Tool boundary
 

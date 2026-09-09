@@ -69,8 +69,8 @@ Like the data, `MutationSources` is not a field on `Revision`; it has its own en
 
 | Field | Meaning |
 |---|---|
-| `ApplyGates` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Publish is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
-| `ApplyWarnings` | Same shape but for Triggers with `Warn=true` — they surface concerns without blocking publish. |
+| `ValidationErrors` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Publish is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
+| `ValidationWarnings` | Same shape but for Triggers with `Warn=true` — they surface concerns without blocking publish. |
 
 Gates and warnings are scoped to a Revision's data, but resolution can update them after the Revision is created. A later read shows current recorded gate state, not necessarily the state at an earlier approval or publish attempt. A later data fix normally produces a new Revision with its own state.
 
@@ -98,17 +98,21 @@ Gates and warnings are scoped to a Revision's data, but resolution can update th
 The CLI surfaces a subset of the above as columns:
 
 ```
-NUM  UNIT  CHANGESET  TIME  USER  SOURCE  DESCRIPTION  APPLY-GATES  TAGS
+NUM  UNIT  TIME  USER  SOURCE  VALIDATION-ERRORS  CHANGESET  CHANGEORDERS  TAGS  RELEASES  DESCRIPTION
 ```
 
 - `NUM` = `RevisionNum`
-- `CHANGESET` = the slug of the ChangeSet if `ChangeSetID` is set, else blank
 - `TIME` = `CreatedAt`
 - `USER` = resolved from `UserID`
 - `SOURCE` = `Source`
+- `VALIDATION-ERRORS` = blank if the map is empty, else the blocking gate keys
+- `CHANGESET` = the slug of the ChangeSet if `ChangeSetID` is set, else blank
+- `CHANGEORDERS` = the ChangeOrders this Revision belongs to
+- `TAGS` = the tags on this Revision
+- `RELEASES` = the Releases that bundled it
 - `DESCRIPTION` = `Description` (the composed `--change-desc`)
-- `APPLY-GATES` = `None` if the map is empty, else the list of blocking gate keys
-- `TAGS` = `None` if empty, else tag labels
+
+`TIME`, `USER`, `VALIDATION-ERRORS` and `RELEASES` appear only with `-o wide`.
 
 For the full structure, use `cub revision get <unit> --space <s> --revision <n> -o yaml` or `-o json`.
 
@@ -119,7 +123,7 @@ For the full structure, use `cub revision get <unit> --space <s> --revision <n> 
 cub revision list --space <s> --where "UpdatedAt > '2026-04-01'"
 
 # Revisions that were ever blocked by gates.
-cub revision list --space <s> --where "LEN(ApplyGates) > 0"
+cub revision list --space <s> --where "LEN(ValidationErrors) > 0"
 
 # Revisions by a specific user.
 cub revision list --space <s> --where "UserID = '<uuid>'"

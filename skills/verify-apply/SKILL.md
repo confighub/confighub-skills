@@ -71,7 +71,7 @@ Name each unavailable layer as an explicit proof gap. Do not use successful publ
 
 ## Classify current failures, not retired ones
 
-- No Release exists after an attempted publish: inspect `Space.ReleaseTargetID`, Target ProviderType, the EffectiveReleaseSet, and each selected revision's ApplyGates. Current publication can fail before a Release record is created.
+- No Release exists after an attempted publish: inspect `Space.ReleaseTargetID`, Target ProviderType, the EffectiveReleaseSet, and each selected revision's ValidationErrors. Current publication can fail before a Release record is created.
 - Release exists but controller is behind: report bounded convergence lag while within the documented sync window; report a concrete failure on source/auth/digest mismatch.
 - Controller has the ManifestDigest but runtime is unhealthy: report the concrete resource/condition (for example ImagePullBackOff, probe failure, or RBAC).
 - Runtime origin differs from the expected Unit/revision set: report the specific provenance divergence.

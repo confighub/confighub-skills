@@ -44,13 +44,13 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **Function** — server-side operation over config data: getters (`get-container-image`), setters (`set-container-image`, `set-replicas`), defaults (`set-container-resources-defaults`), validators (`vet-schemas`, `vet-cel`), escape hatches (`get-yq` to read, `set-yq` to write). Invoke by kind: `cub function get` (non-mutating), `cub function set` (mutating), `cub function vet` (validating).
 - **MutationSources** — a per-path record of which change last set each value in a Unit, and whether that path is **protected**. This is what a merge consults to decide what it may overwrite. `cub unit get <slug> -o mutations` renders it.
 - **Conflict** — a change a merge brought but could not apply (a protected path, an unlocatable path, a failed replay). It is recorded on the Unit and stays there until applied or dismissed with `cub unit conflicts`.
-- **Trigger** — a function (usually a validator) wired to fire automatically on `Mutation` or `PostClone`. A failing validator attaches an **ApplyGate**.
+- **Trigger** — a function (usually a validator) wired to fire automatically on `Mutation` or `PostClone`. A failing validator attaches an **ValidationError**.
 - **Filter** — a saved query. Filters over Units power bulk ops; Filters over Triggers attach to a Space via `TriggerFilterID`.
 - **Link** — a relationship between Units whose resources reference each other (a Deployment's `serviceAccountName` → a ServiceAccount Unit). Enables cross-Unit integrity, needs/provides, and — as an `UpgradeUnit` Link — the upstream relationship a promotion merges along.
 - **ChangeSet** — a name for a set of revisions across many Units, and the practical way to undo a promotion. See [ChangeSets](#changesets-name-the-change-you-may-need-to-undo).
 - **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one **OCI** Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. Earlier ProviderType `ConfigHub` delivery is historical and unsupported in the reviewed current profile.
 - **Worker** — backs Target or custom-function operations. Built-in OCI Release delivery uses a **server-worker entity**, so no external process runs. Run an external worker only to host custom worker functions.
-- **ApplyGate** — a block on publish from a failing Trigger or an approval requirement. Fix the data or the rule; never bypass.
+- **ValidationError** — a block on publish from a failing Trigger or an approval requirement. Fix the data or the rule; never bypass.
 
 ### Operational invariants
 
@@ -76,7 +76,7 @@ If the user insists on keeping a values file or template inside a Unit, explain 
 
 ## One resource per Unit
 
-**Default: one Kubernetes resource per Unit.** It keeps revisions, ApplyGates, diffs, and blast radius scoped to a single resource, and makes promotion and rollback surgical. A multi-workload app becomes one Unit per workload plus one per Service/ConfigMap/etc., not one mega-Unit. `cub variant upload --granularity per-resource` produces exactly this.
+**Default: one Kubernetes resource per Unit.** It keeps revisions, ValidationErrors, diffs, and blast radius scoped to a single resource, and makes promotion and rollback surgical. A multi-workload app becomes one Unit per workload plus one per Service/ConfigMap/etc., not one mega-Unit. `cub variant upload --granularity per-resource` produces exactly this.
 
 Two facts that follow naturally:
 

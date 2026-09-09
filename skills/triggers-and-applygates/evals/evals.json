@@ -13,7 +13,7 @@
       "id": 2,
       "name": "diagnose-blocked-apply",
       "prompt": "My 'checkout' unit in myapp-prod won't apply. It says something about a gate. What's going on and how do I fix it?",
-      "expected_output": "Reads the Unit, ApplyGates, and ValidationResults, identifies the Trigger/rule/details, and previews a function-first fix with a short safe --change-desc. Because the prompt asks what is blocking rather than clearly requesting a fix, it makes zero mutations. If vet-approvedby is the gate, explains that installed v0.2.15 help advertises several selectors while exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed; it confirms current help, inspects any later result, and never claims exact reviewed-artifact approval or bypasses the gate.",
+      "expected_output": "Reads the Unit, ValidationErrors, and ValidationResults, identifies the Trigger/rule/details, and previews a function-first fix with a short safe --change-desc. Because the prompt asks what is blocking rather than clearly requesting a fix, it makes zero mutations. If vet-approvedby is the gate, explains that installed v0.2.15 help advertises several selectors while exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed; it confirms current help, inspects any later result, and never claims exact reviewed-artifact approval or bypasses the gate.",
       "files": []
     },
     {

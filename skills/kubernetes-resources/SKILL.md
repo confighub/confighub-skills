@@ -170,7 +170,7 @@ Based on what was created, suggest the logical next skill:
 
 ## Unit granularity guidance
 
-**Default: one Kubernetes resource per Unit** (the doctrine in `confighub-core`; `cub variant upload --granularity per-resource` produces it for imported manifests). It scopes revisions, ApplyGates, diffs, and blast radius to a single resource, and links resources that reference each other via Links / Needs-Provides rather than co-locating them. Author each resource type below as its own Unit; wire cross-references with `cub link create`.
+**Default: one Kubernetes resource per Unit** (the doctrine in `confighub-core`; `cub variant upload --granularity per-resource` produces it for imported manifests). It scopes revisions, ValidationErrors, diffs, and blast radius to a single resource, and links resources that reference each other via Links / Needs-Provides rather than co-locating them. Author each resource type below as its own Unit; wire cross-references with `cub link create`.
 
 - **CRDs** — always a separate Unit from their instances (apply-order + blast radius). Slug `<app>-crds`.
 - **PVC** — for StatefulSets, prefer `volumeClaimTemplates` inline rather than a separate PVC resource.

@@ -41,14 +41,14 @@
       "id": 6,
       "name": "suffix-naming-migration",
       "prompt": "I already have a Space called `web` with Units named `web-dev`, `web-staging`, `web-prod`. Is that OK or should I restructure?",
-      "expected_output": "Flags suffix-naming as an anti-pattern that collapses ReleaseTargetID, ApplyGate, and Variant promotion boundaries. Proposes a Component/base plus per-env Variant migration using current variant create semantics, with exact scope and no execution. Pushes back constructively.",
+      "expected_output": "Flags suffix-naming as an anti-pattern that collapses ReleaseTargetID, ValidationError, and Variant promotion boundaries. Proposes a Component/base plus per-env Variant migration using current variant create semantics, with exact scope and no execution. Pushes back constructively.",
       "files": []
     },
     {
       "id": 7,
       "name": "one-resource-per-unit",
       "prompt": "Can I just put every Kubernetes resource in its own ConfigHub Unit? That way I can validate each one independently.",
-      "expected_output": "Confirms that one resource per Unit is the default and recommended granularity — scopes revisions, ApplyGates, diffs, and blast radius to a single resource. Notes CRDs stand alone naturally, and that generator imports (cub helm install) may start coarser before being split. Does not steer toward mega-Units.",
+      "expected_output": "Confirms that one resource per Unit is the default and recommended granularity — scopes revisions, ValidationErrors, diffs, and blast radius to a single resource. Notes CRDs stand alone naturally, and that generator imports (cub helm install) may start coarser before being split. Does not steer toward mega-Units.",
       "files": []
     },
     {

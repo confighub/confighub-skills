@@ -132,7 +132,7 @@ cub unit conflicts --space <variant-space> <unit> --apply --reason ProtectedPath
 cub unit conflicts --space <variant-space> <unit> --dismiss --reason ProtectedPath
 ```
 
-`--path` and `--resource` narrow further. Applying writes the withheld value **and records the path as content that came from elsewhere**, so a later upstream change to it lands normally instead of reporting the same conflict release after release. Dismissing changes no data and leaves the protection in place. Applying is a configuration-data mutation: the Unit goes through the same Trigger pass as any other change and may pick up an ApplyGate.
+`--path` and `--resource` narrow further. Applying writes the withheld value **and records the path as content that came from elsewhere**, so a later upstream change to it lands normally instead of reporting the same conflict release after release. Dismissing changes no data and leaves the protection in place. Applying is a configuration-data mutation: the Unit goes through the same Trigger pass as any other change and may pick up a ValidationError.
 
 Conflicts are queryable, so "which variants have something outstanding?" is one command:
 
@@ -244,10 +244,10 @@ Produce a concrete go / no-go. `--where` is AND-only (run one query per conditio
 ```text
 cub release get --space <app>-<source> --oci-reference latest
 cub unit list --space <app>-<source> --filter <app>-home/<app>-app \
-  --select "HeadRevisionNum,LastReleasedRevisionNum,TargetID,ApplyGates" -o json
+  --select "HeadRevisionNum,LastReleasedRevisionNum,TargetID,ValidationErrors" -o json
 ```
 
-Recompute the source EffectiveReleaseSet from `Space.ReleaseTargetID` equality. Its size must equal the Release `UnitCount`, and every effective Unit's `HeadRevisionNum` must equal the revision captured by that Release (`LastReleasedRevisionNum`) before source desired state can be called aligned with the newest ConfigHub publication. That still does not prove controller consumption or current runtime state; require the `verify-apply` chain above for that claim. Any mismatch is no-go and must be named. An untargeted base Space has no runtime proof; treat base→Variant promotion as reviewed configuration movement, not as a proved live environment. Never ignore an ApplyGate merely because a Unit is in a base.
+Recompute the source EffectiveReleaseSet from `Space.ReleaseTargetID` equality. Its size must equal the Release `UnitCount`, and every effective Unit's `HeadRevisionNum` must equal the revision captured by that Release (`LastReleasedRevisionNum`) before source desired state can be called aligned with the newest ConfigHub publication. That still does not prove controller consumption or current runtime state; require the `verify-apply` chain above for that claim. Any mismatch is no-go and must be named. An untargeted base Space has no runtime proof; treat base→Variant promotion as reviewed configuration movement, not as a proved live environment. Never ignore a ValidationError merely because a Unit is in a base.
 
 **B. Destination needs it** — `cub unit list --space <app>-<dest> --filter platform/needs-upgrade`. Empty = nothing to promote, stop. Narrow with `--where "Slug LIKE '%-api%'"` for a subset.
 
@@ -359,7 +359,7 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 
 - `cub variant upload --help`, `cub variant create --help`, `cub variant promote --help` — authoritative flags.
 - `references/changesets.md` — lifecycle, rollback, merge/rebase.
-- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-apply-gates`, `not-approved` recipes.
+- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-validation-errors`, `not-approved` recipes.
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close, and "Protection and merge conflicts".
 - `references/revisions.md` — `ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`.
 - Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated whole-Space publication), `rollback-revision`, `verify-apply`.
