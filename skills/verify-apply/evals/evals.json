@@ -20,7 +20,7 @@
       "id": 3,
       "name": "apply-failed-bad-schema",
       "prompt": "My apply failed. What went wrong?",
-      "expected_output": "Uses current Release failure triage: if no Release exists, inspects Space.ReleaseTargetID, OCI provider, EffectiveReleaseSet, exact selected revisions, tag coverage, and ApplyGates. If a Release exists, continues to controller/runtime proof. Does not use retired UnitStatus/UnitEvent apply results as primary current proof and does not mutate.",
+      "expected_output": "Uses current Release failure triage: if no Release exists, inspects Space.ReleaseTargetID, OCI provider, EffectiveReleaseSet, exact selected revisions, tag coverage, and ValidationErrors. If a Release exists, continues to controller/runtime proof. Does not use retired UnitStatus/UnitEvent apply results as primary current proof and does not mutate.",
       "files": []
     },
     {

@@ -32,7 +32,7 @@ cub auth status
 cub worker list --space <worker-space> -o json
 cub target list --space <target-space> -o json
 cub space get <app-space> -o json
-cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ApplyGates,ToolchainType" -o json
+cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ValidationErrors,ToolchainType" -o json
 ```
 
 Bind the organization/context, SpaceID, existing `ReleaseTargetID`, every UnitID/TargetID, and the intended target owner/slug. If changing a current target would add or remove Units from the EffectiveReleaseSet, disclose the before/after set and require a fresh release proposal after binding.
@@ -109,7 +109,7 @@ Changing the Target, Space, Unit selector, resolved Unit membership, provider, o
 ```text
 cub target get <target-slug> --space <target-space> -o json
 cub space get <app-space> -o json
-cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ApplyGates" -o json
+cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ValidationErrors" -o json
 ```
 
 A successful binding requires:

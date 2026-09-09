@@ -31,7 +31,7 @@ The get / modify / write-back loop for ConfigHub Units.
 
 - Creating a new Unit (`confighub-core`).
 - Pure inspection / query (`cub-query`).
-- Setting up Triggers or ApplyGates (`triggers-and-applygates`).
+- Setting up Triggers or ValidationErrors (`triggers-and-applygates`).
 
 ## Preflight gates
 
@@ -346,7 +346,7 @@ The `release-publish` skill maps apply/deploy intent to the exact current Space 
 - The change would fill the Unit with a placeholder the user didn't ask for.
 - The chosen function isn't in `cub function list` for `Kubernetes/YAML` (wrong name — re-check via `cub function list` / `cub function explain`).
 - The operation is across `--space "*"` and the user hasn't confirmed the blast radius.
-- An ApplyGate attaches due to validation failure. Stop, diagnose (via `triggers-and-applygates`), and fix the data — do not bypass.
+- A ValidationError attaches due to validation failure. Stop, diagnose (via `triggers-and-applygates`), and fix the data — do not bypass.
 
 ## Verify chain
 

@@ -19,7 +19,7 @@ This skill preserves ordinary-language apply/deploy jobs while using the only cu
 - reads `Space.ReleaseTargetID` and requires that Target to use ProviderType `OCI`;
 - bundles the **EffectiveReleaseSet**: every Unit in that Space whose `Unit.TargetID == Space.ReleaseTargetID`;
 - captures each effective Unit at head unless `--revision <tag-slug>` is supplied, in which case the server selects the highest Revision currently carrying that mutable TagID;
-- checks ApplyGates; and
+- checks ValidationErrors; and
 - creates one immutable Release with a ConfigHub `ReleaseID`, bundle `Digest`, OCI `ManifestDigest`, `UnitCount`, and `Published=true`.
 
 It has no Unit, Filter, ChangeSet, cross-Space selector, or dry-run flag. A ChangeSet groups/reviews/restores revisions but does not narrow publication. The current profile uses OCI Space Releases; older bridge/per-Unit delivery is historical context only and must not be offered as executable fallback.
@@ -66,7 +66,7 @@ Bind TargetID, owning Space, slug, ProviderType, and worker identity. ProviderTy
 
 ```bash
 cub unit list --space <variant-space> \
-  --select "TargetID,HeadRevisionNum,ApplyGates,ToolchainType,DestroyGates" -o json
+  --select "TargetID,HeadRevisionNum,ValidationErrors,ToolchainType,DestroyGates" -o json
 ```
 
 Select only Units whose `TargetID` exactly equals `Space.ReleaseTargetID`. Record excluded Units too. For every effective Unit at head:
@@ -75,7 +75,7 @@ Select only Units whose `TargetID` exactly equals `Space.ReleaseTargetID`. Recor
 cub revision get --space <variant-space> -o json <unit-slug> <head-revision-num>
 ```
 
-Bind `UnitID`, slug, TargetID, head/selected RevisionNum, `RevisionID`, `DataHash`, ToolchainType, ApplyGates, and DestroyGates. A non-empty ApplyGate is a concrete stop until the owning policy is satisfied.
+Bind `UnitID`, slug, TargetID, head/selected RevisionNum, `RevisionID`, `DataHash`, ToolchainType, ValidationErrors, and DestroyGates. A non-empty ValidationError is a concrete stop until the owning policy is satisfied.
 
 ### 4. Optional tagged Release
 

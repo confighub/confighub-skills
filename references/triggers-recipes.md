@@ -1,8 +1,8 @@
-# Triggers + ApplyGates — the platform-Space recipe
+# Triggers + ValidationErrors — the platform-Space recipe
 
 **Execution mode:** follow [How commands run](execution-modes.md). Trigger, Filter, Space, Unit-approval, and remediation writes are separate exact calls to the host permission system. This pack preapproves none of them.
 
-Triggers run functions automatically on lifecycle events (`Mutation`, `PostClone`). A validating function that returns false attaches an ApplyGate, which blocks apply until the failure is resolved.
+Triggers run functions automatically on lifecycle events (`Mutation`, `PostClone`). A validating function that returns false attaches a ValidationError, which blocks apply until the failure is resolved.
 
 ## The recommended pattern
 
@@ -42,10 +42,10 @@ cub space update myapp-prod --trigger-filter platform/standard-vets
 
 ## When a gate attaches
 
-If any `vet-*` trigger returns false, an ApplyGate is attached to the Unit. The Unit will not apply until either:
+If any `vet-*` trigger returns false, a ValidationError is attached to the Unit. The Unit will not apply until either:
 
 - The data is fixed (another mutation causes the triggers to re-run and pass).
-- The gate is explicitly resolved (see `cub gate` / ApplyGate docs on your cub version).
+- The gate is explicitly resolved (see `cub gate` / ValidationError docs on your cub version).
 
 Skills should **never bypass a gate**. Instead, fix the data and let the trigger re-validate.
 
@@ -100,7 +100,7 @@ cub trigger create --space platform -o json no-merge-conflicts Mutation Kubernet
   vet-no-merge-conflicts
 ```
 
-It fails while anything is outstanding, which becomes an ApplyGate. Clear it by applying or
+It fails while anything is outstanding, which becomes a ValidationError. Clear it by applying or
 dismissing the conflicts (`cub unit conflicts <slug> --apply|--dismiss`), not by dropping the
 Trigger. Worth attaching in Spaces that are promoted into regularly.
 

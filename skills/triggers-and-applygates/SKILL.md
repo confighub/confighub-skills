@@ -1,6 +1,6 @@
 ---
 name: triggers-and-applygates
-description: 'Prepare or diagnose Trigger policy, ApplyGates, ApplyWarnings, and native revision approval via platform Space + Filter + TriggerFilterID. Use for "block bad config", "enforce/warn", "require approval", or "why is this Unit blocked?". Not one-off validation (cub-mutate).'
+description: 'Prepare or diagnose Trigger policy, ValidationErrors, ValidationWarnings, and native revision approval via platform Space + Filter + TriggerFilterID. Use for "block bad config", "enforce/warn", "require approval", or "why is this Unit blocked?". Not one-off validation (cub-mutate).'
 phase: decide
 allowed-tools: []
 read-capability-subset: triggers-and-applygates
@@ -10,14 +10,14 @@ read-capability-subset: triggers-and-applygates
 
 **Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After reading current policy and exact scope, standalone use submits one requested Trigger, Filter, attachment, or native approval command to the host permission system; an external overlay may stop it before Bash.
 
-Make validation enforced, not advisory. Without Triggers, `vet-*` functions are suggestions; with Triggers, they either **block** the apply path (an ApplyGate) or **flag** it without blocking (an ApplyWarning) — see [Blocking vs warning](#blocking-vs-warning-applygates-and-applywarnings).
+Make validation enforced, not advisory. Without Triggers, `vet-*` functions are suggestions; with Triggers, they either **block** the apply path (a ValidationError) or **flag** it without blocking (a ValidationWarning) — see [Blocking vs warning](#blocking-vs-warning-applygates-and-applywarnings).
 
 ## When to use
 
 - Setting up a new Space (or retrofitting existing Spaces) and the user wants policy to be enforced.
 - User asks "how do I make sure bad config can't be deployed?", "wire up schema validation", "add a policy", "require approval before apply".
-- User is diagnosing a Unit that won't apply and the reason might be an ApplyGate, or wants to see what non-blocking ApplyWarnings a Unit carries.
-- User wants a check to advise rather than block (a `--warn` Trigger producing ApplyWarnings), or to flip an existing check between blocking and advisory.
+- User is diagnosing a Unit that won't apply and the reason might be a ValidationError, or wants to see what non-blocking ValidationWarnings a Unit carries.
+- User wants a check to advise rather than block (a `--warn` Trigger producing ValidationWarnings), or to flip an existing check between blocking and advisory.
 - Migrating validation from ad-hoc `cub function vet vet-*` calls to automatic enforcement.
 
 ## Do not load for
@@ -54,7 +54,7 @@ cub filter create --space platform -o json standard-vets Trigger \
   --where-field "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
-`vet-no-merge-conflicts` is worth including in any Space that gets promoted into. A merge that could not apply part of what it brought — a protected path, a path it could not locate, a replay that errored — does **not** fail: it applies the rest and records what it withheld on the Unit, where it sits until someone runs `cub unit conflicts`. This Trigger turns that into an ApplyGate so it can't be published past unnoticed. Clear it by applying or dismissing the conflicts, never by dropping the Trigger. See `promote-release`.
+`vet-no-merge-conflicts` is worth including in any Space that gets promoted into. A merge that could not apply part of what it brought — a protected path, a path it could not locate, a replay that errored — does **not** fail: it applies the rest and records what it withheld on the Unit, where it sits until someone runs `cub unit conflicts`. This Trigger turns that into a ValidationError so it can't be published past unnoticed. Clear it by applying or dismissing the conflicts, never by dropping the Trigger. See `promote-release`.
 
 Verify flag spellings with `cub space create --help`, `cub trigger create --help`, and `cub filter create --help` — flag names evolve across cub versions.
 
@@ -158,19 +158,19 @@ Without it, the paths the Trigger wrote stay eligible for merges and the first `
 
 Validating Triggers should **not** take `--protect` — they don't write configuration data. Neither should a Mutation Trigger that applies an org-wide default (`set-container-resources-defaults` and friends): those are policy the upstream should keep driving.
 
-## Blocking vs warning: ApplyGates and ApplyWarnings
+## Blocking vs warning: ValidationErrors and ValidationWarnings
 
 A failing Trigger produces one of two outcomes, tracked in two **separate** Unit fields with the same `<space>/<trigger>/<function>` key shape:
 
 | Trigger | Failure records | Effect on apply |
 | --- | --- | --- |
-| default (`--warn` omitted) | `ApplyGates` | **Blocks** — apply is refused until the gate clears |
-| `--warn` | `ApplyWarnings` | **Advisory** — recorded on the Unit, apply still proceeds |
+| default (`--warn` omitted) | `ValidationErrors` | **Blocks** — apply is refused until the gate clears |
+| `--warn` | `ValidationWarnings` | **Advisory** — recorded on the Unit, apply still proceeds |
 
-Pass `--warn` on `cub trigger create` to make a check advisory: *"Set trigger to produce ApplyWarnings instead of ApplyGates."* The same validator (`vet-cel`, `vet-kyverno`, `vet-schemas`, …) can be a gate in prod and a warning in dev — the `--warn` flag is what differs, not the function. Add `--description` so the recorded failure explains how to fix it.
+Pass `--warn` on `cub trigger create` to make a check advisory: *"Set trigger to produce ValidationWarnings instead of ValidationErrors."* The same validator (`vet-cel`, `vet-kyverno`, `vet-schemas`, …) can be a gate in prod and a warning in dev — the `--warn` flag is what differs, not the function. Add `--description` so the recorded failure explains how to fix it.
 
 ```bash
-# Advisory check — surfaces an ApplyWarning, never blocks.
+# Advisory check — surfaces a ValidationWarning, never blocks.
 cub trigger create --space platform -o json --warn \
   --description "Probes recommended; warning only outside prod" \
   liveness-readiness-check Mutation Kubernetes/YAML \
@@ -183,20 +183,20 @@ cub trigger create --space platform -o json --warn \
 
 ```text
 # Blocked Units (gates).
-cub unit list --space <space> --where "LEN(ApplyGates) > 0" --columns Unit.Slug,Unit.ApplyGates
+cub unit list --space <space> --where "LEN(ValidationErrors) > 0" --columns Unit.Slug,Unit.ValidationErrors
 
 # Units carrying warnings (still appliable).
-cub unit list --space <space> --where "LEN(ApplyWarnings) > 0" --columns Unit.Slug,Unit.ApplyWarnings
+cub unit list --space <space> --where "LEN(ValidationWarnings) > 0" --columns Unit.Slug,Unit.ValidationWarnings
 
 # Raw map per Unit (which warnings, keyed by trigger).
-cub unit list --space <space> -o "jq=.[].Unit.ApplyWarnings" --select ApplyWarnings
+cub unit list --space <space> -o "jq=.[].Unit.ValidationWarnings" --select ValidationWarnings
 ```
 
-A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` blocks. When triaging a Space, check **both** — warnings are the "tech debt" tier you fix on your own schedule, gates are the hard stop.
+A Unit can carry warnings and apply cleanly; only a non-empty `ValidationErrors` blocks. When triaging a Space, check **both** — warnings are the "tech debt" tier you fix on your own schedule, gates are the hard stop.
 
 ## Diagnosing a blocked apply
 
-1. `cub unit get <slug> --space <space>` — shows attached ApplyGates/ApplyWarnings as `<space>/<trigger>/<function>` keys. The default text view stops at the keys — it does **not** print the failure message.
+1. `cub unit get <slug> --space <space>` — shows attached ValidationErrors/ValidationWarnings as `<space>/<trigger>/<function>` keys. The default text view stops at the keys — it does **not** print the failure message.
 1a. **For the actual failure message, read `Unit.ValidationResults`** — a map under the same keys, each entry carrying human-readable `Details[]` and structured `FailedAttributes[]` (e.g. the kyverno policy/rule `Identifier` + `Message`, plus `ResourceType` and `ResourceName`). This is what turns "gated by X" into "here's exactly what X objected to", and it covers warnings too:
 ```text
    cub unit get <slug> --space <space> -o "jq=.Unit.ValidationResults"
@@ -209,7 +209,7 @@ A Unit can carry warnings and apply cleanly; only a non-empty `ApplyGates` block
 3. `cub trigger get --space platform <trigger-slug>` — see what the Trigger is checking.
 4. Fix the data via `cub function set` or `cub unit update` — the Mutation Triggers re-run automatically and release the gate if it passes.
 
-If the Unit applies but you want to know what's flagged on it, inspect `ApplyWarnings` instead (`cub unit get` shows it, or query with `--where "LEN(ApplyWarnings) > 0"`). Same fix loop — correcting the data re-runs the Trigger and clears the warning — but there's no apply block forcing the issue, so warnings persist until someone chooses to address them.
+If the Unit applies but you want to know what's flagged on it, inspect `ValidationWarnings` instead (`cub unit get` shows it, or query with `--where "LEN(ValidationWarnings) > 0"`). Same fix loop — correcting the data re-runs the Trigger and clears the warning — but there's no apply block forcing the issue, so warnings persist until someone chooses to address them.
 
 **Never** bypass a gate by dropping the Trigger, deleting the Filter, demoting it to `--warn`, or editing gate state directly. If a rule is genuinely wrong, fix the Trigger in `platform` so the whole fleet benefits; use the Trigger entity's supported description/history fields rather than the Unit-only `--change-desc` flag.
 
@@ -217,7 +217,7 @@ If the Unit applies but you want to know what's flagged on it, inspect `ApplyWar
 
 - Host permission: reviewed read-only `cub` help/get/list and named function/evidence reads in this skill's declared capability subset; the pack preapproves no Bash call.
 - Standalone mutation steps: `cub space/trigger/filter/unit` writes, `cub unit approve`, and Unit-data mutations each use one exact host-permission call. Every Unit-data mutation must carry `--change-desc`.
-- Not allowed: bypassing gates, disabling Triggers to unblock a single Unit, editing ApplyGates by hand.
+- Not allowed: bypassing gates, disabling Triggers to unblock a single Unit, editing ValidationErrors by hand.
 
 ## Change description
 
@@ -233,7 +233,7 @@ Fix prod namespace placeholder blocking vet-placeholders
 
 ## Stop conditions
 
-- User asks to bypass or remove an ApplyGate to force apply. Stop — fix the data instead, or update the policy upstream.
+- User asks to bypass or remove a ValidationError to force apply. Stop — fix the data instead, or update the policy upstream.
 - Flag spellings don't match what `--help` reports. Stop and re-check before guessing.
 
 ## Verify chain
@@ -241,8 +241,8 @@ Fix prod namespace placeholder blocking vet-placeholders
 1. `cub trigger list --space platform` — Triggers present.
 2. `cub filter get --space platform standard-vets` — Filter selects the expected Triggers.
 3. `cub space get <app-space>` — `TriggerFilterID` references the Filter.
-4. In a user-requested test run, introduce a violation only in a disposable Unit, one host-permission call at a time; confirm an ApplyGate attaches, fix it with a separate permission call, and confirm it releases. Keep all proof steps read-only.
-5. For a `--warn` Trigger, confirm the violation lands in `ApplyWarnings` (not `ApplyGates`) and that Release preflight is not blocked by that warning. Do not infer controller/runtime success from the warning state.
+4. In a user-requested test run, introduce a violation only in a disposable Unit, one host-permission call at a time; confirm a ValidationError attaches, fix it with a separate permission call, and confirm it releases. Keep all proof steps read-only.
+5. For a `--warn` Trigger, confirm the violation lands in `ValidationWarnings` (not `ValidationErrors`) and that Release preflight is not blocked by that warning. Do not infer controller/runtime success from the warning state.
 
 ## Evidence
 

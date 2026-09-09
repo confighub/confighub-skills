@@ -29,7 +29,7 @@ Attribute names are **case-sensitive PascalCase** as in JSON encoding (`Slug`, `
 
 All entities: `CreatedAt`, `UpdatedAt`, `DisplayName`, `Slug`, ID fields.
 
-Unit-specific: `HeadRevisionNum`, `LastReleasedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ApprovedBy`, `ApplyGates`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; a query naming either is rejected as an unrecognized attribute.
+Unit-specific: `HeadRevisionNum`, `LastReleasedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ApprovedBy`, `ValidationErrors`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; a query naming either is rejected as an unrecognized attribute.
 
 Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRevisionNum` on a Unit that has an upstream.
 
@@ -68,8 +68,8 @@ Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRev
 # Array operations
 --where "LEN(ApprovedBy) > 0"
 --where "ApprovedBy ? 'USER_UUID'"
---where "LEN(ApplyGates) > 0"
---where "ApplyGates.require-approval/vet-approvedby = true"
+--where "LEN(ValidationErrors) > 0"
+--where "ValidationErrors.require-approval/vet-approvedby = true"
 
 # Revision state
 --where "HeadRevisionNum > LastReleasedRevisionNum"   # unreleased changes
@@ -161,9 +161,9 @@ cub filter create --space "$space" unreleased-head Unit \
 cub filter create --space "$space" not-approved Unit \
   --where-field "LEN(ApprovedBy) = 0"
 
-# Blocked by one or more ApplyGates.
-cub filter create --space "$space" has-apply-gates Unit \
-  --where-field "LEN(ApplyGates) > 0"
+# Blocked by one or more ValidationErrors.
+cub filter create --space "$space" has-validation-errors Unit \
+  --where-field "LEN(ValidationErrors) > 0"
 
 # Downstream Unit is behind its upstream — an upgrade is available.
 cub filter create --space "$space" needs-upgrade Unit \
@@ -182,7 +182,7 @@ The old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and 
 
 ```text
 # List.
-cub unit list --space "*" --filter platform/has-apply-gates
+cub unit list --space "*" --filter platform/has-validation-errors
 cub unit list --space "$app_space" --filter platform/needs-upgrade
 
 # Act in bulk only on the selected set.
@@ -203,7 +203,7 @@ cub revision list --space "$space" --where "UpdatedAt > '2026-04-01'"
 cub revision list <unit-slug> --space "$space"
 ```
 
-The full Revision data model — fields, per-path `MutationSources`, `ApplyGates`/`ApplyWarnings` snapshots, `ApprovedBy`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
+The full Revision data model — fields, per-path `MutationSources`, `ValidationErrors`/`ValidationWarnings` snapshots, `ApprovedBy`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
 
 ## Getter functions for content extraction
 

@@ -4,7 +4,7 @@
     {
       "name": "recent-release-crashing-prod",
       "prompt": "Prod has been crashing for the last 10 minutes. We promoted release-20260415 to prod about 15 minutes ago. On-call says roll it back. Walk me through the ConfigHub side.",
-      "expected_output": "Pins the suspect immutable ReleaseID/ManifestDigest, controller source, runtime failure, and affected origin annotations. Because the user asked to be walked through the ConfigHub side, it stays coached and makes zero mutation calls: it explains the head-moving rollback using exact prior RevisionID/DataHash values, uses a validated incident slug plus short safe change summary while retaining fuller context in the transcript, and presents each literal command as a separate terminal step. A fresh whole-Space publish is a separate preview and user-run step. It never deploys an old Release directly or bypasses an ApplyGate or explicit external-overlay stop."
+      "expected_output": "Pins the suspect immutable ReleaseID/ManifestDigest, controller source, runtime failure, and affected origin annotations. Because the user asked to be walked through the ConfigHub side, it stays coached and makes zero mutation calls: it explains the head-moving rollback using exact prior RevisionID/DataHash values, uses a validated incident slug plus short safe change summary while retaining fuller context in the transcript, and presents each literal command as a separate terminal step. A fresh whole-Space publish is a separate preview and user-run step. It never deploys an old Release directly or bypasses a ValidationError or explicit external-overlay stop."
     },
     {
       "name": "traffic-spike-not-from-change",

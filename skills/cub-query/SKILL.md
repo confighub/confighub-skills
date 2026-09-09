@@ -284,7 +284,7 @@ cub unit list --space "*" --where "UpstreamRevisionNum < UpstreamUnit.HeadRevisi
 ## Output shaping
 
 - `-o json` / `-o yaml` — structured output. It carries entity metadata only; configuration data is not part of any entity, so read it with `cub unit data` / `cub revision data`.
-- `--select "<fields>"` / `--select "*"` — choose which metadata fields a **`list`** retrieves (comma-separated; IDs + Slug always included), e.g. a Unit's `ApplyGates`/`ApplyWarnings`, a View's `DisplayName`, or a Worker's `ProvidedInfo.FunctionWorkerInfo.SupportedFunctions`. `--select "*"` returns all of them. `Data` and `MutationSources` are not field names — naming either is a 400.
+- `--select "<fields>"` / `--select "*"` — choose which metadata fields a **`list`** retrieves (comma-separated; IDs + Slug always included), e.g. a Unit's `ValidationErrors`/`ValidationWarnings`, a View's `DisplayName`, or a Worker's `ProvidedInfo.FunctionWorkerInfo.SupportedFunctions`. `--select "*"` returns all of them. `Data` and `MutationSources` are not field names — naming either is a 400.
 - `-o jq=<expression>` / `-o yq=<expression>` — selected structured properties. When filtering metadata like .Slug note that list and get commands return an envelope structure that contains the requested entity and related entities, so a Unit Slug would be extracted with `-o jq=.Unit.Slug`.
 - `-o name` — slugs only (space-resident entities print as `<space-slug>/<slug>`).
 - `--show output -o jq=<expr>` — post-process function output with jq. Each Unit's output is wrapped in a per-Unit envelope (`SpaceSlug` / `UnitSlug` / `OutputType` / `Output`), so use `.Output[]` to iterate results and `.SpaceSlug` / `.UnitSlug` for identity. See `references/cub-cli.md`.
@@ -317,7 +317,7 @@ Queries are read-only; the "verify" is cross-checking:
 
 ## References
 
-- `references/filters-and-queries.md` — full filter vocabulary and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-apply-gates`, `needs-upgrade`, `has-upstream`); Release/controller/runtime proof belongs to `verify-apply`.
+- `references/filters-and-queries.md` — full filter vocabulary and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-validation-errors`, `needs-upgrade`, `has-upstream`); Release/controller/runtime proof belongs to `verify-apply`.
 - `references/cub-cli.md` — `cub unit data` / `livedata` / `livestate` / `bridgestate` semantics (see the "Data / LiveData / LiveState / BridgeState" table) and the where/where-data/output flags.
 - `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-yq`, `get-placeholders`, etc.).
 - `cub k8s get --help`, `cub resource list --help` — the resource-browsing surfaces above; confirm flags before composing.

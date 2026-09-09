@@ -27,7 +27,7 @@ Stabilize first, but do not sacrifice attribution. Current delivery evidence is 
 
    ```text
    cub space get <variant-space> -o json
-   cub unit list --space <variant-space> --select "TargetID,HeadRevisionNum,LastReleasedRevisionNum,ApplyGates" -o json
+   cub unit list --space <variant-space> --select "TargetID,HeadRevisionNum,LastReleasedRevisionNum,ValidationErrors" -o json
    ```
 
    To see the affected workload as a resource rather than as a Unit — the faster read when the
@@ -91,7 +91,7 @@ This preserves the prior drift-reconciliation job without pretending the OCI ser
 
 The OCI Target's server-worker entity is not an external process to restart. Diagnose separately:
 
-- ConfigHub Release missing/rejected: `ReleaseTargetID`, OCI provider, Unit membership, tag coverage, ApplyGates.
+- ConfigHub Release missing/rejected: `ReleaseTargetID`, OCI provider, Unit membership, tag coverage, ValidationErrors.
 - controller cannot pull/sync: OCI reference/auth/source/digest and controller logs.
 - runtime unhealthy after sync: image, probes, RBAC, dependencies, quotas, scheduling.
 - external custom-function worker failing: route read-only diagnosis to `worker-bootstrap`.
@@ -149,7 +149,7 @@ Bind the exact revisions before the tag call; tagging is a mutation with its own
 - no immutable suspect Release or wrong cluster context;
 - rollback target, blast radius, or durable-vs-temporary intent is ambiguous;
 - a narrow restore/fix would be published as a broader Space Release without new approval;
-- user asks to bypass an ApplyGate, controller policy, host permission, or external governance overlay;
+- user asks to bypass a ValidationError, controller policy, host permission, or external governance overlay;
 - another incident ChangeSet already owns any Unit in scope and no sequencing decision exists;
 - mutation provenance would omit the validated incident slug and safe summary;
 - evidence requires a mutation to discover.
