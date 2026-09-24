@@ -69,7 +69,8 @@ Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRev
 --where "LEN(ApprovedBy) > 0"
 --where "ApprovedBy ? 'USER_UUID'"
 --where "LEN(ValidationErrors) > 0"
---where "ValidationErrors.require-approval/vet-approvedby = true"
+--where "ValidationErrors.my-space/require-approval/vet-approvedby = true"
+--where "ValidationTriggerIDs.my-space/require-approval/vet-approvedby = 'TRIGGER_UUID'"   # gate produced by this Trigger
 
 # Revision state
 --where "HeadRevisionNum > LastReleasedRevisionNum"   # unreleased changes
