@@ -69,8 +69,9 @@ Like the data, `MutationSources` is not a field on `Revision`; it has its own en
 
 | Field | Meaning |
 |---|---|
-| `ValidationErrors` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Publish is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
+| `ValidationErrors` | `map[string]bool` keyed by `<space-slug>/<trigger-slug>/<function-name>`; when the Trigger's Invocation runs several functions, the function part carries its 1-based position (`vet-celexpr:2`). The slugs are the Trigger's as of when the gate was set — find the Trigger itself through `ValidationTriggerIDs`. Any entry set to `true` means a validating Trigger failed on this revision's data — **Publish is blocked** until the data passes or the gate is resolved upstream (e.g., fixing the Trigger's policy, not bypassing the gate). |
 | `ValidationWarnings` | Same shape but for Triggers with `Warn=true` — they surface concerns without blocking publish. |
+| `ValidationTriggerIDs` | `map[string]uuid` from each gate name (in `ValidationErrors`, `ValidationWarnings`, `ValidationPassed`) to the ID of the Trigger that produced it. Survives a Trigger rename or move; a gate with no Trigger, like `awaiting/triggers`, has no entry. |
 
 Gates and warnings are scoped to a Revision's data, but resolution can update them after the Revision is created. A later read shows current recorded gate state, not necessarily the state at an earlier approval or publish attempt. A later data fix normally produces a new Revision with its own state.
 
