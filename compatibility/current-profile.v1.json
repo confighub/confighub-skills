@@ -1,6 +1,6 @@
 {
   "schema_version": "confighub-skills-compatibility/v1",
-  "plugin_version": "0.4.4",
+  "plugin_version": "0.4.5",
   "candidate_base_commit": "700fcb3",
   "profile_id": "cub-0.2.15_server-0.2.21_helm-0.1.0",
   "reviewed_at": "2026-08-14",
@@ -51,10 +51,10 @@
   "surface_counts": {
     "skills": 15,
     "eval_files": 15,
-    "eval_cases": 75,
+    "eval_cases": 77,
     "trigger_families": 38,
     "capability_dispositions": 68,
-    "eval_dispositions": 78
+    "eval_dispositions": 80
   },
   "current_delivery_contract": {
     "model": "Component/Variant/SpaceRelease",

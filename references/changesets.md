@@ -61,22 +61,15 @@ After close, every Unit's head revision carries the ChangeSet's end tag. No furt
 
 ## Review and publish
 
-If a `vet-approvedby` Trigger is installed, preserve the advertised ChangeSet approval form only as historical compatibility knowledge:
+To approve what the ChangeSet produced, approve the revisions it ended on rather than each head, and read the covered revisions from the response:
 
 ```text
-# Historical example only; confirm current selector support with installed help.
-cub unit approve --space <target-space> \
-  --filter <home-space>/<filter-slug> \
-  --revision ChangeSet:<home-space>/<slug>
+cub variant approve <target-space> --revision ChangeSet:<home-space>/<slug>
 ```
 
-Installed v0.2.15 help advertises numeric, live, Tag, and ChangeSet selectors.
-Exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed
-here. Confirm current help, inspect the result, and do not claim exact
-reviewed-artifact binding without provider evidence. Approval, promotion, and
-publication are separate host-permission calls.
+Approval, promotion, and publication are separate host-permission calls. Whether an approval is required, and whose counts, is decided by a ChangeWorkflow's attestation prerequisites for a ChangeOrder; see `skills/promote-release`.
 
-Next compute the destination Space's EffectiveReleaseSet: all Units whose `TargetID` equals `Space.ReleaseTargetID`. The Release command has no ChangeSet/Filter/Unit selector. If the ChangeSet is narrower than that set, disclose the additional Units and obtain a fresh whole-Space approval; never reuse the ChangeSet approval as though it narrowed the Release.
+Next compute the destination Space's EffectiveReleaseSet: all Units whose `TargetID` equals `Space.ReleaseTargetID`. The Release command has no ChangeSet/Filter/Unit selector. If the ChangeSet is narrower than that set, disclose the additional Units and obtain a fresh whole-Space decision; never reuse the ChangeSet approval as though it narrowed the Release.
 
 Once every effective revision, ID/hash, target, and gate is bound in the `release-publish` preview, the current command still cannot atomically bind those reads to provider execution. Refresh the preview immediately before this one standalone host-permission call:
 
@@ -141,7 +134,7 @@ cub revision list --space <target-space> --filter <home-space>/<filter-slug> \
 
 ## When to reach for a ChangeSet
 
-- A change spans more than one Unit and you want grouped review and set-wise rollback. Do not call current native approval exact or publication atomic across a subset: a Space Release captures its complete EffectiveReleaseSet.
+- A change spans more than one Unit and you want grouped review and set-wise rollback. Do not call publication atomic across a subset: a Space Release captures its complete EffectiveReleaseSet.
 - A release across many Units — group all revisions so you have one name to roll back or reapply.
 - **Any upgrade or promotion.** A merge now *walks* its range by default, recording one downstream revision per upstream revision that has an effect (see `skills/promote-release`). One promotion therefore produces many revisions per Unit, and there is no single "the revision before the promotion" number to restore to. A ChangeSet — `cub variant promote <space> --changeset <home-space>/<slug>`, or the open/mutate/close flow around a bulk `--upgrade` — gives the whole promotion one name and makes `--restore Before:ChangeSet:<slug>` the way back. This is the main reason to reach for one.
 - The user asks for a "rollback" across many Units — a prior ChangeSet (or a Tag you set at known-good time) is what you need to restore before.

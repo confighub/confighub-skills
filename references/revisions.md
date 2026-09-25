@@ -1,6 +1,6 @@
 # Revisions
 
-**Execution mode:** follow [How commands run](execution-modes.md). Revision reads and diffs are evidence. A command that creates a Revision, restores a head, approves a revision, or publishes data is a separate mutation submitted to the host permission system; native ConfigHub revision approval is policy state, not proof that another command ran.
+**Execution mode:** follow [How commands run](execution-modes.md). Revision reads and diffs are evidence. A command that creates a Revision, restores a head, approves a revision, or publishes data is a separate mutation submitted to the host permission system; an approval is an Attestation of specific revisions, not proof that another command ran.
 
 Every Unit-data mutation produces a `Revision`.
 
@@ -11,7 +11,7 @@ restore that rewinds past the first change are all the ordinary path rather than
 consequence to remember: **`--restore 1` restores empty**, not the created content. It cannot be
 backfilled, so Units created before this change keep their content on Revision 1 — check
 `cub revision list <unit> --space <s>` rather than assuming.
- A Revision's **configuration snapshot** (its configuration data and the `DataHash` over it) is immutable. The row as a whole is not: approvals, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
+ A Revision's **configuration snapshot** (its configuration data and the `DataHash` over it) is immutable. The row as a whole is not: Attestations, gates/warnings, Tags, Release linkage, and timestamps can change or accrue later. Revision reads are therefore useful audit evidence, but a current read alone cannot prove exactly what governance metadata existed at an earlier decision or execution time. Preserve timestamped receipts/events for that.
 
 Authoritative definition: `Revision` struct in the public SDK at `https://github.com/confighub/sdk` (`core/openapi/goclient-new/models.gen.go`).
 
@@ -79,7 +79,7 @@ Gates and warnings are scoped to a Revision's data, but resolution can update th
 
 | Field | Meaning |
 |---|---|
-| `ApprovedBy` | List of User UUIDs currently recorded as approving this revision. It can accrue after creation. Installed v0.2.15 help advertises several selectors; exact v0.2.21 acceptance and atomic preconditions are not source-reviewed, so inspect the result and do not claim exact reviewed-artifact binding. |
+| `Attestations` | Set of IDs of the Attestations (approvals, reviews, other claims) recorded of this revision. It accrues after creation; an Attestation is never edited, and withdrawing one records a revocation beside it. `cub revision get` lists each with its type, result, attester, and whether it was revoked. A later revision of the same Unit with the same `DataHash` is covered too when a ChangeWorkflow evaluates approvals, but is not listed here. |
 
 ### Lifecycle
 

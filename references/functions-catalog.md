@@ -91,7 +91,6 @@ All return pass/fail; none mutate. Wire them as Mutation triggers so they fail t
 | `vet-immutable`    | Immutable fields unchanged vs last applied revision. Optional `--attribute-name`. Passes if never applied.                                                                     |
 | `vet-cel`          | CEL expression validates each resource. Replaces `vet-celexpr` / deprecated `cel-validate`. See the dedicated `vet-cel` section below for the return-value shape and examples. |
 | `vet-no-merge-conflicts` | No outstanding merge conflicts on the Unit. Wire it as a Trigger to make a withheld upstream change block publish instead of sitting in `cub unit conflicts`. |
-| `vet-approvedby`   | Sufficient approvers present. Replaces deprecated `is-approved`.                                                                                                               |
 
 ## `vet-cel` — CEL validator with structured failures
 
@@ -242,4 +241,3 @@ cub function set --space "$space" --where "Slug = '$unit'" \
 - `cel-validate` → `vet-cel`.
 - `vet-celexpr` → `vet-cel` (richer structured failures: `passed`, `details`, `failed_attributes`).
 - `no-placeholders` → `vet-placeholders`.
-- `is-approved` → `vet-approvedby`.

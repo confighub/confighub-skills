@@ -1,6 +1,6 @@
 # Triggers + ValidationErrors — the platform-Space recipe
 
-**Execution mode:** follow [How commands run](execution-modes.md). Trigger, Filter, Space, Unit-approval, and remediation writes are separate exact calls to the host permission system. This pack preapproves none of them.
+**Execution mode:** follow [How commands run](execution-modes.md). Trigger, Filter, Space, and remediation writes are separate exact calls to the host permission system. This pack preapproves none of them.
 
 Triggers run functions automatically on lifecycle events (`Mutation`, `PostClone`). A validating function that returns false attaches a ValidationError, which blocks apply until the failure is resolved.
 
@@ -104,14 +104,9 @@ It fails while anything is outstanding, which becomes a ValidationError. Clear i
 dismissing the conflicts (`cub unit conflicts <slug> --apply|--dismiss`), not by dropping the
 Trigger. Worth attaching in Spaces that are promoted into regularly.
 
-## Approval gate (optional)
+## Approval
 
-```bash
-cub trigger create --space platform -o json require-approval Mutation Kubernetes/YAML \
-  vet-approvedby 1
-```
-
-Approval policy is recorded as a gate until sufficient approvers sign off.
+Approval is not a Trigger. It is recorded with `cub variant approve` as an Attestation of specific Revisions and required by a ChangeWorkflow's attestation prerequisites; see `skills/promote-release`.
 
 ## Diagnosing a blocked publish
 

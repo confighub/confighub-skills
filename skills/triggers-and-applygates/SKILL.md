@@ -1,6 +1,6 @@
 ---
 name: triggers-and-applygates
-description: 'Prepare or diagnose Trigger policy, ValidationErrors, ValidationWarnings, and native revision approval via platform Space + Filter + TriggerFilterID. Use for "block bad config", "enforce/warn", "require approval", or "why is this Unit blocked?". Not one-off validation (cub-mutate).'
+description: 'Prepare or diagnose Trigger policy, ValidationErrors, and ValidationWarnings via platform Space + Filter + TriggerFilterID. Use for "block bad config", "enforce/warn", "require approval" (routed to ChangeWorkflow attestation prerequisites in promote-release), or "why is this Unit blocked?". Not one-off validation (cub-mutate).'
 phase: decide
 allowed-tools: []
 read-capability-subset: triggers-and-applygates
@@ -8,14 +8,14 @@ read-capability-subset: triggers-and-applygates
 
 # triggers-and-applygates
 
-**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After reading current policy and exact scope, standalone use submits one requested Trigger, Filter, attachment, or native approval command to the host permission system; an external overlay may stop it before Bash.
+**Execution mode:** follow [`references/execution-modes.md`](../../references/execution-modes.md). This Skill grants no automatic tool permission. After reading current policy and exact scope, standalone use submits one requested Trigger, Filter, or attachment command to the host permission system; an external overlay may stop it before Bash.
 
 Make validation enforced, not advisory. Without Triggers, `vet-*` functions are suggestions; with Triggers, they either **block** the apply path (a ValidationError) or **flag** it without blocking (a ValidationWarning) — see [Blocking vs warning](#blocking-vs-warning-applygates-and-applywarnings).
 
 ## When to use
 
 - Setting up a new Space (or retrofitting existing Spaces) and the user wants policy to be enforced.
-- User asks "how do I make sure bad config can't be deployed?", "wire up schema validation", "add a policy", "require approval before apply".
+- User asks "how do I make sure bad config can't be deployed?", "wire up schema validation", "add a policy". For "require approval before release", explain that approval is not a Trigger and hand off to `promote-release`.
 - User is diagnosing a Unit that won't apply and the reason might be a ValidationError, or wants to see what non-blocking ValidationWarnings a Unit carries.
 - User wants a check to advise rather than block (a `--warn` Trigger producing ValidationWarnings), or to flip an existing check between blocking and advisory.
 - Migrating validation from ad-hoc `cub function vet vet-*` calls to automatic enforcement.
@@ -116,32 +116,11 @@ cub trigger create --space platform -o json no-latest Mutation Kubernetes/YAML \
 
 See `references/triggers-recipes.md` for parameterized rules (`--param=key=value` → `params.key`) and `quantity()`-based numeric policy examples. If the Filter already matches (`FunctionName LIKE 'vet-%'` + platform scope), new Triggers propagate automatically.
 
-## Approval gate
+## Approval is not a Trigger
 
-```bash
-cub trigger create --space platform -o json require-approval Mutation Kubernetes/YAML \
-  vet-approvedby 1
-```
+Approval is not Trigger policy and never produces a ValidationError. It is recorded as an Attestation of specific Revisions with `cub variant approve`, and required by a ChangeWorkflow's attestation prerequisites, which are evaluated when a promotion into a Stage, or a publish for a ChangeOrder, is attempted. A missing approval therefore shows up as that promotion or publish being refused, naming the requirement and the revision that falls short, not as a gate on the Unit. Route "require approval" and "approve this" to `promote-release`, which owns both.
 
-The Trigger above establishes policy. ConfigHub's native operation is
-`cub unit approve`. Installed v0.2.15 help advertises numeric,
-`LiveRevisionNum`, Tag, and ChangeSet selectors as well as the default head; as of
-v0.4.0 `LiveRevisionNum` is removed and `LastAppliedRevisionNum` is renamed
-`LastReleasedRevisionNum`.
-Exact server acceptance and atomic preconditions are not source-reviewed
-here, so confirm the selected form with current help and inspect its result:
-
-```text
-cub unit approve <unit> --space <space>
-cub unit approve <unit> --space <space> --revision <current-help-selector>
-```
-
-The last source-reviewed v0.2.11 profile accepted only head-oriented forms;
-that discrepancy remains historical evidence and is not projected onto the
-current server. A pre-read still does not prove atomic reviewed-artifact
-binding unless the current operation accepts and checks expected identity/hash
-values. Native approval may clear `vet-approvedby`; it does not publish or
-promote. Host permission likewise does not satisfy `vet-approvedby`.
+Host permission likewise does not satisfy an approval requirement: permission to run `cub variant approve` lets the caller record a claim, and the workflow decides whether that claim counts (eligible users, and by default not the change's authors).
 
 ## `PostClone` Triggers and protection
 
@@ -216,7 +195,7 @@ If the Unit applies but you want to know what's flagged on it, inspect `Validati
 ## Tool boundary
 
 - Host permission: reviewed read-only `cub` help/get/list and named function/evidence reads in this skill's declared capability subset; the pack preapproves no Bash call.
-- Standalone mutation steps: `cub space/trigger/filter/unit` writes, `cub unit approve`, and Unit-data mutations each use one exact host-permission call. Every Unit-data mutation must carry `--change-desc`.
+- Standalone mutation steps: `cub space/trigger/filter/unit` writes and Unit-data mutations each use one exact host-permission call. Every Unit-data mutation must carry `--change-desc`.
 - Not allowed: bypassing gates, disabling Triggers to unblock a single Unit, editing ValidationErrors by hand.
 
 ## Change description

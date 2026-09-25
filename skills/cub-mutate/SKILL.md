@@ -179,7 +179,7 @@ Consult `references/functions-catalog.md`. Examples:
 | Annotation / label       | `set-annotation` / `set-label`                                            |
 | Generic path             | `set-string-path` / `set-int-path` / `set-bool-path` / `set-starlark`     |
 
-Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-uri`, `cel-validate`, `no-placeholders`, `is-approved`.
+Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-uri`, `cel-validate`, `no-placeholders`.
 
 ### 3. Scope the target
 
@@ -289,13 +289,10 @@ Any time a logical change touches more than one Unit (a release, a defaults roll
 
 - **Lock.** While a Unit is in an open ChangeSet, another ChangeSet can't open against it — protects you from concurrent releases stepping on each other.
 - **Atomic rollback.** A single `--restore Before:ChangeSet:<name>` against the Filter rewinds every affected Unit to its pre-open state.
-- **Grouped review, not exact native approval.** The CLI-advertised non-head
-  ChangeSet approval selector is retained as `non-head-unit-approval` in the
-  no-loss inventory, not reproduced as a guaranteed current semantic here.
-  Installed v0.2.15 help advertises the selector, while exact v0.2.21 server
-  acceptance and atomic preconditions are not source-reviewed. Confirm help,
-  inspect the result, and do not claim exact reviewed-artifact binding. A
-  ChangeSet also does not select or narrow a Space Release.
+- **Grouped review.** `cub variant approve <space> --revision
+  ChangeSet:<home-space>/<slug>` approves the revisions the ChangeSet ended on
+  and reports which ones it covered (see `promote-release`). A ChangeSet does
+  not select or narrow a Space Release.
 - **Audit.** The ChangeSet's start / end Tags are recorded on every affected Unit's revision history — one name to search by, across Units and Spaces. The start tag marks each Unit's head as it was *before* the ChangeSet opened, so attaching creates no revision and a Unit that joined but never changed still rewinds with the rest.
 - **The only practical undo for a promotion.** An upgrade walks its range and records one revision per upstream revision that had an effect, so there is no single "before" number to restore to. `--restore Before:ChangeSet:<slug>` is it. See `promote-release`.
 
@@ -338,7 +335,7 @@ The `release-publish` skill maps apply/deploy intent to the exact current Space 
 ## Tool boundary
 
 - Host permission: read-only Unit/function/revision inspection in this skill's declared capability subset; the pack preapproves no Bash call.
-- Standalone mutation steps: Unit/function/run/ChangeSet writes each use one exact host-permission call; include `--change-desc` on configuration-data mutations. Native approval is head-at-execution and the stock mutation convenience paths have the pre-read race above, so do not make stronger exact-artifact claims.
+- Standalone mutation steps: Unit/function/run/ChangeSet writes each use one exact host-permission call; include `--change-desc` on configuration-data mutations. The stock mutation convenience paths have the pre-read race above, so do not make stronger exact-artifact claims.
 - Not allowed: `kubectl apply/edit/patch/delete`, controller mutation, or wholesale out-of-band replacement when a function-composed path exists. An external governance overlay may impose additional restrictions.
 
 ## Stop conditions

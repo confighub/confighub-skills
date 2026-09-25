@@ -119,15 +119,11 @@ therefore a mutable selector, not a content pin.
 
 Therefore the preview is not atomically bound to execution. In standalone mode, refresh it immediately before the one publish call, disclose the race, and submit it to the host permission system; do not claim that the preview itself was an authoritative or immutable execution subject. Stronger governance needs server-side expected-target/expected-manifest preconditions or another operation that the provider verifies atomically.
 
-## Native head approval is separate—and not exact
+## Release prerequisites and approvals
 
-Installed v0.2.15 help advertises numeric, `LiveRevisionNum`, Tag, and
-ChangeSet approval selectors; as of v0.4.0 `LiveRevisionNum` is removed and
-`LastAppliedRevisionNum` is renamed `LastReleasedRevisionNum`. Exact server
-acceptance and atomic preconditions are not source-reviewed here. Confirm the selector with current
-help, submit an explicitly requested approval as its own command, inspect the
-result, and do not claim exact reviewed-artifact binding without provider
-evidence. Approval and publication remain separate host-permission calls.
+A publish with `--revision ChangeOrder:<slug>` is a Release *for* that ChangeOrder and records it in `Release.ChangeOrderID`. When the ChangeOrder has a ChangeWorkflow, the `ReleasePrerequisites` of the Stage the Space belongs to must hold, typically required approvals. They are evaluated inside the publish transaction over the revisions the Release bundles, so they bind to exactly what ships; a refusal (HTTP 422) names the requirement and the revision that falls short and leaves no Release behind. Any other `--revision` form, including `Before:ChangeOrder:`, is not for the ChangeOrder and is not gated this way.
+
+Record a missing approval with `cub variant approve <variant-space> --change-order <app>-base/<change>` as its own host-permission call, report the revisions its response covers, then refresh the preview before publishing. Approval and publication remain separate calls; see `promote-release` for who may approve and what counts.
 
 ## Publication command shape
 

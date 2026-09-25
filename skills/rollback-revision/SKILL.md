@@ -129,7 +129,7 @@ cub unit update --patch --space <app>-<environment> \
 After verifying the restored heads, hand fresh state to `release-publish` for
 complete EffectiveReleaseSet disclosure and a separate publication decision.
 
-Each Unit head reverts to its pre-ChangeSet data. Current native approval can approve only the head at execution time and has no expected RevisionID/DataHash precondition, so it cannot prove that the revision reviewed earlier was the one approved. Neither native approval nor the restore publishes anything. The rollback Tag remains a retrieval marker.
+Each Unit head reverts to its pre-ChangeSet data. If the rollback needs approval, `cub variant approve` resolves its selector at execution and has no expected RevisionID/DataHash precondition, so compare the revisions its response covers with the restored heads that were reviewed. Neither approval nor the restore publishes anything. The rollback Tag remains a retrieval marker.
 
 ## Shape C — rollback then reapply held-back changes (merge / rebase)
 
@@ -156,7 +156,7 @@ This is an advanced path. Only reach for it when you've verified the hotfixes ac
 ## Tool boundary
 
 - Host permission: read-only Unit/revision/ChangeSet inspection; the pack preapproves no Bash call.
-- Standalone mutation steps: `cub unit update --restore`, tags, native approval, and the new Release are separate one-command host-permission calls. The restore has the pre-read race described above; `release-publish` owns exact publication scope.
+- Standalone mutation steps: `cub unit update --restore`, tags, `cub variant approve`, and the new Release are separate one-command host-permission calls. The restore has the pre-read race described above; `release-publish` owns exact publication scope.
 - Not allowed: historical runtime replay as a rollback, manually matching old data, or rolling back across applications in one scope.
 
 ## Stop conditions

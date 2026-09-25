@@ -50,7 +50,7 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **ChangeSet** — a name for a set of revisions across many Units, and the practical way to undo a promotion. See [ChangeSets](#changesets-name-the-change-you-may-need-to-undo).
 - **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one **OCI** Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. Earlier ProviderType `ConfigHub` delivery is historical and unsupported in the reviewed current profile.
 - **Worker** — backs Target or custom-function operations. Built-in OCI Release delivery uses a **server-worker entity**, so no external process runs. Run an external worker only to host custom worker functions.
-- **ValidationError** — a block on publish from a failing Trigger or an approval requirement. Fix the data or the rule; never bypass.
+- **ValidationError** — a block on publish from a failing Trigger. Fix the data or the rule; never bypass. Approvals are not ValidationErrors: they are Attestations required by a ChangeWorkflow (`promote-release`).
 
 ### Operational invariants
 
@@ -142,7 +142,7 @@ Prefer these over hand-rolling the same thing out of `cub space create` + `cub u
 
 Two Spaces hold things that are not a variant of anything:
 
-- **`platform`** — org-wide `vet-*` / CEL / approval Triggers plus the Filters that select them. Variant Spaces attach via `--trigger-filter platform/standard-vets`. No workloads. See `triggers-and-applygates`.
+- **`platform`** — org-wide `vet-*` / CEL Triggers plus the Filters that select them. Variant Spaces attach via `--trigger-filter platform/standard-vets`. No workloads. See `triggers-and-applygates`.
 - **`<component>-home`** — the team's home for cross-variant operational artifacts: ChangeSets spanning dev→prod, Tags, the component's Filter, Views, Invocations. No workload Units. Referenced cross-Space by slug: `--filter <component>-home/<slug>`, `--changeset <component>-home/<slug>`.
 
 ## Protection: which values a variant owns

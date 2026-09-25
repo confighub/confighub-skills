@@ -1,6 +1,6 @@
 ---
 name: promote-release
-description: 'Prepare Variant or ChangeSet promotion and reconcile what a merge withheld. Use for "promote to staging", "roll forward to prod", "which Units are behind?", partial promotion, "why was my override overwritten?", or outstanding merge conflicts. Covers variant upload/create/promote and protection. Not rollback (rollback-revision).'
+description: 'Prepare Variant, ChangeOrder, or ChangeSet promotion, record and require approvals, and reconcile what a merge withheld. Use for "promote to staging", "roll forward to prod", "advance this change", "approve this change", "require approval", "which Units are behind?", partial promotion, or merge conflicts. Covers variant promote/approve, ChangeWorkflow, ChangeOrder, protection. Not rollback (rollback-revision).'
 phase: act
 allowed-tools: []
 read-capability-subset: promote-release
@@ -13,6 +13,7 @@ read-capability-subset: promote-release
 Promote a release forward. There are two mechanisms; pick by scope:
 
 - **Variant spaces (space-level, preferred for the common case).** `cub variant promote <space>` reconciles a whole variant Space with the upstream Space it was cloned from — in one command. Set up with `cub variant create` (clone a Space into a variant) and, for a brand-new base, `cub variant upload` (ingest rendered manifests into a base Space).
+- **ChangeOrder through a ChangeWorkflow (named change, staged rollout).** `cub changeorder create --change-workflow` names one change, and `cub variant promote --change-order` moves it stage by stage through server-enforced gates, including required approvals. See [below](#changeorder-through-a-changeworkflow-named-change-staged-rollout).
 - **ChangeSet-wrapped bulk upgrade (fine-grained / cross-space).** Manual `cub unit update --patch --upgrade --where …` inside a ChangeSet, when you need a partial scope, a cross-Space fleet push, or explicit ChangeSet grouping, review, and set-wise restore.
 
 Before acting, confirm `cub auth status` succeeds (it calls the server's `/me` to verify the token; if it fails, ask the user to run `cub auth login`). Confirm verbs and flags with `cub <verb> --help` before composing — never invent flags. This skill hands off the cluster rollout to `release-publish`.
@@ -231,6 +232,52 @@ Then hand off to `release-publish`. A ChangeSet remains grouping/rollback eviden
 
 ---
 
+## ChangeOrder through a ChangeWorkflow (named change, staged rollout)
+
+Use this when one named change has to move base → dev → staging → prod in order, with gates between stages, or when the same operation (an image tag bump) has to run in every variant. Confirm flags with `cub changeworkflow --help`, `cub changeorder create --help`, and `cub variant promote --help`.
+
+- **ChangeWorkflow** is an entity in its own Space (never a base Space, or `cub variant create` clones it). `Stages` each select Spaces with `WhereSpace`; the server appends the ChangeOrder's `Component`, so a `WhereSpace` naming `Labels.Component` is refused. A Stage's `Prerequisites` are entry gates evaluated over **every Space of the Stage ahead**, so the first Stage's never run. Built-in: `Validated` (no ValidationErrors on the revision the change arrived at), `Released`, `Healthy`. `CustomPrerequisites` are named `cel:` expressions over `Space`, `ChangeOrder`, and `Release`. `AttestationPrerequisites` require approvals ([below](#approvals-are-attestations)). `ReleasePrerequisites` gate a publish for the ChangeOrder in the Stage's own Spaces and may name only attestation prerequisites. `Final.Prerequisites` decide when the rollout reads as `Completed`.
+- **ChangeOrder** names the change and lives in the base Space. `--change-workflow` copies the workflow's definition onto it at creation; editing the workflow later does not change a rollout already under way. Where it is headed is recorded as `InScopeSpaceIDs`: the component's Spaces (with a workflow), an explicit `--in-scope-space` list, or a server-evaluated `--where-space-field` / `--space-filter` selection that `cub changeorder update --refresh-spaces` re-evaluates. For a link-following ChangeOrder, every Space between the base and a Space in scope must be in scope, or creation is refused.
+- **`--update-type Invoke`** makes the change one Invocation run in each Space (`--invocation`, `--param`, `--where-unit`), fixed at creation, so every variant gets the same change. Use it for routine rollouts such as tag bumps; nothing is merged or cloned, and a Unit added to a Space later reads as not having the change.
+
+```text
+cub changeworkflow create --space <app>-workflows <workflow> --filename <workflow.yaml>
+cub changeorder create --space <app>-base <change> --description '<summary>' \
+  --change-workflow <app>-workflows/<workflow>
+cub variant promote --change-order <app>-base/<change> --target-stage <stage> --dry-run
+cub variant promote --change-order <app>-base/<change> --target-stage <stage>
+cub release publish --revision ChangeOrder:<app>-base/<change> <stage-space>
+cub changeorder get --space <app>-base <change>
+```
+
+Each line is its own host-permission call; the `get` and `--dry-run` are reads. Without `--target-stage`, `--change-order` advances to the next stage it has not reached. The server enforces the gates for every client, and a dry run into a gated Stage is refused with the same message as the real promotion, naming each failing prerequisite and the Space that fails it — use that as the preflight. `--force --force-reason '<reason>'` promotes past failing gates and is recorded in the ChangeOrder's `PromotionOverrides`; propose it only when the user explicitly asks to override, and name the gates it skips. `cub unit update --upgrade --change-order` is an ungated single-Unit repair path, not a promotion; do not use it to get around a gate.
+
+Read progress from `cub changeorder get`: `State` (`New`, `InProgress`, `Resolved`, `Released`, `Aborted`, `Restored`, `RestoreReleased`) is derived on read; `Stage` is recorded by the server and becomes `Completed` once `Final` holds. Undo is `cub changeorder update --aborted-reason '<why>'` followed by `cub variant demote <space> --change-order <app>-base/<change>` per Space, then a separate publish.
+
+## Approvals are Attestations
+
+An approval is an **Attestation** of type `Approval`: an immutable record, in one Space, that a user approved (`Pass`) or rejected (`Fail`) specific Revisions. It is not a Trigger and never appears in ValidationErrors. A ChangeWorkflow requires approvals through `AttestationPrerequisites` (`Count`, `FromUserIDs`, `MaxAge`, `AllowAuthors`, `IgnoreFail`); they are evaluated when a promotion or a publish for the ChangeOrder is attempted.
+
+```text
+cub variant approve --change-order <app>-base/<change> --stage <stage> --dry-run
+cub variant approve --change-order <app>-base/<change> --stage <stage> --note '<reason>'
+cub variant approve <space> --change-order <app>-base/<change> --reject --note '<reason>'
+cub attestation list --space <space>
+cub attestation revoke <attestation-id> --note '<reason>'
+```
+
+What an approval binds, and what it does not:
+
+- **Exact subjects.** The response names each covered Unit and RevisionNum, and skips Units with no matching revision rather than covering some other one. Report those subjects back; they are the approval.
+- **Selection is resolved at execution.** With `--change-order`, the revisions are the ones the ChangeOrder's server-owned end Tag marks, which `cub unit tag` cannot move. Without it, the default is each Unit's head at execution time, so a head that moves between review and the call is what gets approved: prefer `--change-order`, or a `--revision` Tag/ChangeSet selector, and compare the covered revisions with what was reviewed.
+- **Content, per Unit.** A later revision of the same Unit with the same `DataHash` stays covered; any content change is unapproved. Coverage never crosses Units or variants.
+- **Entry gates read the Stage ahead.** "prod requires two approvals" is evaluated over the revisions the change arrived at in staging, so approve with `--stage staging`. `ReleasePrerequisites` read the revisions a publish bundles, inside the publish transaction, so they bind to exactly what ships.
+- **Authors do not count** by default: anyone who wrote a revision of the change in that Space, including whoever promoted it there. Host permission to run `cub variant approve` records a claim; it does not satisfy a requirement that excludes the caller or names other users. Never suggest self-approval or `AllowAuthors` to get past a gate.
+
+Revoking records a new Attestation; nothing is edited or deleted. `cub attestation create --type <Type>` records other claims, such as a `ChangeRecord` with `--claim servicenow.com/change=<id>`, which a workflow can require the same way.
+
+---
+
 ## ChangeSet-wrapped bulk upgrade (fine-grained / cross-space)
 
 For partial scopes or a base→fleet push that spans Spaces. Wrap any multi-Unit promotion in a ChangeSet — it locks the mutation scope, groups revisions for review, and enables set-wise head restore (`--restore Before:ChangeSet:<slug>`). It does not narrow a later Space Release or create an exact native approval selector. One Unit only: skip the ChangeSet and use the `cub-mutate` proposal path.
@@ -253,7 +300,7 @@ Recompute the source EffectiveReleaseSet from `Space.ReleaseTargetID` equality. 
 
 **C. Diffs are expected** — per in-scope Unit: `cub unit update --patch --upgrade --dry-run -o mutations --space <app>-<dest> --unit <u>`. Flag surprises (image jumps >1 minor, unexpected limit/annotation churn).
 
-**D. Policy + approval** — `cub space get <app>-<dest> -o jq='{AttachedFilter: .TriggerFilter.Slug, TriggerFilterID: .Space.TriggerFilterID}'`; check for lingering gates. If `vet-approvedby` / `is-approved` is set, surface who approves and how.
+**D. Policy + approval** — `cub space get <app>-<dest> -o jq='{AttachedFilter: .TriggerFilter.Slug, TriggerFilterID: .Space.TriggerFilterID}'`; check for lingering gates. If the change is a ChangeOrder under a ChangeWorkflow, a `cub variant promote --change-order ... --dry-run` names any approval the next Stage still needs; surface who may approve and how ([Approvals are Attestations](#approvals-are-attestations)).
 
 **E. Upstream linkage matches intent** — `cub unit tree --space <app>-<dest>`; `cub link list --space <app>-<dest> --where "UpdateType = 'UpgradeUnit'"`. If a Unit points at an unexpected upstream, the promotion pulls from there — stop and confirm.
 
@@ -286,20 +333,9 @@ cub unit update --patch --space <scope-space> <scope-selector> --changeset -
 
 > `cub unit push-upgrade` is deprecated — the selector-based `--patch --upgrade` form is its replacement.
 
-### Native gate limitation + publish
+### Approval + publish
 
-If `vet-approvedby` gates the promoted revisions, do not reproduce or propose
-the non-head ChangeSet approval selector retained as
-`non-head-unit-approval` in `compatibility/no-loss-inventory.v1.json`.
-
-Installed v0.2.15 help advertises numeric, `LiveRevisionNum`, Tag, and
-ChangeSet selectors; as of v0.4.0 `LiveRevisionNum` is removed and
-`LastAppliedRevisionNum` is renamed `LastReleasedRevisionNum`. The exact
-v0.2.21 server implementation is not available
-in this checkout, so confirm the current selector with installed help and
-inspect the result. Do not claim that native approval atomically bound the
-earlier reviewed UnitID/RevisionID/DataHash set unless the provider operation
-actually accepts and verifies those expected values.
+If the destination's release needs approval, record it with `cub variant approve` as described in [Approvals are Attestations](#approvals-are-attestations), naming the revisions the ChangeSet ended on (`--revision ChangeSet:<app>-home/<slug>`) rather than each head, and report the covered revisions from its response.
 
 Next hand off to `release-publish`, which computes all Units whose TargetID equals the destination Space's `ReleaseTargetID`. If that EffectiveReleaseSet contains Units outside the promoted Filter/ChangeSet, show the broadened set and ask the user to decide before submission. The current publication command shape is:
 
@@ -307,7 +343,7 @@ Next hand off to `release-publish`, which computes all Units whose TargetID equa
 cub release publish <destination-variant-space>
 ```
 
-Do not silently combine approval, promotion, and publication. Native approval is head-racy, stock promotion does not bind the pre-read Unit state, and Release publication has no expected-manifest/target precondition. In standalone mode each explicitly requested step is one separate host-permission call after a fresh preview. Only after successful promotion and publication may `verify-apply` gather immutable Release/controller/runtime proof.
+Do not silently combine approval, promotion, and publication. An approval by head resolves at execution, stock promotion does not bind the pre-read Unit state, and Release publication has no expected-manifest/target precondition. In standalone mode each explicitly requested step is one separate host-permission call after a fresh preview. Only after successful promotion and publication may `verify-apply` gather immutable Release/controller/runtime proof.
 
 ## Rollback
 
@@ -330,7 +366,7 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 ## Tool boundary
 
 - Host permission: read-only preflight/evidence in this skill's declared capability subset; the pack preapproves no Bash call.
-- Standalone mutation steps: `cub variant upload/create/promote`, ChangeSet/Tag/Filter/Unit upgrade operations, and Release publication each use one exact host-permission call. Native approval is head-at-execution and stock promotion has the pre-read race above, so do not make stronger exact-artifact claims.
+- Standalone mutation steps: `cub variant upload/create/promote/approve/demote`, ChangeWorkflow/ChangeOrder/ChangeSet/Tag/Filter/Unit upgrade operations, Attestation writes, and Release publication each use one exact host-permission call. Stock promotion has the pre-read race above, and an approval without `--change-order` or a `--revision` selector resolves each head at execution, so do not make stronger exact-artifact claims.
 - Not allowed: retired per-Unit runtime delivery, `kubectl apply`, or controller mutation. Hand publication to `release-publish`; merge-conflict changes go through `cub-mutate`. An external governance overlay may impose additional restrictions.
 
 ## Stop conditions
@@ -359,8 +395,10 @@ Full detail: `rollback-revision` + `references/changesets.md`.
 
 - `cub variant upload --help`, `cub variant create --help`, `cub variant promote --help` — authoritative flags.
 - `references/changesets.md` — lifecycle, rollback, merge/rebase.
-- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-validation-errors`, `not-approved` recipes.
+- `references/filters-and-queries.md` — `needs-upgrade`, `unapplied-changes`, `has-validation-errors`, `approved-revisions` recipes.
+- `cub changeworkflow --help`, `cub changeorder create --help`, `cub variant approve --help`, `cub attestation --help` — authoritative flags for staged rollouts and approvals.
 - `references/cub-cli.md` — `--where` vs `--filter` vs `--changeset`, `-` sentinel for close, and "Protection and merge conflicts".
 - `references/revisions.md` — `ChangeSet:<name>`, `Before:ChangeSet:<name>`, `Tag:<name>`.
-- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, approval gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated whole-Space publication), `rollback-revision`, `verify-apply`.
+- Companion skills: `confighub-core` (home/env Space layout, one-Target-per-toolchain, config-as-data), `triggers-and-applygates` (PostClone auto-customize, validation gates), `cub-mutate` (conflict resolution), `release-publish` (fully enumerated whole-Space publication), `rollback-revision`, `verify-apply`.
+- `https://docs.confighub.com/markdown/guide/promotion.md` (ChangeWorkflows, ChangeOrders, review and approval), `.../background/entities/attestation.md`.
 - `https://docs.confighub.com/markdown/guide/variants.md`, `.../guide/advanced-merging.md`, `.../background/concepts/mutation-sources.md`, `.../background/concepts/component.md`, `.../guide/dependencies.md`.

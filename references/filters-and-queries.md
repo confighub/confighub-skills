@@ -29,7 +29,7 @@ Attribute names are **case-sensitive PascalCase** as in JSON encoding (`Slug`, `
 
 All entities: `CreatedAt`, `UpdatedAt`, `DisplayName`, `Slug`, ID fields.
 
-Unit-specific: `HeadRevisionNum`, `LastReleasedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ApprovedBy`, `ValidationErrors`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; a query naming either is rejected as an unrecognized attribute.
+Unit-specific: `HeadRevisionNum`, `LastReleasedRevisionNum` (Revision most recently captured by publication), `UpstreamRevisionNum`, `ValidationErrors`, `ToolchainType`, `TargetID`, `Labels.*`, `Annotations.*`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; a query naming either is rejected as an unrecognized attribute.
 
 Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRevisionNum` on a Unit that has an upstream.
 
@@ -66,11 +66,11 @@ Join references where the entity has a relationship: e.g., `UpstreamUnit.HeadRev
 --where "CreatedAt > '2025-01-01T00:00:00'"
 
 # Array operations
---where "LEN(ApprovedBy) > 0"
---where "ApprovedBy ? 'USER_UUID'"
 --where "LEN(ValidationErrors) > 0"
---where "ValidationErrors.my-space/require-approval/vet-approvedby = true"
---where "ValidationTriggerIDs.my-space/require-approval/vet-approvedby = 'TRIGGER_UUID'"   # gate produced by this Trigger
+--where "ValidationErrors.my-space/check-replicas/vet-cel = true"
+--where "ValidationTriggerIDs.my-space/check-replicas/vet-cel = 'TRIGGER_UUID'"   # gate produced by this Trigger
+--where "Attestations.*.Type = 'Approval'"   # on Revisions: covered by an approval
+--where "Attestations ? 'ATTESTATION_UUID'"   # on Revisions: covered by this Attestation
 
 # Revision state
 --where "HeadRevisionNum > LastReleasedRevisionNum"   # unreleased changes
@@ -158,9 +158,9 @@ These filters describe ConfigHub revision/policy state. They do **not** prove a 
 cub filter create --space "$space" unreleased-head Unit \
   --where-field "HeadRevisionNum != LastReleasedRevisionNum AND TargetID IS NOT NULL"
 
-# Current Unit revision has no recorded native approver.
-cub filter create --space "$space" not-approved Unit \
-  --where-field "LEN(ApprovedBy) = 0"
+# Revisions covered by an approval (an Attestation of Type Approval).
+cub filter create --space "$space" approved-revisions Revision \
+  --where-field "Attestations.*.Type = 'Approval'"
 
 # Blocked by one or more ValidationErrors.
 cub filter create --space "$space" has-validation-errors Unit \
@@ -204,7 +204,7 @@ cub revision list --space "$space" --where "UpdatedAt > '2026-04-01'"
 cub revision list <unit-slug> --space "$space"
 ```
 
-The full Revision data model — fields, per-path `MutationSources`, `ValidationErrors`/`ValidationWarnings` snapshots, `ApprovedBy`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
+The full Revision data model — fields, per-path `MutationSources`, `ValidationErrors`/`ValidationWarnings` snapshots, `Attestations`, `ChangeSetID`, `Tags` — is in `references/revisions.md`.
 
 ## Getter functions for content extraction
 
