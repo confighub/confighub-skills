@@ -61,7 +61,7 @@ Component
 
 The current Release path supports an OCI release Target. Bridge/per-Unit deploy verbs and earlier direct ConfigHub-provider delivery remain machine-recorded historical dispositions, never current executable paths.
 
-Installed v0.2.15 `cub unit approve --help` advertises numeric, live, Tag, and ChangeSet selectors. Exact v0.2.21 server acceptance and atomic preconditions are not source-reviewed here. Confirm current help, inspect the result, and do not claim exact reviewed-artifact binding without provider evidence. Native approval remains separate from host permission for approval, promotion, or publication commands.
+Approvals are Attestations of specific Revisions, recorded with `cub variant approve` and required by ChangeWorkflow attestation prerequisites when a ChangeOrder is promoted or released. `cub variant approve` reports exactly which revisions it covered, but resolves its selector at execution with no expected-revision precondition, so the Skills compare the covered revisions with what was reviewed. Permission to run an approval command is separate from whether the workflow counts that approval.
 
 An older source-reviewed Unit update path could compare caller-supplied head and content fields transactionally. That finding is not projected onto v0.2.21. Stock restore/function/variant-promotion command surfaces do not prove that values inspected during preview were carried into final execution. The Skills therefore re-read immediately before a standalone call, disclose the race, and avoid stronger exact-state claims. Release publication has a separate target/member/manifest race.
 
@@ -109,14 +109,14 @@ Do not infer compatibility from version strings alone when the installed commits
 | `app-config` | AppConfig → ConfigMap via Upsert/render-configmap |
 | `cub-query` | ConfigHub fleet and single-workload reads |
 | `cub-mutate` | surgical/bulk Unit mutation and ChangeSet grouping |
-| `triggers-and-applygates` | policy, gates/warnings, native revision approval |
+| `triggers-and-applygates` | policy, gates/warnings |
 | `skill-examples-bootstrap` | playground setup and walkthrough |
 | `worker-bootstrap` | built-in server-worker setup and external-worker diagnosis |
 | `target-bind` | OCI Target + `ReleaseTargetID` + Unit membership |
 | `release-publish` | whole-Space Release/read/withdraw/delete with no silent broadening and explicit provider-race disclosure |
 | `verify-apply` | immutable Release → controller → runtime proof |
 | `import` | Helm/Kustomize Component/Variant onboarding |
-| `promote-release` | Variant and ChangeSet promotion preflight/execution |
+| `promote-release` | Variant, ChangeOrder, and ChangeSet promotion; ChangeWorkflows and approvals |
 | `rollback-revision` | head-moving restore plus separate new Release |
 | `incident-management` | incident orchestration and scoped mitigation handoffs |
 

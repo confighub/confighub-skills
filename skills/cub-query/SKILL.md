@@ -317,7 +317,7 @@ Queries are read-only; the "verify" is cross-checking:
 
 ## References
 
-- `references/filters-and-queries.md` — full filter vocabulary and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-validation-errors`, `needs-upgrade`, `has-upstream`); Release/controller/runtime proof belongs to `verify-apply`.
+- `references/filters-and-queries.md` — full filter vocabulary and current revision/policy recipes (`unreleased-head`, `approved-revisions`, `has-validation-errors`, `needs-upgrade`, `has-upstream`); Release/controller/runtime proof belongs to `verify-apply`.
 - `references/cub-cli.md` — `cub unit data` / `livedata` / `livestate` / `bridgestate` semantics (see the "Data / LiveData / LiveState / BridgeState" table) and the where/where-data/output flags.
 - `references/functions-catalog.md` — getter functions by purpose (`get-container-image`, `get-container-image-reference`, `get-replicas`, `get-env-var`, `get-*-path`, `get-yq`, `get-placeholders`, etc.).
 - `cub k8s get --help`, `cub resource list --help` — the resource-browsing surfaces above; confirm flags before composing.

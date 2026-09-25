@@ -32,7 +32,7 @@ Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `wo
 
 ## Where-clauses and filters
 
-Quick sketch here; the full filter vocabulary, named-Filter entities, and current revision/policy recipes (`unreleased-head`, `not-approved`, `has-validation-errors`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md`. Release/controller/runtime proof is not a Unit Filter.
+Quick sketch here; the full filter vocabulary, named-Filter entities, and current revision/policy recipes (`unreleased-head`, `approved-revisions`, `has-validation-errors`, `needs-upgrade`, `has-upstream`) are in `references/filters-and-queries.md`. Release/controller/runtime proof is not a Unit Filter.
 
 Three distinct flags. Get them mixed up and cub either rejects the command or silently returns the wrong rows.
 
@@ -111,7 +111,7 @@ Selects destination Spaces when the filter is being bulk-created. Rarely needed;
 
 ### Attribute vocabulary for `--where` / `--where-field`
 
-Entity metadata attributes are entity-specific. Common current Unit fields include `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LastReleasedRevisionNum`, `UpstreamRevisionNum`, `ApprovedBy`, and `ValidationErrors`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; `UnappliedChanges` is not a field. Common Trigger fields include `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, and `Disabled`. Confirm with help and structured reads before composing a new query.
+Entity metadata attributes are entity-specific. Common current Unit fields include `Slug`, `DisplayName`, `SpaceID`, `Space.Slug`, `Space.Labels.<Key>`, `Labels.<Key>`, `ToolchainType`, `TargetID`, `HeadRevisionNum`, `LastReleasedRevisionNum`, `UpstreamRevisionNum`, and `ValidationErrors`; approvals are on Revisions, as `Attestations`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist; `UnappliedChanges` is not a field. Common Trigger fields include `Slug`, `Space.Slug`, `Event`, `FunctionName`, `ToolchainType`, `Validating`, and `Disabled`. Confirm with help and structured reads before composing a new query.
 
 **`ResourceType` is not a `--where` / `--where-field` attribute.** It's a resource-level pseudo-attribute under `--where-data` as `ConfigHub.ResourceType`, or the dedicated `--resource-type` flag on `cub filter create` Unit filters:
 
@@ -342,7 +342,7 @@ Do **not** use any of these to mutate. Route a requested change to the owning mu
 
 ## Permission boundary for `allowed-tools` frontmatter
 
-Version 0.4.4 grants **zero raw Bash autoallow**. Every Skill declares
+Version 0.4.5 grants **zero raw Bash autoallow**. Every Skill declares
 `allowed-tools: []`. Reads and requested changes remain available through the
 host permission system, which may prompt, allow, or deny. Do not add a plugin
 allow rule without a structured argv/effect boundary.
