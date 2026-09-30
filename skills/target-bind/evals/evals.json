@@ -13,14 +13,14 @@
       "id": 2,
       "name": "bulk-bind-by-label",
       "prompt": "All units labeled Tier=backend in myapp-staging should publish through the oci-target we already have in the shared targets space. Set that up for all of them.",
-      "expected_output": "Resolves the label selector to exact UnitIDs and verifies targets/oci-target is OCI. Shows the before/after EffectiveReleaseSet, including non-backend Units already on that Target, and asks a focused question if that changes the requested scope. For unchanged scope, submits exactly one next literal ReleaseTargetID or Unit TargetID command through Bash to the host permission system, verifies it, and treats the other command as a separate later permission decision.",
+      "expected_output": "Resolves the label selector to exact UnitIDs and verifies the puller's bot user holds View and ViewChildren on targets/oci-target. Shows the before/after EffectiveReleaseSet, including non-backend Units already on that Target, and asks a focused question if that changes the requested scope. For unchanged scope, submits exactly one next literal ReleaseTargetID or Unit TargetID command through Bash to the host permission system, verifies it, and treats the other command as a separate later permission decision.",
       "files": []
     },
     {
       "id": 3,
       "name": "do-i-need-a-worker",
       "prompt": "Do I need to run a worker process before I can create a target and apply my units?",
-      "expected_output": "Explains that current OCI Release delivery uses a server-worker entity hosted by ConfigHub, so no external process is needed. Shows the server-worker and OCI Target forms, includes the load-bearing Space.ReleaseTargetID and Unit.TargetID steps, and distinguishes external workers for custom functions. Explains in plain language that direct ConfigHub-provider Release delivery is historical and unsupported in the reviewed current profile.",
+      "expected_output": "Explains that current OCI Release delivery uses a server-worker entity hosted by ConfigHub, so no external process is needed. Shows the server-worker form and the Target create that grants its bot user View and ViewChildren, includes the load-bearing Space.ReleaseTargetID and Unit.TargetID steps, and distinguishes external workers for custom functions. Explains in plain language that direct ConfigHub-provider Release delivery is historical and unsupported in the reviewed current profile.",
       "files": []
     }
   ]

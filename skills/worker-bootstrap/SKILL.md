@@ -18,7 +18,7 @@ read-capability-subset: worker-bootstrap
 | Host custom worker functions | **external worker** process/deployment |
 | Direct ConfigHub-provider Release delivery | historical and unsupported; the reviewed Release path requires OCI |
 
-The worker is not the deployment target. `target-bind` creates the OCI Target, sets `Space.ReleaseTargetID`, and makes Unit TargetID membership explicit.
+The worker is not the deployment target, and a Target does not name one. `target-bind` creates the Target, grants the server worker's bot user View and ViewChildren on it, sets `Space.ReleaseTargetID`, and makes Unit TargetID membership explicit.
 
 ## Server worker setup (OCI Release delivery)
 
@@ -36,7 +36,7 @@ cub worker create --space <worker-space> --allow-exists --is-server-worker serve
 
 `--use-user-identity` is an optional, material authority choice; include it only when the target operation explicitly requires the requesting user's identity and bind that fact in the approval subject. Workers are not versioned Unit data, so `--change-desc` is not accepted.
 
-In standalone mode, submit this exact create once to the host permission system. After success, verify with `cub worker get` and hand the exact WorkerID to `target-bind`.
+In standalone mode, submit this exact create once to the host permission system. After success, verify with `cub worker get` and hand the exact WorkerID and its bot user (`BridgeWorker.UserID`) to `target-bind`.
 
 ## External worker for custom functions
 
