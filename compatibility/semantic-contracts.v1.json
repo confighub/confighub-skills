@@ -8,7 +8,7 @@
       "skill_id": "app-config",
       "skill_path": "skills/app-config/SKILL.md",
       "eval_path": "skills/app-config/evals/evals.json",
-      "skill_sha256": "b178409ba632545efc27f9c66f9de6ce67e0c1e7c78e82fc68f01a88229dbfb4",
+      "skill_sha256": "5fc8d09737290e8006f9faed308a1354dbcf411aae66dc47dabbaf50d2bce0c8",
       "eval_sha256": "7c99de791582f9b3cff6ffcf990ac99fa60db16e30180acfd005d659860e93cf",
       "minimum_skill_bytes": 6000,
       "required_skill_anchors": ["AppConfig/Properties", "render-configmap", "set-string-path"],
