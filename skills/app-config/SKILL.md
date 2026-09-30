@@ -148,8 +148,9 @@ cub unit data --space <space> <configmap-slug>     # the rendered ConfigMap
 Upsert appends a new immutable ConfigMap each time upstream changes. Cap retention with a Mutation Trigger on the Space:
 
 ```bash
-cub trigger create --space <space> prune-configmaps Mutation Kubernetes/YAML prune-configmaps \
-  --where-unit-field "ConfigHub.ResourceType = 'v1/ConfigMap'" --revision-history-limit 10
+cub trigger create --space <space> prune-configmaps Mutation Kubernetes/YAML \
+  --where-resource "ConfigHub.ResourceType = 'v1/ConfigMap'" \
+  -- prune-configmaps --revision-history-limit=10
 ```
 
 It groups ConfigMaps by `confighub.com/ResourceNameStableCore`, keeps the newest (tagging the latest `confighub.com/RenderRevision: Latest`), removes the rest; mutable ConfigMaps are ignored.
