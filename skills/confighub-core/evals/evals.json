@@ -13,7 +13,7 @@
       "id": 2,
       "name": "confusing-target-vs-worker",
       "prompt": "What's the difference between a Target and a Worker in ConfigHub? I keep mixing them up.",
-      "expected_output": "Distinguishes the current model: an OCI Target is the Space Release binding named by Space.ReleaseTargetID; matching Unit TargetIDs define release membership. A server-worker entity backs built-in OCI publication without an external process; an external worker hosts custom functions. Explains in plain language that direct ConfigHub-provider delivery is historical and unsupported in the reviewed current profile, then routes correctly.",
+      "expected_output": "Distinguishes the current model: a Target is the Space Release binding named by Space.ReleaseTargetID; matching Unit TargetIDs define release membership. A server-worker entity, granted View and ViewChildren on the Target, is what Argo CD/Flux pulls the OCI manifest as, without an external process; an external worker hosts custom functions. Explains in plain language that direct ConfigHub-provider delivery is historical and unsupported in the reviewed current profile, then routes correctly.",
       "files": []
     },
     {

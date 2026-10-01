@@ -17,13 +17,13 @@ A Unit `TargetID` by itself is not enough for Space Releases.
 1. `Space.ReleaseTargetID` identifies the one Target consumed by `cub release publish <space>`.
 2. The **EffectiveReleaseSet** contains only Units in that Space whose `Unit.TargetID` exactly equals the `ReleaseTargetID`.
 
-The current Release path requires an **OCI** Target. Argo CD or Flux consumes the resulting OCI manifest outside ConfigHub. A server worker entity backs the OCI Target; no external worker process is needed for this built-in delivery path.
+Releases are published as **OCI** manifests. Argo CD or Flux consumes them outside ConfigHub, authenticating as a server worker entity whose bot user is granted View and ViewChildren on the Target. A Target names no worker and carries no provider or toolchain; access to it is only that grant. No external worker process is needed for this built-in delivery path.
 
 `cub variant create ... --target ...` and `cub variant upload ... --target ...` can establish these relationships for new variants. This skill is the explicit repair/setup route for existing Spaces and for auditing ambiguous bindings.
 
 ## Historical ConfigHub-provider delivery
 
-Earlier surfaces taught a ProviderType `ConfigHub` Target for direct ConfigHub/YAML delivery. Preserve that fact only as historical context; do not present it as current Release delivery. The reviewed Release implementation rejects a non-OCI `ReleaseTargetID`, and the former per-Unit runtime apply path is retired. Explain that no current supported command provides that route.
+Earlier surfaces taught a ProviderType `ConfigHub` Target for direct ConfigHub/YAML delivery. Preserve that fact only as historical context; do not present it as current Release delivery. Targets no longer carry a ProviderType, and the former per-Unit runtime apply path is retired. Explain that no current supported command provides that route. ProviderType survives only on the Unit, where only `OCI` or unset may have a Target: a Unit with ProviderType `None` (the default for AppConfig toolchains) is never in a Release, and a ConfigHub/YAML Unit defaults to `ConfigHub`, configuration ConfigHub applies to itself.
 
 ## Read-only preflight
 
@@ -52,14 +52,17 @@ cub worker create --space <worker-space> --allow-exists --is-server-worker serve
 After the scope preview remains unchanged, submit this one command to the host
 permission system. Do not combine it with Target creation.
 
-### 2. Create an OCI Target
+### 2. Create the Target and grant the puller access
+
+Read the server worker's bot user (`BridgeWorker.UserID`) and grant it View and ViewChildren on the new Target: ViewChildren authorizes pulling the Releases published for the Target, and View lets the puller find it.
 
 ```bash
-cub target create <target-slug> '' <worker-space>/server-worker \
-  --space <target-space> --provider OCI
+cub worker get --space <worker-space> server-worker -o json
+cub target create <target-slug> --space <target-space> \
+  --permission View:<bot-user-id> --permission ViewChildren:<bot-user-id>
 ```
 
-The empty string is the Target parameters argument. Do not invent cluster/namespace parameters for the OCI Target; cluster/controller configuration is a separate integration.
+A Target takes no parameters, provider, or worker. Cluster/controller configuration is a separate integration. For an existing Target, add the same grants with `cub target update <target-slug> --space <target-space> --permission ...`.
 
 ### 3. Set the Space release Target
 
@@ -97,12 +100,12 @@ The scope preview must bind:
 
 - context/organization and compatibility profile;
 - worker ID/type;
-- target SpaceID, TargetID, slug, and ProviderType `OCI`;
+- target SpaceID, TargetID, slug, and the bot user granted View and ViewChildren on it;
 - app SpaceID and old/new `ReleaseTargetID`;
 - old/new EffectiveReleaseSet as UnitIDs;
 - exact commands and expected postconditions.
 
-Changing the Target, Space, Unit selector, resolved Unit membership, provider, or command creates a new scope. After a binding completes, rebuild the `release-publish` preview from fresh reads; permission for target binding is not permission for release publication.
+Changing the Target, Space, Unit selector, resolved Unit membership, grant, or command creates a new scope. After a binding completes, rebuild the `release-publish` preview from fresh reads; permission for target binding is not permission for release publication.
 
 ## Read-only verification
 
@@ -114,15 +117,15 @@ cub unit list --space <app-space> --select "TargetID,HeadRevisionNum,ValidationE
 
 A successful binding requires:
 
-- Target ProviderType is exactly `OCI`;
+- Target Permissions grant the puller's bot user View and ViewChildren;
 - `Space.ReleaseTargetID` equals that TargetID;
-- each intended Unit has the same TargetID;
+- each intended Unit has the same TargetID (only a Unit with ProviderType `OCI` or unset can);
 - every unintended matching Unit is surfaced, not hidden; and
 - publication remains a separate user request and host-permission call.
 
 ## Stop conditions
 
-- ConfigHub or any non-OCI provider requested for current Release delivery;
+- direct ConfigHub-provider delivery requested for current Release delivery;
 - target owner Space is unknown;
 - selector resolves differently from the reviewed UnitID set;
 - setting/changing `ReleaseTargetID` broadens release scope without explicit re-approval;

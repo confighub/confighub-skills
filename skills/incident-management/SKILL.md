@@ -89,10 +89,10 @@ This preserves the prior drift-reconciliation job without pretending the OCI ser
 
 ## Delivery and worker failures
 
-The OCI Target's server-worker entity is not an external process to restart. Diagnose separately:
+The server-worker entity a controller pulls as is not an external process to restart. Diagnose separately:
 
-- ConfigHub Release missing/rejected: `ReleaseTargetID`, OCI provider, Unit membership, tag coverage, ValidationErrors.
-- controller cannot pull/sync: OCI reference/auth/source/digest and controller logs.
+- ConfigHub Release missing/rejected: `ReleaseTargetID`, Unit membership, tag coverage, ValidationErrors.
+- controller cannot pull/sync: OCI reference/auth/source/digest, the View and ViewChildren grant to the puller's bot user on the Target, and controller logs.
 - runtime unhealthy after sync: image, probes, RBAC, dependencies, quotas, scheduling.
 - external custom-function worker failing: route read-only diagnosis to `worker-bootstrap`.
 

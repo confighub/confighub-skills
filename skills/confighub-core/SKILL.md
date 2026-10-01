@@ -48,8 +48,8 @@ ConfigHub treats configuration as **data**: fully materialized YAML stored in a 
 - **Filter** — a saved query. Filters over Units power bulk ops; Filters over Triggers attach to a Space via `TriggerFilterID`.
 - **Link** — a relationship between Units whose resources reference each other (a Deployment's `serviceAccountName` → a ServiceAccount Unit). Enables cross-Unit integrity, needs/provides, and — as an `UpgradeUnit` Link — the upstream relationship a promotion merges along.
 - **ChangeSet** — a name for a set of revisions across many Units, and the practical way to undo a promotion. See [ChangeSets](#changesets-name-the-change-you-may-need-to-undo).
-- **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one **OCI** Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. Earlier ProviderType `ConfigHub` delivery is historical and unsupported in the reviewed current profile.
-- **Worker** — backs Target or custom-function operations. Built-in OCI Release delivery uses a **server-worker entity**, so no external process runs. Run an external worker only to host custom worker functions.
+- **Target** — a delivery binding. In the current Release model, a Space's `ReleaseTargetID` names one Target and effective Units carry the same TargetID; Argo CD/Flux consumes the resulting OCI manifest. A Target names no worker; whoever pulls from it holds a grant on it. Earlier ProviderType `ConfigHub` delivery is historical and unsupported in the reviewed current profile.
+- **Worker** — an identity and a channel for custom-function operations. Built-in OCI Release delivery pulls as a **server-worker entity** whose bot user holds View and ViewChildren on the Target, so no external process runs. Run an external worker only to host custom worker functions.
 - **ValidationError** — a block on publish from a failing Trigger. Fix the data or the rule; never bypass. Approvals are not ValidationErrors: they are Attestations required by a ChangeWorkflow (`promote-release`).
 
 ### Operational invariants

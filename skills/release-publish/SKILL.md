@@ -16,7 +16,7 @@ This skill preserves ordinary-language apply/deploy jobs while using the only cu
 
 `cub release publish <space-slug>`:
 
-- reads `Space.ReleaseTargetID` and requires that Target to use ProviderType `OCI`;
+- reads `Space.ReleaseTargetID` and requires Use permission on that Target;
 - bundles the **EffectiveReleaseSet**: every Unit in that Space whose `Unit.TargetID == Space.ReleaseTargetID`;
 - captures each effective Unit at head unless `--revision <tag-slug>` is supplied, in which case the server selects the highest Revision currently carrying that mutable TagID;
 - checks ValidationErrors; and
@@ -60,7 +60,7 @@ semantic claims but does not by itself block an ordinary requested publish.
 cub target get <release-target-id> --space <target-space> -o json
 ```
 
-Bind TargetID, owning Space, slug, ProviderType, and worker identity. ProviderType must be `OCI`. Stop on a missing, ambiguous, or non-OCI Target.
+Bind TargetID, owning Space, slug, and the bot user granted View and ViewChildren on it (the identity the controller pulls as). Stop on a missing or ambiguous Target.
 
 ### 3. Compute the EffectiveReleaseSet
 
@@ -101,7 +101,7 @@ The preview contains:
 
 - context/organization and exact compatibility profile;
 - SpaceID/slug/Component/Variant;
-- ReleaseTargetID, Target identity, ProviderType, and worker identity;
+- ReleaseTargetID, Target identity, and the puller's bot user;
 - ordered EffectiveReleaseSet with every UnitID/slug/TargetID/head/selected RevisionNum/RevisionID/DataHash/toolchain/gate;
 - excluded Units and the user's originally requested subset;
 - optional TagID/slug, complete-coverage proof, and expected per-Unit TagID-to-RevisionID/RevisionNum/DataHash mapping;
@@ -203,7 +203,7 @@ withdrawal or rely on surviving Revision linkage as the only audit record.
 
 - narrower intent differs from the EffectiveReleaseSet;
 - missing/changed ReleaseTargetID, Unit membership, head/revision/hash, TagID mapping, auto-tag side effect, or gate state;
-- non-OCI Target or any bridge/per-Unit deploy request presented as current;
+- any bridge/per-Unit deploy request presented as current;
 - incomplete tag coverage when the user requires tag-only selection without the documented head fallback;
 - historical Release receipt/member reconstruction is missing for a historical-membership claim or destructive lifecycle action;
 - historical Target is inferred from current Space state rather than attested by the digest-matching OCI manifest;
