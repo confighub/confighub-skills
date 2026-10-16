@@ -147,7 +147,7 @@ Prefer immutable selectors:
 cub release get --space <variant-space> <release-id>
 cub release get --space <variant-space> --oci-reference sha256:<manifest-digest>
 cub release get --space <variant-space> --bundle-digest sha256:<bundle-digest>
-cub release list --space '*' --where "Digest = 'sha256:<bundle-digest>'" -o json
+cub release list --where "Digest = 'sha256:<bundle-digest>'" -o json
 ```
 
 `--oci-reference latest` is weaker discovery only. Keep `Digest` (bundle) and `ManifestDigest` (OCI manifest) distinct. The public Release resource has no `TargetID`, and `cub release get/list` do not expose the server's stored OCI `Manifest`. The server-generated manifest committed by `ManifestDigest` does contain `annotations["com.confighub.target.id"]`, but proving the historical Target therefore requires a trusted publication receipt that captures that manifest/annotation or a digest-addressed registry read through a reviewed catalog action. `Space.ReleaseTargetID` shows only the Space's **current** binding and must not be misreported as proof of the Target used by an older Release. Without the manifest attestation, say that the historical Target is unproven.
@@ -159,7 +159,7 @@ After separately operated publication, immediately capture a governed receipt co
 Withdrawal takes an immutable-content Release out of service but retains its record with `Published=false`; deletion permanently removes the Release row and stored bundle. Locate and bind the exact global ReleaseID first, including SpaceID, Digest, ManifestDigest, `Published`, UnitCount, the attested historical Target, the historical member manifest, and current DestroyGates:
 
 ```text
-cub release list --space '*' --where "ReleaseID = '<release-id>'" -o json
+cub release list --where "ReleaseID = '<release-id>'" -o json
 cub release get --space <actual-space> <release-id> -o json
 cub revision list --space <actual-space> \
   --where "Releases ? '<release-id>'" \

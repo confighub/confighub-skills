@@ -31,7 +31,7 @@ Users most often phrase questions in workload/application/environment terms: "ou
 
 - **Workload name** → a Unit slug (often the app or service name, sometimes with a suffix) and/or the Kubernetes `metadata.name` inside the Unit's Data.
 - **Environment / region / cluster** → a Space. Teams following the one-Space-per-deployment-boundary convention encode region either in the Space slug (e.g., `prod-use2-…`) or as a Space Label (`Region=us-east-2`).
-- **Fleet** → `--space "*"`, optionally narrowed with `--where "Space.Labels.Environment = 'prod'"`.
+- **Fleet** → no `--space`, optionally narrowed with `--where "Space.Labels.Environment = 'prod'"`.
 
 Concrete conventions (slug shapes, which Label keys are in use, whether environment is a slug prefix or a Label) belong to the team — load the `confighub-core` skill if the mapping is unclear or needs to be established. Before asking the user to restate in ConfigHub terms, try `cub space list` and `cub unit list --space <candidate>` to discover the actual names.
 
@@ -58,7 +58,7 @@ Concrete conventions (slug shapes, which Label keys are in use, whether environm
 ## Preflight gates
 
 1. `cub auth status` succeeds — it contacts the server's `/me` endpoint to confirm the token is still valid (not just local login state). If it fails, ask the user to run `cub auth login` (an interactive browser sign-in an agent cannot complete).
-2. For cross-space queries (`--space "*"`), user has read permission on the spaces of interest.
+2. For cross-space queries (no `--space`), user has read permission on the spaces of interest.
 
 ## The query toolkit
 
@@ -73,7 +73,7 @@ Two read surfaces over the resources **inside** Units. Both filter server-side, 
 cub k8s get deploy --space <space>
 
 # Two types at once, across every Space.
-cub k8s get deploy,sts --space "*"
+cub k8s get deploy,sts
 
 # Everything except CRDs in one Unit ("all" excludes CustomResourceDefinition; ask for "crd" to see those).
 cub k8s get all --space <space> --where "Unit.Slug = '<slug>'"
@@ -83,31 +83,31 @@ cub k8s get netpol --target <space>/<target>
 
 # Describe one resource, or print its stored YAML.
 cub k8s get deploy <name> --space <space> --show detail
-cub k8s get cm -n kube-system --space "*" --show data
+cub k8s get cm -n kube-system --show data
 
 # Deployments over one replica, in prod, whose Unit name ends in -backend.
-cub k8s get deploy --space "*" \
+cub k8s get deploy \
   --where "Unit.Slug LIKE '%-backend' AND Space.Labels.Environment = 'prod'" \
   --where-resource "spec.replicas > 1"
 ```
 
-Types not built in still resolve by Kind across any API group, so custom resources work: `cub k8s get externalsecrets --space "*"`. `--show` picks the view: `list` (default, one row per resource), `detail` (a `kubectl describe`-style summary), `data` (the YAML as stored). Filtering combines four independent scopes, all ANDed: `--space`/`--target`, the type/name/`--namespace`, `--where` (conditions on the resource or its containing `Unit.`/`Space.`/`Target.`), and `--where-resource` (a condition on the resource's own configuration).
+Types not built in still resolve by Kind across any API group, so custom resources work: `cub k8s get externalsecrets`. `--show` picks the view: `list` (default, one row per resource), `detail` (a `kubectl describe`-style summary), `data` (the YAML as stored). Filtering combines four independent scopes, all ANDed: `--space`/`--target`, the type/name/`--namespace`, `--where` (conditions on the resource or its containing `Unit.`/`Space.`/`Target.`), and `--where-resource` (a condition on the resource's own configuration).
 
 **`cub resource list`** is the general form — no Kubernetes vocabulary, full `--where` reach over resource metadata and data paths. Use it for toolchains other than Kubernetes, and when you want data-path predicates:
 
 ```text
 # Every Deployment in the organization.
-cub resource list --space "*" --where "ResourceType = 'apps/v1/Deployment'"
+cub resource list --where "ResourceType = 'apps/v1/Deployment'"
 
 # Resources not bound to any target yet.
-cub resource list --space "*" --where "TargetID IS NULL"
+cub resource list --where "TargetID IS NULL"
 
 # A named container's image, wherever it sits in the containers array.
-cub resource list --space "*" \
+cub resource list \
   --where "Data.spec.template.spec.containers.?name=nginx.image LIKE 'nginx:1.%'"
 
 # Any container running an image from a given registry.
-cub resource list --space "*" --where "Data.spec.template.spec.containers.*.image LIKE 'ghcr.io/%'"
+cub resource list --where "Data.spec.template.spec.containers.*.image LIKE 'ghcr.io/%'"
 
 # Include the configuration data, which the default output omits.
 cub resource list --space <space> --select "ResourceType,ResourceName,Data" -o json
@@ -176,13 +176,13 @@ See `references/cub-cli.md` (Data / LiveData / LiveState / BridgeState rows) for
 
 ```text
 # All Deployments across all spaces.
-cub unit list --space "*" --resource-type apps/v1/Deployment
+cub unit list --resource-type apps/v1/Deployment
 
 # Units labeled Environment=prod.
-cub unit list --space "*" --where "Labels.Environment = 'prod'"
+cub unit list --where "Labels.Environment = 'prod'"
 
 # Units in Spaces matching a pattern.
-cub unit list --space "*" --where "Space.Slug LIKE 'myapp-%'"
+cub unit list --where "Space.Slug LIKE 'myapp-%'"
 ```
 
 Useful current `--where` fields include `Slug`, `DisplayName`, `ToolchainType`, `Labels.<Key>`, `Space.Slug`, `Space.Labels.<Key>`, `UpstreamRevisionNum`, `HeadRevisionNum`, `LastReleasedRevisionNum` (most recently captured by publication), and `TargetID`. The bridge-era `LiveRevisionNum` and `PreviousLiveRevisionNum` no longer exist. To filter on a Kubernetes resource kind, use `--where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"`; `ResourceType` is not a metadata field. `UnappliedChanges` is not a field.
@@ -193,15 +193,15 @@ Filters on the actual configuration content using path expressions:
 
 ```text
 # Deployments with more than 5 replicas.
-cub unit list --space "*" --resource-type apps/v1/Deployment \
+cub unit list --resource-type apps/v1/Deployment \
   --where-data "spec.replicas > 5"
 
 # Any Unit containing a container image with a specific tag.
-cub unit list --space "*" \
+cub unit list \
   --where-data "spec.template.spec.containers.*.image#reference = ':v1.2.3'"
 
 # Units with an image from a specific registry.
-cub unit list --space "*" \
+cub unit list \
   --where-data "spec.template.spec.containers.*.image#uri ~ 'ghcr.io/acme/'"
 ```
 
@@ -211,12 +211,12 @@ cub unit list --space "*" \
 
 ```text
 # Get the current image for the "main" container of every Deployment.
-cub function get --space "*" --resource-type apps/v1/Deployment \
+cub function get --resource-type apps/v1/Deployment \
   get-container-image main \
   --show values
 
 # Find placeholder values that still need to be filled.
-cub function get --space "*" get-placeholders \
+cub function get get-placeholders \
   --show values
 ```
 
@@ -224,11 +224,11 @@ cub function get --space "*" get-placeholders \
 
 ```text
 # Run a validator as a one-off audit (without attaching a gate).
-cub function vet --space "*" vet-placeholders \
+cub function vet vet-placeholders \
   --show output -o jq='.Output[] | select(.Passed == false)'
 
 # Custom CEL audit with a readable message per failing resource, correlated to its Space and Unit.
-cub function vet --space "*" \
+cub function vet \
   vet-cel 'r.kind != "Deployment" || r.spec.replicas >= 2 ? {"passed": true} : {"passed": false, "details": [r.metadata.name + " has < 2 replicas"]}' \
   --show output -o jq='. as $e | .Output[] | select(.Passed == false) | {space: $e.SpaceSlug, unit: $e.UnitSlug, details: .Details}'
 ```
@@ -272,11 +272,11 @@ cub unit get <slug> --space <space> -o mutations
 cub unit conflicts <slug> --space <space>
 
 # Which variants have something outstanding, fleet-wide?
-cub unit list --space "*" --where "Conflicts.*.Reason = 'ProtectedPath'"
-cub unit list --space "*" --where "Conflicts.*.Reason = 'UnresolvedPath'"
+cub unit list --where "Conflicts.*.Reason = 'ProtectedPath'"
+cub unit list --where "Conflicts.*.Reason = 'UnresolvedPath'"
 
 # Which Units are behind their upstream?
-cub unit list --space "*" --where "UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"
+cub unit list --where "UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"
 ```
 
 `-o mutations` splits the Unit's paths into **Locally overridden (preserved during merges)** and **Eligible for upstream merges**; add `--verbose` for each value and the change that set it. Resolving a conflict is a mutation — hand it to `promote-release` or `cub-mutate`. See `references/cub-cli.md` → "Protection and merge conflicts".

@@ -183,11 +183,11 @@ The old `apply-not-completed` (`LastAppliedRevisionNum != LiveRevisionNum`) and 
 
 ```text
 # List.
-cub unit list --space "*" --filter platform/has-validation-errors
+cub unit list --filter platform/has-validation-errors
 cub unit list --space "$app_space" --filter platform/needs-upgrade
 
 # Act in bulk only on the selected set.
-cub unit update --patch --space "*" --filter platform/needs-upgrade --upgrade \
+cub unit update --patch --filter platform/needs-upgrade --upgrade \
   --change-desc 'Upgrade reviewed downstream Units to upstream head'
 ```
 
@@ -212,16 +212,16 @@ For questions `--where-data` cannot answer cleanly, a specifically reviewed gett
 
 ```text
 # Current image for every Deployment across all spaces.
-cub function get --space "*" --resource-type apps/v1/Deployment \
+cub function get --resource-type apps/v1/Deployment \
   get-container-image main \
   --quiet --show output -o jq='. as $e | .Output[] | {unit: $e.UnitSlug, space: $e.SpaceSlug, image: .Value}'
 
 # Every placeholder still present, grouped by Unit.
-cub function get --space "*" get-placeholders \
+cub function get get-placeholders \
   --quiet --show output -o jq='.Output[] | select(.Value != null)'
 
 # CEL extraction across resources.
-cub function get --space "*" --resource-type apps/v1/Deployment \
+cub function get --resource-type apps/v1/Deployment \
   get-cel 'resource.spec.template.spec.containers.map(c, {"name": c.name, "image": c.image})' \
   --quiet --show output
 ```

@@ -138,7 +138,7 @@ cub unit conflicts --space <variant-space> <unit> --dismiss --reason ProtectedPa
 Conflicts are queryable, so "which variants have something outstanding?" is one command:
 
 ```bash
-cub unit list --space "*" --where "Conflicts.*.Reason = 'ProtectedPath'"
+cub unit list --where "Conflicts.*.Reason = 'ProtectedPath'"
 ```
 
 To make outstanding conflicts **block** a publish rather than sit there, attach `vet-no-merge-conflicts` as a Trigger (see `triggers-and-applygates`).
@@ -329,7 +329,7 @@ cub unit update --patch --space <scope-space> <scope-selector> --changeset -
 **Selectors:**
 
 - **Env-by-env:** `--space <app>-<dest> --filter <app>-home/<app>-app --where "Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"`.
-- **Base → fleet (cross-space):** `--space "*" --where "Unit.UpstreamUnitID = '<base-uuid>' AND Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"`.
+- **Base → fleet (cross-space):** no `--space`, and `--where "Unit.UpstreamUnitID = '<base-uuid>' AND Unit.UpstreamRevisionNum < UpstreamUnit.HeadRevisionNum"`.
 
 > `cub unit push-upgrade` is deprecated — the selector-based `--patch --upgrade` form is its replacement.
 

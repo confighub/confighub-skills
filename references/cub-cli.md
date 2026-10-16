@@ -25,10 +25,8 @@ Common entities: `space`, `unit`, `revision`, `trigger`, `filter`, `target`, `wo
 
 ## Context
 
-- `cub context get` — show current space + user.
-- `cub context set --space <slug>` — set default space.
-- `--space <slug>` on any command overrides the default.
-- `--space "*"` queries across all spaces (powerful for read / query; use carefully for mutations).
+- `cub context get` — show the current context: server, organization and user. A context names no Space.
+- `--space <slug>` runs a command in one Space. Without it, a list or bulk command spans every Space you can see (powerful for read / query; use carefully for mutations), and a single entity is named as `<space>/<slug>`. `--space "*"` means the same as leaving it out.
 
 ## Where-clauses and filters
 
@@ -42,8 +40,8 @@ Filters on entity metadata fields. Used by `cub unit list`, `cub trigger list`, 
 
 ```
 cub unit list --where "Slug LIKE 'app-%'"
-cub unit list --space "*" --where "Space.Labels.Environment = 'production'"
-cub trigger list --space "*" --where "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
+cub unit list --where "Space.Labels.Environment = 'production'"
+cub trigger list --where "Space.Slug = 'platform' AND FunctionName LIKE 'vet-%'"
 ```
 
 ### `--unit <slug|uuid>[,…]` — slug-targeting for bulk-only commands
@@ -56,7 +54,7 @@ cub function vet|get|set --space <space> --unit a,b,c -- <function> [args]
 cub run --space <space> --unit <slug> set-image <container> <image>
 ```
 
-- Accepts UUIDs as well as slugs. For `--space "*"` (cross-space), slugs aren't unique across spaces — pass UUIDs, or use `--where` against other metadata.
+- Accepts UUIDs as well as slugs. Across Spaces (no `--space`), slugs aren't unique across spaces — pass UUIDs, or use `--where` against other metadata.
 - Composes with `--where` and `--where-data` via AND when you need to narrow further: `--unit <slug> --where "TargetID IS NOT NULL"`.
 - For anything other than a slug/UUID list (label selection, `TargetID IS NOT NULL`, `LEN(ValidationErrors) > 0`, etc.), stay on `--where`.
 
@@ -89,10 +87,10 @@ cub filter create --space <space> -o json replicas-hot Unit --where-data "spec.r
 
 ```
 # Every Unit holding a Deployment anywhere (per-resource match, bundles included).
-cub unit list --space "*" --where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"
+cub unit list --where-data "ConfigHub.ResourceType = 'apps/v1/Deployment'"
 
 # Every Unit that contains a specific named resource.
-cub unit list --space "*" --where-data "ConfigHub.ResourceName = 'hello/hello-app'"
+cub unit list --where-data "ConfigHub.ResourceName = 'hello/hello-app'"
 ```
 
 These work where any other `--where-data` works (unit/function commands, Unit Filters), and compose with YAML-path predicates via `AND`.
@@ -230,11 +228,11 @@ Reach for `.Output[]` to iterate the underlying list, and `.SpaceSlug` / `.UnitS
 
 ```text
 # Validation results with unit identity. `. as $e` binds the envelope so it's visible inside .Output[].
-cub function vet --space "*" vet-cel '<expr>' --show output \
+cub function vet vet-cel '<expr>' --show output \
   -o jq='. as $e | .Output[] | select(.Passed == false) | {space: $e.SpaceSlug, unit: $e.UnitSlug, details: .Details}'
 
 # Replica count per Deployment.
-cub function get --space "*" --resource-type apps/v1/Deployment get-replicas --show output \
+cub function get --resource-type apps/v1/Deployment get-replicas --show output \
   -o jq='{space: .SpaceSlug, unit: .UnitSlug, replicas: .Output[0].Value}'
 ```
 
@@ -302,7 +300,7 @@ Conflicts are queryable, and `vet-no-merge-conflicts` turns them into a Validati
 Trigger:
 
 ```bash
-cub unit list --space "*" --where "Conflicts.*.Reason = 'ProtectedPath'"
+cub unit list --where "Conflicts.*.Reason = 'ProtectedPath'"
 ```
 
 ## Function commands — `vet` / `get` / `set` preferred over `do`
