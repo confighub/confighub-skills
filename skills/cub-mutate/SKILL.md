@@ -118,7 +118,7 @@ Where a template would express variation with conditional logic or per-environme
 `--dry-run` takes the same selection bulk execution does, so an invocation can be checked against every variant before it becomes history:
 
 ```bash
-cub function set --space "*" --where "Slug = 'deployment'" --dry-run -o mutations \
+cub function set --where "Slug = 'deployment'" --dry-run -o mutations \
   -- set-container-image web ghcr.io/acme/app:v2
 ```
 
@@ -147,7 +147,7 @@ Before an invocation becomes part of the history:
 2. Is there a purpose-built function for this change?
 3. If it takes a path, does the path select by merge key?
 4. Does it select precisely the resources and paths that should be affected?
-5. Has it been dry-run across `--space "*"`, and were the variants reporting no mutation accounted for?
+5. Has it been dry-run across every Space, without `--space`, and were the variants reporting no mutation accounted for?
 6. Does it rename a merge key that other invocations refer to?
 7. If it sets a value the variant owns, does it pass `--protect` — and if it is automation applying a value decided elsewhere, does it leave the flag off?
 
@@ -159,7 +159,7 @@ Ask only what you need to compose the mutation:
 
 - Which Unit(s)? (Single slug, a `--where` filter, or a `--where-data` filter.)
 - What field or behavior changes?
-- Which Space? (Single Space vs. `--space "*"` for fleet-wide.)
+- Which Space? (`--space <slug>` for one Space, or no `--space` for fleet-wide.)
 
 Keep answers in the shared transcript and reduce them to a short safe
 model-authored `--change-desc` summary; never interpolate them verbatim.
@@ -185,7 +185,7 @@ Deprecated — don't reach for: `set-image`, `set-image-reference`, `set-image-u
 
 - Single unit: `--space <space> --unit <slug>` (bulk-only commands like `cub function set` / `cub run` accept `--unit` as a shortcut for `--where "Slug = '<slug>'"`; also takes a comma list or UUID).
 - Many units by metadata: `--space <space> --where "Labels.Environment = 'prod'"`.
-- Cross-space: `--space "*" --where …`.
+- Cross-space: no `--space`, and `--where …`.
 - By content: `--where-data "spec.replicas > 5"`.
 
 ### 4. Compose change description
@@ -342,7 +342,7 @@ The `release-publish` skill maps apply/deploy intent to the exact current Space 
 
 - The change would fill the Unit with a placeholder the user didn't ask for.
 - The chosen function isn't in `cub function list` for `Kubernetes/YAML` (wrong name — re-check via `cub function list` / `cub function explain`).
-- The operation is across `--space "*"` and the user hasn't confirmed the blast radius.
+- The operation spans every Space (no `--space`) and the user hasn't confirmed the blast radius.
 - A ValidationError attaches due to validation failure. Stop, diagnose (via `triggers-and-applygates`), and fix the data — do not bypass.
 
 ## Verify chain
