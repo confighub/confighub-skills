@@ -1,7 +1,0 @@
-{
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "//": "Optional settings example. It deliberately grants no Bash auto-allow; the host permission policy decides standalone reads and mutations. Copying this file is not required for installation.",
-  "permissions": {
-    "allow": []
-  }
-}

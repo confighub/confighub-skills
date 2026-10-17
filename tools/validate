@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Check the skills in this repository.
+
+Each skill's frontmatter names its directory, describes it, and grants no tools. Each
+`bash` code block holds one command, so that what a host asks permission for is one
+command. The plugin manifests and hook output are valid JSON. When cub is on PATH (or
+CUB names it), every cub command the skills show is checked against its help: the
+command has to exist and take each flag it is shown with.
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent
+problems = []
+
+
+def problem(where, message):
+    problems.append(f"{where}: {message}")
+
+
+def bash_blocks(text):
+    """Yields (line number, commands) for each ```bash block."""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        if lines[i].strip() == "```bash":
+            start, commands, current = i + 1, [], ""
+            i += 1
+            while i < len(lines) and lines[i].strip() != "```":
+                line = lines[i].strip()
+                if line and not line.startswith("#"):
+                    current += line
+                    if current.endswith("\\"):
+                        current = current[:-1] + " "
+                    else:
+                        commands.append(current)
+                        current = ""
+                i += 1
+            yield start, commands
+        i += 1
+
+
+def inline_commands(text):
+    return re.findall(r"`((?:[A-Z_]+=\S+ )*cub [^`]+)`", text)
+
+
+def check_skill(skill_dir):
+    skill_file = skill_dir / "SKILL.md"
+    where = skill_file.relative_to(root)
+    if not skill_file.is_file():
+        problem(where, "missing")
+        return []
+    parsed = subprocess.run([root / "tools" / "parse-frontmatter", skill_file], capture_output=True, text=True)
+    if parsed.returncode != 0:
+        problem(where, parsed.stderr.strip())
+        return []
+    frontmatter = json.loads(parsed.stdout)
+    if frontmatter.get("name") != skill_dir.name:
+        problem(where, f"name {frontmatter.get('name')!r} is not the directory name {skill_dir.name!r}")
+    if not isinstance(frontmatter.get("description"), str) or not frontmatter["description"].strip():
+        problem(where, "description is missing")
+    if frontmatter.get("allowed-tools") != []:
+        problem(where, "allowed-tools has to be [], so the skill preapproves no tool")
+
+    text = skill_file.read_text()
+    commands = []
+    for line, block in bash_blocks(text):
+        if len(block) != 1:
+            problem(f"{where}:{line}", f"a bash block has to hold one command, not {len(block)}")
+        commands += [(f"{where}:{line}", command) for command in block]
+    commands += [(str(where), command) for command in inline_commands(text)]
+    return commands
+
+
+def check_cub_command(cub, where, command):
+    words = command.split()
+    while words and re.fullmatch(r"[A-Z_]+=\S*", words[0]):
+        words.pop(0)
+    if not words or words[0] != "cub":
+        return
+    path = []
+    for word in words[1:]:
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", word):
+            break
+        path.append(word)
+    help_run = subprocess.run([cub, *path, "--help"], capture_output=True, text=True,
+                              env={**os.environ, "CONFIGHUB_AGENT": "1"})
+    help_text = help_run.stdout + help_run.stderr
+    if path and path[0] == "helm" and help_run.returncode != 0:
+        print(f"{where}: skipped, the cub-helm plugin is not installed: {command}")
+        return
+    # An unknown subcommand prints its parent's help, whose usage line names only the parent.
+    # A plugin's usage line leaves out the leading "cub".
+    usage = re.search(r"^Usage:\s*\n\s*(.*)$", help_text, re.MULTILINE)
+    usage_line = usage.group(1) if usage else ""
+    if not usage_line.startswith("cub "):
+        usage_line = "cub " + usage_line
+    used = " ".join(["cub", *path])
+    if help_run.returncode != 0 or not (usage_line + " ").startswith(used + " "):
+        problem(where, f"{used} is not a cub command: {command}")
+        return
+    for flag in re.findall(r"(?<!\S)(--[a-z][a-z0-9-]*)", command):
+        if not re.search(rf"{re.escape(flag)}[\s=]", help_text):
+            problem(where, f"{used} has no flag {flag}: {command}")
+
+
+commands = []
+skill_dirs = sorted(p for p in (root / "skills").iterdir() if p.is_dir())
+if not skill_dirs:
+    problem("skills", "no skills")
+for skill_dir in skill_dirs:
+    commands += check_skill(skill_dir)
+
+for manifest in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", "hooks/hooks.json"]:
+    try:
+        json.loads((root / manifest).read_text())
+    except (OSError, ValueError) as e:
+        problem(manifest, f"not valid JSON: {e}")
+hook = subprocess.run([root / "hooks" / "skill-reminder.sh"], capture_output=True, text=True)
+try:
+    json.loads(hook.stdout)
+except ValueError:
+    problem("hooks/skill-reminder.sh", "does not print valid JSON")
+
+cub = os.environ.get("CUB") or shutil.which("cub")
+if cub:
+    version = subprocess.run([cub, "version"], capture_output=True, text=True).stdout
+    client = re.search(r"^\s+Version:\s+(\S+)", version, re.MULTILINE)
+    print(f"checking cub commands against {cub} ({client.group(1) if client else 'unknown version'})")
+    for where, command in commands:
+        check_cub_command(cub, where, command)
+else:
+    print("cub is not on PATH, so the cub commands were not checked")
+
+if problems:
+    print("\n".join(problems), file=sys.stderr)
+    sys.exit(1)
+print(f"{len(skill_dirs)} skill(s), {len(commands)} cub command(s): no problems")

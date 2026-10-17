@@ -5,7 +5,7 @@
     "email": "hello@confighub.com"
   },
   "metadata": {
-    "description": "Standalone ConfigHub operating skills. The host permission policy decides exact scoped reads and mutations; no tool is preapproved, and optional governance overlays may impose stricter policy."
+    "description": "ConfigHub skills for agents: look up the installed cub's help and the current docs instead of recalling them."
   },
   "plugins": [
     {
