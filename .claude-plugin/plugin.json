@@ -1,7 +1,7 @@
 {
   "name": "confighub-skills",
-  "description": "Standalone ConfigHub operating skills: the host permission policy decides reads and exact scoped changes; Pilot may add optional stricter governance; the pack grants no automatic tool permission.",
-  "version": "0.4.5",
+  "description": "ConfigHub for agents: look up the installed cub's help and the current docs instead of recalling them, and change configuration safely.",
+  "version": "0.5.0",
   "author": {
     "name": "ConfigHub"
   },
