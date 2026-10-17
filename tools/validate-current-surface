@@ -62,8 +62,11 @@ EOF
 )
 
 actual_skills=$(find skills -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
-expected_skill_dirs=$(printf '%s\n%s\n' "$expected_skills" cub-apply | sort)
-test "$actual_skills" = "$expected_skill_dirs" || fail "skill IDs differ from the 15 canonical skills plus one compatibility stub"
+# confighub-lookup says how to look up current behavior rather than carrying it, so it has no
+# evals, typed dispositions or read subset of its own.
+lookup_skill=confighub-lookup
+expected_skill_dirs=$(printf '%s\n%s\n%s\n' "$expected_skills" cub-apply "$lookup_skill" | sort)
+test "$actual_skills" = "$expected_skill_dirs" || fail "skill IDs differ from the 15 canonical skills plus the lookup skill and one compatibility stub"
 
 expected_evals=$(printf '%s\n' "$expected_skills" | sed 's|$|/evals/evals.json|')
 actual_evals=$(find skills -path '*/evals/evals.json' -type f | sed 's|^skills/||' | sort)
@@ -224,6 +227,9 @@ printf '%s' "$command_frontmatter" | jq -e '.["allowed-tools"] == []' >/dev/null
 stub_frontmatter=$(./tools/parse-frontmatter skills/cub-apply/SKILL.md) || fail "cub-apply Skill frontmatter invalid"
 printf '%s' "$stub_frontmatter" | jq -e '.name == "cub-apply" and .["allowed-tools"] == [] and .["read-capability-subset"] == "none" and .["compatibility-stub"] == true' >/dev/null || fail "cub-apply Skill is not the stable no-tools identity"
 rg -q 'release-publish' commands/cub-apply.md skills/cub-apply/SKILL.md || fail "cub-apply compatibility paths do not route to release-publish"
+lookup_frontmatter=$(./tools/parse-frontmatter "skills/$lookup_skill/SKILL.md") || fail "$lookup_skill Skill frontmatter invalid"
+printf '%s' "$lookup_frontmatter" | jq -e --arg skill "$lookup_skill" '.name == $skill and (.description | type == "string" and length > 0) and .["allowed-tools"] == [] and (has("compatibility-stub") | not)' >/dev/null || fail "frontmatter policy mismatch for $lookup_skill"
+rg -q 'references/execution-modes\.md' "skills/$lookup_skill/SKILL.md" || fail "$lookup_skill does not inherit execution modes"
 
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -393,7 +399,7 @@ if $release_mode; then
   exit 1
 fi
 
-printf '%s\n' 'static compatibility surface: PASS (0.4.5; 15 canonical skills + 1 compatibility identity, 77 evals, 38 trigger families, 68 capability dispositions, 80 eval dispositions)'
+printf '%s\n' 'static compatibility surface: PASS (0.4.5; 15 canonical skills + 1 lookup skill + 1 compatibility identity, 77 evals, 38 trigger families, 68 capability dispositions, 80 eval dispositions)'
 printf 'standalone state: %s; release readiness: %s\n' "$installed_status" "$release_readiness"
 printf '%s\n' 'commands: host permission decides one exact call; the pack contributes zero automatic tool permission; optional overlays may impose stricter policy.'
 printf '%s\n' 'claim limits: local hashes are drift sentinels only; provider atomicity, behavioral selection, protected release binding, controller convergence, and runtime state require separate evidence.'

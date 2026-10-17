@@ -100,7 +100,7 @@ Prerequisites depend on the read/evidence path:
 
 Do not infer compatibility from version strings alone when the installed commits differ from the profile.
 
-## Skills (15 canonical IDs + one compatibility stub)
+## Skills (15 canonical IDs, the lookup skill, and one compatibility stub)
 
 | Skill | Preserved job |
 | --- | --- |
@@ -120,7 +120,9 @@ Do not infer compatibility from version strings alone when the installed commits
 | `rollback-revision` | head-moving restore plus separate new Release |
 | `incident-management` | incident orchestration and scoped mitigation handoffs |
 
-`cub-apply` is the sixteenth directory only because direct historical Skill invocation must remain observable for one release. It grants no tools, has no operational eval surface, and routes to `release-publish`; it is not a second implementation.
+`confighub-lookup` sits alongside these. Rather than carrying ConfigHub's behavior, it tells an agent where to look it up for the installed release: `cub`'s help and agent overview (`CONFIGHUB_AGENT=1 cub --help-overview`), `cub <entity> explain`, `cub function explain`, and the docs as raw markdown at `https://docs.confighub.com/markdown/index.md`. It also states the operating rules that do not change between releases. Load it with any of the skills above when a command, flag or concept may have changed since the release they were reviewed against.
+
+`cub-apply` is a separate directory only because direct historical Skill invocation must remain observable for one release. It grants no tools, has no operational eval surface, and routes to `release-publish`; it is not a second implementation.
 
 ## Helm and Kustomize onboarding
 
@@ -139,7 +141,7 @@ commands/                      one-release deprecated cub-apply slash-command sh
 compatibility/                 exact profile + typed no-loss/semantic/artifact inventories
 hooks/                         routing reminder only; no Bash permission hook
 references/                    shared operating knowledge
-skills/                        15 canonical skills/eval fixtures + no-tools cub-apply identity stub
+skills/                        15 canonical skills/eval fixtures, the confighub-lookup skill, and the no-tools cub-apply identity stub
 tools/                         drift, policy, installed-state, stream/frontmatter, and compatibility validators
 ```
 
