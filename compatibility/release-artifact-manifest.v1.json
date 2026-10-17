@@ -4,9 +4,9 @@
   "algorithm": "sha256(canonical lines: <normalized-mode><space><file-sha256><two spaces><relative-path><newline>)",
   "self_exclusion": "compatibility/release-artifact-manifest.v1.json",
   "source_tree": {
-    "file_count": 263,
-    "path_set_sha256": "2d935cd25d43dbab7497782f0e289de3fa9f4956cd0a9d9479a2e4792bbb966d",
-    "content_tree_sha256": "a2df38b881298ebad3927a4a22cd88df73361f224c13d256af719415e7a66ad7"
+    "file_count": 264,
+    "path_set_sha256": "df3ba43c569667915ae627a564ab0fcf631ef507e994da3d828deb012ac91f38",
+    "content_tree_sha256": "c4f773ba930a24db01d90b370fee2a349d4a9d52d8ad3ef53cef08febc4dc2df"
   },
   "plugin_package": {
     "roots": [
@@ -17,9 +17,9 @@
       "references",
       "skills"
     ],
-    "file_count": 64,
-    "path_set_sha256": "a2235fec273db507204518b3db5c33767fb1c61dc74ce9d091c4fdd917126acc",
-    "content_tree_sha256": "0f283c24b6f8de282d70980689a0e234ad2d1b40cb1290abfe8a493a0654c63e"
+    "file_count": 65,
+    "path_set_sha256": "8bf5fd60c495b8e0189bbef3ef2ff65a326ddd7d1a9397404371b56cf575eec2",
+    "content_tree_sha256": "151f1f7e20ba831eee715cac63e272b937484da12bd937d9adbe93ff4ace6d47"
   },
   "authority": {
     "classification": "LOCAL_DRIFT_SENTINEL_ONLY",
