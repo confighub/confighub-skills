@@ -16,25 +16,27 @@ The skill's commands and docs paths were last checked against ConfigHub **v0.8.2
 
 `cub` must be on `PATH`, and `cub auth status` must succeed. `kubectl`, `argocd` and `flux` are optional, for reading what is running. Helm onboarding needs the `cub-helm` plugin: `cub plugin install confighub/cub-helm`.
 
-Install from the ConfigHub marketplace with these two commands:
+Install with these two commands:
 
 ```bash
 claude plugin marketplace add https://github.com/confighub/confighub-skills
 ```
 
 ```bash
-claude plugin install confighub-skills@confighub
+claude plugin install confighub-skills@confighub-skills
 ```
 
 Update an existing installation with these two commands, then restart Claude Code:
 
 ```bash
-claude plugin marketplace update confighub
+claude plugin marketplace update confighub-skills
 ```
 
 ```bash
-claude plugin update confighub-skills@confighub
+claude plugin update confighub-skills@confighub-skills
 ```
+
+Earlier installations registered this repository under the marketplace name `confighub`, which now belongs to [`confighubai/confighub-mini-plugin`](https://github.com/confighubai/confighub-mini-plugin). Remove that older registration once with `claude plugin uninstall confighub-skills@confighub` and `claude plugin marketplace remove confighub`, then run the two install commands above so both plugins can coexist.
 
 ## How commands run
 
