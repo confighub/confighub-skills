@@ -8,13 +8,15 @@ ConfigHub changes quickly, so the plugin doesn't try to carry ConfigHub's behavi
 - `cub <entity> explain` for entity fields, and `cub function explain` for functions;
 - the ConfigHub docs as raw markdown, starting at `https://docs.confighub.com/markdown/index.md`.
 
+When both plugins are installed, app requests go to the app plugin first. This lookup handles questions about platform commands and shared resources.
+
 It also gives the rules for changing configuration safely, which don't change between releases. Examples: preview with `--dry-run`, run one literal command per change, and never bypass a safeguard.
 
 The skill's commands and docs paths were last checked against ConfigHub **v0.8.29**.
 
 ## Install or update
 
-`cub` must be on `PATH`, and `cub auth status` must succeed. `kubectl`, `argocd` and `flux` are optional, for reading what is running. Helm onboarding needs the `cub-helm` plugin: `cub plugin install confighub/cub-helm`.
+To look up CLI commands, put `cub` on `PATH`. Sign in to the relevant hub when working on shared resources. For local app setup and settings history, start with the [app plugin](https://github.com/confighubai/confighub-mini-plugin#readme). `kubectl`, `argocd` and `flux` are optional, for reading what is running. Helm onboarding needs the `cub-helm` plugin: `cub plugin install confighub/cub-helm`.
 
 Install with these two commands:
 

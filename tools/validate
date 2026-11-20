@@ -124,11 +124,32 @@ for manifest in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"
             problem(manifest, "use confighub-skills for this marketplace; confighub supplies the mini plugin")
     except (OSError, ValueError) as e:
         problem(manifest, f"not valid JSON: {e}")
-hook = subprocess.run([root / "hooks" / "skill-reminder.sh"], capture_output=True, text=True)
-try:
-    json.loads(hook.stdout)
-except ValueError:
-    problem("hooks/skill-reminder.sh", "does not print valid JSON")
+hook_program = root / "hooks" / "skill-reminder.sh"
+has_jq = shutil.which("jq") is not None
+for prompt, first_skill, daytona in [
+    ("let's deploy an app to daytona, and use confighub", "confighub:app-with-confighub", True),
+    ("Build my first app with ConfigHub", "confighub:app-with-confighub", False),
+    ("Explain cub mini get", "confighub:app-with-confighub", False),
+    ("What does cub target get do?", "confighub-lookup", False),
+    ("When does a Release on my shared hub reach a target?", "", False),
+    ("Find the unit in our shared ConfigHub space", "confighub-lookup", False),
+    ("Change the heading", "", False),
+]:
+    hook = subprocess.run(
+        [hook_program], input=json.dumps({"prompt": prompt, "cwd": "/projects/confighub/daytona"}),
+        capture_output=True, text=True, check=True,
+    )
+    try:
+        reminder = json.loads(hook.stdout).get("hookSpecificOutput", {}).get("additionalContext", "")
+    except ValueError:
+        problem("hooks/skill-reminder.sh", "does not return valid JSON")
+        continue
+    if has_jq:
+        choices = [name for name in ("confighub:app-with-confighub", "confighub-lookup") if name in reminder]
+        if choices != ([first_skill] if first_skill else []) or ("starter-daytona.md" in reminder) != daytona:
+            problem("hooks/skill-reminder.sh", f"wrong routing for {prompt!r}")
+    elif "app-with-confighub skill first" not in reminder:
+        problem("hooks/skill-reminder.sh", "missing app-first fallback without jq")
 
 cub = os.environ.get("CUB") or shutil.which("cub")
 if cub:
