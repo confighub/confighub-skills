@@ -179,7 +179,7 @@ rather than looked up.
 | Manage ConfigHub's own entities as documents | `background/concepts/backing-units.md`, `guide/backing-units.md` | `cub apply`, `cub <entity> edit` |
 | Dependencies between Units | `guide/dependencies.md`, `background/concepts/needsprovides.md` | `cub link` |
 | Identity and automation | `guide/service-accounts.md`, `background/concepts/authorization.md` | `cub serviceaccount`, `cub channel` |
-| Custom functions | `guide/external-functions.md`, `guide/workers.md` | `cub worker` |
+| Custom functions | `guide/external-functions.md`, `guide/workers.md` | `cub function`, `cub --help-overview` |
 | Use ConfigHub from an agent | `guide/agents.md`, `guide/cli-usage.md` | `cub --help-overview` |
 
 If a page is missing, find the current one in `sitemap.json` rather than guessing a path.

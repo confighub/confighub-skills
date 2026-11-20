@@ -1,7 +1,7 @@
 {
   "name": "confighub-skills",
   "description": "ConfigHub for agents: look up the installed cub's help and the current docs instead of recalling them, and change configuration safely.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "author": {
     "name": "ConfigHub"
   },
