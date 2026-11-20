@@ -119,7 +119,9 @@ for skill_dir in skill_dirs:
 
 for manifest in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", "hooks/hooks.json"]:
     try:
-        json.loads((root / manifest).read_text())
+        data = json.loads((root / manifest).read_text())
+        if manifest.endswith("/marketplace.json") and data.get("name") != "confighub-skills":
+            problem(manifest, "use confighub-skills for this marketplace; confighub supplies the mini plugin")
     except (OSError, ValueError) as e:
         problem(manifest, f"not valid JSON: {e}")
 hook = subprocess.run([root / "hooks" / "skill-reminder.sh"], capture_output=True, text=True)

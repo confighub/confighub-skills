@@ -36,7 +36,14 @@ claude plugin marketplace update confighub-skills
 claude plugin update confighub-skills@confighub-skills
 ```
 
-Earlier installations registered this repository under the marketplace name `confighub`, which now belongs to [`confighubai/confighub-mini-plugin`](https://github.com/confighubai/confighub-mini-plugin). Remove that older registration once with `claude plugin uninstall confighub-skills@confighub` and `claude plugin marketplace remove confighub`, then run the two install commands above so both plugins can coexist.
+### Moving an older installation
+
+Run `claude plugin marketplace list` and check which repository supplies `confighub`.
+
+- If it points to `confighubai/confighub-mini-plugin`, keep it and use the install commands above to add the skills alongside it.
+- If it points to `confighub/confighub-skills`, remove the old skills registration first. If the old plugin is installed, run `claude plugin uninstall --keep-data confighub-skills@confighub`. Then run `claude plugin marketplace remove confighub` and use the install commands above.
+
+With both installed, `claude plugin list` shows `confighub@confighub` and `confighub-skills@confighub-skills` as enabled.
 
 ## How commands run
 
