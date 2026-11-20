@@ -1,6 +1,6 @@
 # confighub-skills
 
-A Claude Code plugin that helps an agent work with [ConfigHub](https://docs.confighub.com/) and its CLI, `cub`.
+A Claude Code reference for the [full ConfigHub platform](https://docs.confighub.com/) and its CLI, `cub`. For app development, install the [ConfigHub mini plugin](https://github.com/confighubai/confighub-mini-plugin#readme) on its own.
 
 ConfigHub changes quickly, so the plugin doesn't try to carry ConfigHub's behavior. Its one skill, `confighub-lookup`, tells the agent where to look up how the installed release behaves:
 
@@ -8,7 +8,7 @@ ConfigHub changes quickly, so the plugin doesn't try to carry ConfigHub's behavi
 - `cub <entity> explain` for entity fields, and `cub function explain` for functions;
 - the ConfigHub docs as raw markdown, starting at `https://docs.confighub.com/markdown/index.md`.
 
-When both plugins are installed, app requests go to the app plugin first. This lookup handles questions about platform commands and shared resources.
+The reference opens for platform commands and questions about shared resources. For everyday app work it stays quiet.
 
 It also gives the rules for changing configuration safely, which don't change between releases. Examples: preview with `--dry-run`, run one literal command per change, and never bypass a safeguard.
 
@@ -59,7 +59,7 @@ The skill grants no tool permissions (`allowed-tools: []`). The host's permissio
 
 ```text
 .claude-plugin/   plugin and marketplace manifests
-hooks/            a reminder to load the skill for ConfigHub work
+hooks/            a reminder for full ConfigHub platform questions
 skills/           the confighub-lookup skill
 tools/            validation
 ```
