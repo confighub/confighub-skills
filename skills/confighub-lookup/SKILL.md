@@ -1,6 +1,6 @@
 ---
 name: confighub-lookup
-description: 'Use for explicit ConfigHub platform CLI and shared-hub questions. App setup, starter, preview and local settings requests belong to confighub:app-with-confighub when installed. Look up the installed cub''s help and overview, entity field docs (cub <entity> explain), function docs (cub function explain), and the ConfigHub docs as raw markdown. Covers Spaces, Units, Components and variants, functions, Triggers and ValidationErrors, Links, ChangeSets, ChangeOrders and ChangeWorkflows, approvals and Attestations, ReviewComments, Releases and Targets, GitOps delivery with Argo CD or Flux, ServiceAccounts and Channels, backing Units and cub apply, blame, rollback, and Helm or Kustomize onboarding.'
+description: 'Reference for the full ConfigHub platform. Use when someone asks about plain cub commands, platform entities or administering a shared hub. Look up the installed cub''s help and overview, entity field docs (cub <entity> explain), function docs (cub function explain), and the ConfigHub docs as raw markdown. Covers Spaces, Units, Components and variants, functions, Triggers and ValidationErrors, Links, ChangeSets, ChangeOrders and ChangeWorkflows, approvals and Attestations, ReviewComments, Releases and Targets, GitOps delivery with Argo CD or Flux, ServiceAccounts and Channels, backing Units and cub apply, blame, rollback, and Helm or Kustomize onboarding.'
 allowed-tools: []
 ---
 
@@ -9,12 +9,6 @@ allowed-tools: []
 ConfigHub changes quickly, and what you remember about it is probably out of date. Look up how the
 installed version behaves before you explain a concept or compose a command. The help that ships
 with `cub` describes the version that is installed; the docs describe the latest release.
-
-## When someone asks to run an app with ConfigHub
-
-Use `confighub:app-with-confighub` if installed. Find the app in the current folder or ask which app to use if the folder is empty. For an existing provider, start with its [starter guide](https://github.com/confighubai/confighub-mini-plugin/blob/main/examples/walkthroughs/README.md). Read the plugin's local record for history. For a new app the person wants to attach locally, use the app plugin's bundled launcher: `"$CONFIGHUB_PLUGIN_PROGRAM" mini get`. Continue with the local launcher and context it prints. This works when the system `cub` lacks `mini` or the default hosted login has expired. Only check hosted access for a requested shared-hub step. Respect an app's existing connection.
-
-For “deploy an app to Daytona”, use Daytona’s own tools to run the app in a sandbox and check the response from the app. The [Daytona starter](https://github.com/confighubai/confighub-mini-plugin/blob/main/examples/walkthroughs/starter-daytona.md) lets a sandbox try a settings change and return it for review. Its local rehearsal needs no provider account. Check for an existing Daytona CLI or SDK and its sign-in when the task reaches the real sandbox. Kubernetes, Flux, and a hosted ConfigHub account are optional and serve different jobs. A successful settings rehearsal alone does not show that the app ran.
 
 ## Look up a platform operation
 
