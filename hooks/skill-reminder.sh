@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Only one reminder per prompt. If the app plugin is absent its public guide
 # is still usable. Never echo the prompt, file paths or account information.
-app="Use the installed confighub:app-with-confighub skill first for this app request. If the app plugin is absent, use its public guide at https://github.com/confighubai/confighub-mini-plugin. Local app settings and previews need no hosted ConfigHub login."
+app="Use the installed confighub:app-with-confighub skill first for this app request. If the app plugin is absent, use its public guide at https://github.com/confighubai/confighub-mini-plugin. Read local history directly from the plugin. For an unattached app when the person has asked to use ConfigHub, run the installed app plugin launcher (CONFIGHUB_PLUGIN_PROGRAM) with arguments mini get. Use the local cub launcher and context it prints. A plain cub without mini on PATH is expected. Do not check or request hosted cub auth login as part of local app setup. Preserve any existing app connection."
 daytona=" Daytona runs the app using its CLI or SDK. The ConfigHub Daytona starter tries a setting and returns a proposal for review. Read https://github.com/confighubai/confighub-mini-plugin/blob/main/examples/walkthroughs/starter-daytona.md. Use the sandbox the owner chooses and keep its existing access and auto-stop settings. Use the existing Daytona sign-in if available. Verify the app response separately."
 platform="Use confighub-lookup for this platform question. Read the installed cub help before composing a command. Check sign-in only for an operation that needs the selected server."
 remind() {
@@ -16,7 +16,7 @@ case "$event" in
   *) printf '{}\n'; exit 0 ;;
 esac
 if ! command -v jq >/dev/null; then
-  remind "For app work, use the installed confighub:app-with-confighub skill first. Reserve confighub-lookup for explicit platform CLI and shared-hub questions."
+  remind "For app work, use the installed confighub:app-with-confighub skill first. For new local setup, its CONFIGHUB_PLUGIN_PROGRAM launcher provides mini get even when the plain cub has no mini command. Shared-hub login is only needed for a shared operation. Use confighub-lookup for platform CLI questions."
   exit 0
 fi
 prompt=$(jq -er '.prompt | select(type == "string")' <<<"$event" 2>/dev/null) || { printf '{}\n'; exit 0; }

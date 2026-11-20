@@ -146,6 +146,8 @@ for prompt, first_skill, daytona in [
     except ValueError:
         problem("hooks/skill-reminder.sh", "does not return valid JSON")
         continue
+    if daytona and has_jq and not all(word in reminder for word in ("CONFIGHUB_PLUGIN_PROGRAM", "mini get")):
+        problem("hooks/skill-reminder.sh", "give the app plugin launcher when cub on PATH lacks mini")
     if has_jq:
         choices = [name for name in ("confighub:app-with-confighub", "confighub-lookup") if name in reminder]
         if choices != ([first_skill] if first_skill else []) or ("starter-daytona.md" in reminder) != daytona:
