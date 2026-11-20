@@ -23,12 +23,15 @@ prompt=$(jq -er '.prompt | select(type == "string")' <<<"$event" 2>/dev/null) ||
 product='(^|[^[:alnum:]_])(confighub|cub)([^[:alnum:]_]|$)'
 if ! [[ $prompt =~ $product ]]; then printf '{}\n'; exit 0; fi
 
-app_job='(^|[^[:alnum:]_])(apps?|applications?|preview|settings?|starter|plugin|sandbox)([^[:alnum:]_]|$)'
+app_job='(^|[^[:alnum:]_])(apps?|applications?|preview|settings?|starter|plugin|sandbox|daytona)([^[:alnum:]_]|$)'
 app_verb='(^|[^[:alnum:]_])(build|create|make|attach|keep|deploy|run|try|stage|ship|start|remember|record|show)([^[:alnum:]_]|$)'
 platform_topic='(^|[^[:alnum:]_])(cub|shared hub|service accounts?|changeorders?|changeworkflows?|units?|spaces?|targets?|releases?|api)([^[:alnum:]_]|$)'
 
-if [[ $prompt == *"cub mini"* || $prompt == *"/confighub:"* || ( $prompt =~ $app_job && $prompt =~ $app_verb ) ]]; then
-  if [[ $prompt == *daytona* ]]; then app+="$daytona"; fi
+cli_help='(^|[^[:alnum:]_])cub[[:space:]]+[[:alnum:]_-]+[[:space:]]+([[:alnum:]_-]+[[:space:]]+)?--help'
+if [[ $prompt == *daytona* ]]; then app+="$daytona"; fi
+if [[ $prompt != *"cub mini"* && $prompt =~ $cli_help ]]; then
+  remind "$platform"
+elif [[ $prompt == *"cub mini"* || $prompt == *"/confighub:"* || ( $prompt =~ $app_job && $prompt =~ $app_verb ) ]]; then
   remind "$app"
 elif [[ $prompt =~ $platform_topic ]]; then
   remind "$platform"

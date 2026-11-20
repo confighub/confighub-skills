@@ -128,6 +128,8 @@ hook_program = root / "hooks" / "skill-reminder.sh"
 has_jq = shutil.which("jq") is not None
 for prompt, first_skill, daytona in [
     ("let's deploy an app to daytona, and use confighub", "confighub:app-with-confighub", True),
+    ("Use cub to deploy to Daytona", "confighub:app-with-confighub", True),
+    ("Show cub target get --help for this app", "confighub-lookup", False),
     ("Build my first app with ConfigHub", "confighub:app-with-confighub", False),
     ("Explain cub mini get", "confighub:app-with-confighub", False),
     ("What does cub target get do?", "confighub-lookup", False),
